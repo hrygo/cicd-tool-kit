@@ -6,7 +6,6 @@
 package skill
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -22,6 +21,8 @@ var (
 	ErrMissingVersion = errors.New("missing required field: version")
 	// ErrInvalidSkillName is returned when a skill name is invalid.
 	ErrInvalidSkillName = errors.New("invalid skill name")
+	// ErrSkillNotFound is returned when a skill is not found in the registry.
+	ErrSkillNotFound = errors.New("skill not found")
 	// ErrInvalidInputType is returned when an input type is invalid.
 	ErrInvalidInputType = errors.New("invalid input type")
 	// ErrDuplicateInput is returned when duplicate input names are found.
@@ -63,11 +64,11 @@ type InputDef struct {
 
 // RuntimeOptions contains skill execution options.
 type RuntimeOptions struct {
-	Temperature    float64            `yaml:"temperature,omitempty"`
-	MaxTokens      int                `yaml:"max_tokens,omitempty"`
-	BudgetTokens   int                `yaml:"budget_tokens,omitempty"`
-	TopP           float64            `yaml:"top_p,omitempty"`
-	TimeoutSeconds int                `yaml:"timeout,omitempty"`
+	Temperature    float64 `yaml:"temperature,omitempty"`
+	MaxTokens      int     `yaml:"max_tokens,omitempty"`
+	BudgetTokens   int     `yaml:"budget_tokens,omitempty"`
+	TopP           float64 `yaml:"top_p,omitempty"`
+	TimeoutSeconds int     `yaml:"timeout,omitempty"`
 
 	// Thinking contains thinking-related options.
 	Thinking map[string]any `yaml:"thinking,omitempty"`
@@ -85,14 +86,14 @@ type ToolsConfig struct {
 
 // Metadata contains the skill metadata from frontmatter.
 type Metadata struct {
-	Name        string          `yaml:"name"`
-	Version     string          `yaml:"version"`
-	Description string          `yaml:"description,omitempty"`
-	Author      string          `yaml:"author,omitempty"`
-	License     string          `yaml:"license,omitempty"`
-	Options     RuntimeOptions  `yaml:"options,omitempty"`
-	Tools       *ToolsConfig    `yaml:"tools,omitempty"`
-	Inputs      []InputDef      `yaml:"inputs,omitempty"`
+	Name        string         `yaml:"name"`
+	Version     string         `yaml:"version"`
+	Description string         `yaml:"description,omitempty"`
+	Author      string         `yaml:"author,omitempty"`
+	License     string         `yaml:"license,omitempty"`
+	Options     RuntimeOptions `yaml:"options,omitempty"`
+	Tools       *ToolsConfig   `yaml:"tools,omitempty"`
+	Inputs      []InputDef     `yaml:"inputs,omitempty"`
 }
 
 // Skill represents an AI skill.
@@ -132,12 +133,14 @@ func (m *Metadata) Validate() error {
 		}
 		inputNames[input.Name] = true
 
-		// Validate type
+		// Validate type (supports array and object types)
 		validTypes := map[InputType]bool{
 			InputTypeString: true,
 			InputTypeInt:    true,
 			InputTypeFloat:  true,
 			InputTypeBool:   true,
+			InputTypeArray:  true,
+			InputTypeObject: true,
 		}
 		if input.Type != "" && !validTypes[input.Type] {
 			return ErrInvalidInputType
@@ -145,13 +148,14 @@ func (m *Metadata) Validate() error {
 	}
 
 	// Validate options
-	if m.Options != nil {
-		if m.Options.Temperature < 0 || m.Options.Temperature > 1 {
-			return fmt.Errorf("temperature must be between 0 and 1")
-		}
-		if m.Options.MaxTokens < 0 {
-			return fmt.Errorf("max_tokens must be non-negative")
-		}
+	if m.Options.Temperature < 0 || m.Options.Temperature > 2 {
+		return fmt.Errorf("%w: temperature must be between 0 and 2", ErrInvalidInputValue)
+	}
+	if m.Options.TopP < 0 || m.Options.TopP > 1 {
+		return fmt.Errorf("%w: top_p must be between 0 and 1", ErrInvalidInputValue)
+	}
+	if m.Options.MaxTokens < 0 {
+		return fmt.Errorf("%w: max_tokens must be non-negative", ErrInvalidInputValue)
 	}
 
 	return nil
@@ -219,12 +223,12 @@ func (s *Skill) ResolveInputValues(provided map[string]any) (map[string]any, err
 
 // FullID returns the full skill identifier in the format "name@version".
 func (s *Skill) FullID() string {
-	return fmt.Sprintf("%s@%s", s.Name, s.Version)
+	return fmt.Sprintf("%s@%s", s.Name(), s.Version())
 }
 
 // String returns a string representation of the skill.
 func (s *Skill) String() string {
-	return fmt.Sprintf("Skill{name=%s, version=%s}", s.Name, s.Version)
+	return fmt.Sprintf("Skill{name=%s, version=%s}", s.Name(), s.Version())
 }
 
 // ValidatePath checks if the skill file exists.
@@ -235,54 +239,6 @@ func (s *Skill) ValidatePath() error {
 	if _, err := os.Stat(s.File); errors.Is(err, os.ErrNotExist) {
 		return ErrFileNotFound
 	}
-	return nil
-}
-
-// Validate validates the skill metadata.
-func (m *Metadata) Validate() error {
-	if m.Name == "" {
-		return ErrMissingName
-	}
-	if err := ValidateName(m.Name); err != nil {
-		return err
-	}
-	if m.Version == "" {
-		return ErrMissingVersion
-	}
-
-	// Validate options
-	if m.Options.Temperature < 0 || m.Options.Temperature > 2 {
-		return fmt.Errorf("%w: temperature must be between 0 and 2", ErrInvalidInputValue)
-	}
-	if m.Options.TopP < 0 || m.Options.TopP > 1 {
-		return fmt.Errorf("%w: top_p must be between 0 and 1", ErrInvalidInputValue)
-	}
-
-	// Validate inputs
-	seenInputs := make(map[string]bool)
-	for i, input := range m.Inputs {
-		if input.Name == "" {
-			return fmt.Errorf("%w: input at index %d has empty name", ErrInvalidInputValue, i)
-		}
-		if seenInputs[input.Name] {
-			return fmt.Errorf("%w: '%s'", ErrDuplicateInput, input.Name)
-		}
-		seenInputs[input.Name] = true
-
-		// Validate input type
-		validTypes := map[InputType]bool{
-			InputTypeString:  true,
-			InputTypeInt:     true,
-			InputTypeFloat:   true,
-			InputTypeBool:    true,
-			InputTypeArray:   true,
-			InputTypeObject:  true,
-		}
-		if !validTypes[input.Type] {
-			return fmt.Errorf("%w: '%s'", ErrInvalidInputType, input.Type)
-		}
-	}
-
 	return nil
 }
 
@@ -337,13 +293,6 @@ func SkillFile(baseDir, name string) string {
 	return filepath.Join(baseDir, name, "SKILL.md")
 }
 
-// Skill represents an AI skill.
-// This will be fully implemented in SPEC-SKILL-01.
-type Skill struct {
-	Metadata Metadata
-	Prompt   string
-}
-
 // Name returns the skill name.
 func (s *Skill) Name() string {
 	return s.Metadata.Name
@@ -352,129 +301,4 @@ func (s *Skill) Name() string {
 // Version returns the skill version.
 func (s *Skill) Version() string {
 	return s.Metadata.Version
-}
-
-// FullID returns the full skill identifier in format "name@version".
-func (s *Skill) FullID() string {
-	return fmt.Sprintf("%s@%s", s.Metadata.Name, s.Metadata.Version)
-}
-
-// String returns a string representation of the skill.
-func (s *Skill) String() string {
-	return fmt.Sprintf("Skill{name=%s, version=%s}", s.Metadata.Name, s.Metadata.Version)
-}
-
-// GetInput returns the input definition by name, or nil if not found.
-func (s *Skill) GetInput(name string) *InputDef {
-	for i := range s.Metadata.Inputs {
-		if s.Metadata.Inputs[i].Name == name {
-			return &s.Metadata.Inputs[i]
-		}
-	}
-	return nil
-}
-
-// ResolveInputValues merges provided values with defaults and validates required inputs.
-func (s *Skill) ResolveInputValues(provided map[string]any) (map[string]any, error) {
-	result := make(map[string]any)
-
-	// Start with defaults
-	for _, input := range s.Metadata.Inputs {
-		if !input.Required && input.Default != nil {
-			result[input.Name] = input.Default
-		}
-	}
-
-	// Override with provided values
-	for k, v := range provided {
-		// Check if input is defined
-		inputDef := s.GetInput(k)
-		if inputDef == nil {
-			return nil, fmt.Errorf("unknown input: %s", k)
-		}
-		result[k] = v
-	}
-
-	// Check required inputs
-	for _, input := range s.Metadata.Inputs {
-		if input.Required {
-			if _, ok := result[input.Name]; !ok {
-				return nil, fmt.Errorf("missing required input: %s", input.Name)
-			}
-		}
-	}
-
-	return result, nil
-}
-
-// ValidatePath checks if the skill file exists.
-func (s *Skill) ValidatePath() error {
-	if s.Metadata.File == "" {
-		return nil // Empty path is valid (skill may not have a file)
-	}
-	if _, err := os.Stat(s.Metadata.File); err != nil {
-		if os.IsNotExist(err) {
-			return ErrFileNotFound
-		}
-		return err
-	}
-	return nil
-}
-
-// GetDefaultValues returns a map of default values for optional inputs.
-func (s *Skill) GetDefaultValues() map[string]any {
-	result := make(map[string]any)
-	for _, input := range s.Metadata.Inputs {
-		if !input.Required && input.Default != nil {
-			result[input.Name] = input.Default
-		}
-	}
-	return result
-}
-
-// Execute runs the skill.
-func (s *Skill) Execute(ctx context.Context, input string) (string, error) {
-	// TODO: Implement per SPEC-SKILL-01
-	return "", nil
-}
-
-// ValidateName validates that a skill name follows kebab-case convention.
-func ValidateName(name string) error {
-	if name == "" {
-		return ErrInvalidSkillName
-	}
-
-	// Must be lowercase
-	if strings.ToLower(name) != name {
-		return fmt.Errorf("invalid skill name: must be lowercase")
-	}
-
-	// Must contain only lowercase letters, numbers, and hyphens (no dots, underscores, etc.)
-	for _, r := range name {
-		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-') {
-			return fmt.Errorf("invalid character '%c' in skill name", r)
-		}
-	}
-
-	// Must not start or end with hyphen
-	if strings.HasPrefix(name, "-") || strings.HasSuffix(name, "-") {
-		return ErrInvalidSkillName
-	}
-
-	// Must not have consecutive hyphens
-	if strings.Contains(name, "--") {
-		return ErrInvalidSkillName
-	}
-
-	return nil
-}
-
-// SkillDir returns the directory path for a skill.
-func SkillDir(baseDir, name string) string {
-	return filepath.Join(baseDir, name)
-}
-
-// SkillFile returns the SKILL.md file path for a skill.
-func SkillFile(baseDir, name string) string {
-	return filepath.Join(SkillDir(baseDir, name), "SKILL.md")
 }

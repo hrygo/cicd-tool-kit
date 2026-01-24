@@ -144,8 +144,8 @@ content`,
 				t.Errorf("LoadFromFile() Prompt = %v, want %v", skill.Prompt, tt.wantPrompt)
 			}
 
-			if skill.Metadata.File != tmpFile {
-				t.Errorf("LoadFromFile() File = %v, want %v", skill.Metadata.File, tmpFile)
+			if skill.File != tmpFile {
+				t.Errorf("LoadFromFile() File = %v, want %v", skill.File, tmpFile)
 			}
 		})
 	}

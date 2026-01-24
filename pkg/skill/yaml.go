@@ -46,7 +46,7 @@ func parseFrontmatter(content string) (Metadata, string, map[string]any, error) 
 	// Parse options if present
 	if optsRaw, ok := raw["options"]; ok {
 		if optsMap, ok := optsRaw.(map[string]any); ok {
-			metadata.Options = &RuntimeOptions{
+			metadata.Options = RuntimeOptions{
 				BudgetTokens:   getInt(optsMap, "budget_tokens"),
 				TimeoutSeconds: getInt(optsMap, "timeout") + getInt(optsMap, "timeout_seconds"),
 				Temperature:    getFloat(optsMap, "temperature"),
@@ -138,4 +138,14 @@ func getFloat(m map[string]any, key string) float64 {
 		}
 	}
 	return 0
+}
+
+// getString extracts a string value from map.
+func getString(m map[string]any, key string) string {
+	if v, ok := m[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
 }

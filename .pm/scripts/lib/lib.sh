@@ -3,7 +3,7 @@
 # 提供 JSON 写入、输出等通用功能
 
 # 确保只加载一次
-if [[ -n "$__PM_LIB_LOADED__" ]]; then
+if [[ "${__PM_LIB_LOADED__:-false}" == "true" ]]; then
     return 0
 fi
 __PM_LIB_LOADED__=true
@@ -30,6 +30,12 @@ pm_init_paths
 # 使用 fd 9 作为锁文件描述符，避免与标准流冲突
 # 使用超时机制避免死锁
 
+# 检测是否有 flock 命令
+PM_HAS_FLOCK=false
+if command -v flock >/dev/null 2>&1; then
+    PM_HAS_FLOCK=true
+fi
+
 # 获取排他锁
 # 用法: pm_lock_acquire || exit 1
 pm_lock_acquire() {
@@ -38,19 +44,23 @@ pm_lock_acquire() {
     # 确保锁文件存在
     touch "$STATE_FILE_LOCK"
 
-    # 尝试获取锁 (使用 flock 的超时机制)
-    flock -w "$timeout" 9 || {
-        echo '{"status": "error", "error": "无法获取文件锁，可能被其他进程持有"}' >&2
-        return 1
-    }
+    if [[ "$PM_HAS_FLOCK" == "true" ]]; then
+        # 尝试获取锁 (使用 flock 的超时机制)
+        flock -w "$timeout" 9 || {
+            echo '{"status": "error", "error": "无法获取文件锁，可能被其他进程持有"}' >&2
+            return 1
+        }
+    fi
+    # 如果没有 flock，跳过锁（单用户本地开发环境可接受）
 
-    # 成功获取锁，保持文件描述符打开
     return 0
 }
 
 # 释放锁
 pm_lock_release() {
-    flock -u 9 2>/dev/null || true
+    if [[ "$PM_HAS_FLOCK" == "true" ]]; then
+        flock -u 9 2>/dev/null || true
+    fi
 }
 
 # ============================================
@@ -101,7 +111,8 @@ pm_json_output() {
         --arg a "$action" \
         --arg s "$status" \
         --arg ts "$timestamp" \
-        '{action: $a, status: $s, data: $data, timestamp: $ts}'
+        --argjson d "$data" \
+        '{action: $a, status: $s, data: $d, timestamp: $ts}'
 }
 
 # ============================================

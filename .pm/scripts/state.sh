@@ -151,10 +151,15 @@ cmd_assign() {
     pm_lock_release
 
     # 4. 输出结果
-    local spec_info dev_info
-    spec_info=$(jq -c ".specs.\"$spec_id\"" "$STATE_FILE")
-    dev_info=$(jq -c ".developers.\"$dev_id\"" "$STATE_FILE")
-    pm_json_output "assign" "success" "{\"spec\": $spec_info, \"developer\": $dev_info}"
+    local output
+    output=$(jq -n \
+        --arg a "assign" \
+        --arg s "success" \
+        --arg ts "$(pm_now_iso)" \
+        --argjson spec "$(jq -c ".specs.\"$spec_id\"" "$STATE_FILE")" \
+        --argjson dev "$(jq -c ".developers.\"$dev_id\"" "$STATE_FILE")" \
+        '{action: $a, status: $s, data: {spec: $spec, developer: $dev}, timestamp: $ts}')
+    echo "$output"
 }
 
 # ============================================
@@ -198,10 +203,15 @@ cmd_complete() {
 
     pm_lock_release
 
-    local spec_info dev_info
-    spec_info=$(jq -c ".specs.\"$spec_id\"" "$STATE_FILE")
-    dev_info=$(jq -c ".developers.\"$dev_id\"" "$STATE_FILE")
-    pm_json_output "complete" "success" "{\"spec\": $spec_info, \"developer\": $dev_info}"
+    local output
+    output=$(jq -n \
+        --arg a "complete" \
+        --arg s "success" \
+        --arg ts "$(pm_now_iso)" \
+        --argjson spec "$(jq -c ".specs.\"$spec_id\"" "$STATE_FILE")" \
+        --argjson dev "$(jq -c ".developers.\"$dev_id\"" "$STATE_FILE")" \
+        '{action: $a, status: $s, data: {spec: $spec, developer: $dev}, timestamp: $ts}')
+    echo "$output"
 }
 
 # ============================================

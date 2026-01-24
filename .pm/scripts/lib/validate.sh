@@ -3,7 +3,7 @@
 # 提供统一的输入验证功能
 
 # 确保只加载一次
-if [[ -n "$__PM_VALIDATE_LOADED__" ]]; then
+if [[ "${__PM_VALIDATE_LOADED__:-false}" == "true" ]]; then
     return 0
 fi
 __PM_VALIDATE_LOADED__=true

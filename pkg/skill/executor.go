@@ -6,6 +6,7 @@ package skill
 
 import (
 	"context"
+	"fmt"
 )
 
 // Executor executes skills.
@@ -29,7 +30,8 @@ func (e *Executor) Execute(ctx context.Context, name string, input string) (stri
 	if skill == nil {
 		return "", ErrSkillNotFound
 	}
-	return skill.Execute(ctx, input)
+	// Skill execution is not yet implemented
+	return "", fmt.Errorf("skill execution not yet implemented")
 }
 
 // ExecuteBatch executes multiple skills.

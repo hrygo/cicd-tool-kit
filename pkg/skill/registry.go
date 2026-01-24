@@ -5,13 +5,12 @@
 package skill
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 )
 
 var (
-	// ErrSkillNotFound is returned when a skill is not found in the registry.
-	ErrSkillNotFound = errors.New("skill not found")
 	// ErrInvalidSkill is returned when trying to register an invalid skill.
 	ErrInvalidSkill = errors.New("invalid skill: name is required")
 )
@@ -42,7 +41,7 @@ func (r *Registry) Register(s *Skill) error {
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.skills[s.Name] = s
+	r.skills[s.Name()] = s
 	return nil
 }
 

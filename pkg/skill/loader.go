@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // LoaderOption configures a Loader.
@@ -30,7 +29,7 @@ func WithSkipInvalid(skip bool) LoaderOption {
 
 // Loader loads skills from SKILL.md files.
 type Loader struct {
-	skillDirs  []string
+	skillDirs   []string
 	skipInvalid bool
 }
 
@@ -56,6 +55,7 @@ func (l *Loader) LoadFromFile(path string) (*Skill, error) {
 		return nil, fmt.Errorf("failed to read skill file: %w", err)
 	}
 
+	// Use parseFrontmatter from yaml.go which returns (Metadata, string, map[string]any, error)
 	metadata, prompt, _, err := parseFrontmatter(string(content))
 	if err != nil {
 		return nil, err
@@ -137,8 +137,8 @@ func (l *Loader) discoverInDir(dir string) (map[string]*Skill, []error) {
 		}
 
 		// Verify skill name matches directory name
-		if skill.Name != skillName {
-			err := fmt.Errorf("skill name '%s' does not match directory name '%s'", skill.Name, skillName)
+		if skill.Name() != skillName {
+			err := fmt.Errorf("skill name '%s' does not match directory name '%s'", skill.Name(), skillName)
 			if l.skipInvalid {
 				errs = append(errs, fmt.Errorf("skipping %s: %w", skillName, err))
 				continue
@@ -160,8 +160,8 @@ func (l *Loader) LoadByName(name string) (*Skill, error) {
 		skill, err := l.LoadFromFile(skillFile)
 		if err == nil {
 			// Verify skill name matches
-			if skill.Name != name {
-				return nil, fmt.Errorf("skill name '%s' does not match requested name '%s'", skill.Name, name)
+			if skill.Name() != name {
+				return nil, fmt.Errorf("skill name '%s' does not match requested name '%s'", skill.Name(), name)
 			}
 			return skill, nil
 		}
@@ -191,39 +191,4 @@ func (l *Loader) LoadFromDir(_ string) ([]*Skill, error) {
 // Deprecated: Use LoadFromFile instead.
 func (l *Loader) loadSkillMD(path string) (*Skill, error) {
 	return l.LoadFromFile(path)
-}
-
-// parseFrontmatter parses a SKILL.md file content, extracting metadata and prompt.
-// Returns the metadata, the prompt content, the byte offset of the frontmatter end, and any error.
-func parseFrontmatter(content string) (Metadata, string, int, error) {
-	var metadata Metadata
-
-	// Check for frontmatter delimiter
-	if !strings.HasPrefix(content, "---") {
-		return metadata, "", 0, fmt.Errorf("%w: no frontmatter delimiter found", ErrInvalidFrontmatter)
-	}
-
-	// Find the end of frontmatter
-	endIndex := strings.Index(content[3:], "---")
-	if endIndex == -1 {
-		return metadata, "", 0, fmt.Errorf("%w: unclosed frontmatter delimiter", ErrInvalidFrontmatter)
-	}
-	endIndex += 3 // Account for the opening "---"
-
-	// Extract frontmatter YAML
-	frontmatter := content[3:endIndex]
-	if strings.TrimSpace(frontmatter) == "" {
-		return metadata, "", 0, fmt.Errorf("%w: empty frontmatter", ErrInvalidFrontmatter)
-	}
-
-	// Parse YAML
-	if err := parseYAML(frontmatter, &metadata); err != nil {
-		return metadata, "", 0, fmt.Errorf("%w: %w", ErrInvalidFrontmatter, err)
-	}
-
-	// Extract prompt content (everything after the closing "---")
-	promptStart := endIndex + 3
-	prompt := strings.TrimSpace(content[promptStart:])
-
-	return metadata, prompt, promptStart, nil
 }
