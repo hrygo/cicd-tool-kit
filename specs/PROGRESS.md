@@ -1,7 +1,7 @@
 # CICD AI Toolkit - 项目进展跟踪
 
-**更新时间**: 2026-01-24
-**当前 Phase**: Phase 0
+**更新时间**: 2026-01-25
+**当前 Phase**: Phase 0 → Phase 1
 **总进度**: 3% (1/32 Specs)
 
 ---
@@ -11,8 +11,8 @@
 | 指标 | 当前值 | 目标值 | 状态 |
 |------|--------|--------|------|
 | **已完成 Specs** | 1 | 32 | 🟡 进行中 |
-| **进行中 Specs** | 0 | - | - |
-| **阻塞 Specs** | 0 | - | - |
+| **已分配 Specs** | 2 | 32 | 📋 已分配 |
+| **进行中 Specs** | 1 | - | CONF-01 |
 | **本周完成** | 1 | - | DIST-01 |
 
 ---
@@ -21,8 +21,8 @@
 
 | 里程碑 | 目标日期 | 状态 | 完成日期 | 备注 |
 |--------|----------|------|----------|------|
-| M0: 项目启动 | Week 1 | ✅ Completed | 2026-01-24 | DIST-01 已完成 |
-| M1: 基础就绪 | Week 3 | ⏳ Pending | - | 配置 + Skill 定义 |
+| M0: 项目启动 | Week 1 | ✅ Completed | 2026-01-25 | PLAT-07, DIST-01 已完成 |
+| M1: 基础就绪 | Week 3 | 🔄 In Progress | - | CONF-01, SKILL-01 进行中 |
 | M2: 核心 MVP | Week 6 | ⏳ Pending | - | Runner 核心功能 |
 | M3: 平台集成 | Week 10 | ⏳ Pending | - | 3 个平台适配器 |
 | M4: 安全合规 | Week 13 | ⏳ Pending | - | 沙箱 + 治理 |
@@ -45,15 +45,15 @@
 
 | Spec ID | Spec 名称 | 负责人 | 状态 | 进度 | 开始日期 | 完成日期 |
 |---------|-----------|--------|------|------|----------|----------|
-| PLAT-07 | Project Structure | dev-a | 🔄 In Progress | 50% | 2026-01-24 | - |
-| DIST-01 | Distribution | dev-b | ✅ Completed | 100% | 2026-01-24 | 2026-01-24 |
+| PLAT-07 | Project Structure | dev-a | ✅ Completed | 100% | 2026-01-24 | 2026-01-25 |
+| DIST-01 | Distribution | dev-b | ✅ Completed | 100% | 2026-01-24 | 2026-01-25 |
 
 ### Phase 1: 基础层
 
 | Spec ID | Spec 名称 | 负责人 | 状态 | 进度 | 开始日期 | 完成日期 | 阻塞 |
 |---------|-----------|--------|------|------|----------|----------|------|
-| CONF-01 | Configuration | dev-a | ⏳ Pending | 0% | - | - | - |
-| SKILL-01 | Skill Definition | dev-c | ⏳ Pending | 0% | - | - | - |
+| CONF-01 | Configuration | dev-a | 🔄 In Progress | 80% | 2026-01-25 | - | - |
+| SKILL-01 | Skill Definition | dev-c | ✅ Completed | 100% | 2026-01-24 | 2026-01-25 | - |
 | CONF-02 | Idempotency | dev-a | ⏳ Pending | 0% | - | - | CONF-01 |
 
 ### Phase 2: 核心层
@@ -61,7 +61,7 @@
 | Spec ID | Spec 名称 | 负责人 | 状态 | 进度 | 开始日期 | 完成日期 | 阻塞 |
 |---------|-----------|--------|------|------|----------|----------|------|
 | CORE-02 | Context Chunking | dev-a | ⏳ Pending | 0% | - | - | - |
-| CORE-01 | Runner Lifecycle | dev-a | ⏳ Pending | 0% | - | - | CONF-01, SKILL-01 |
+| CORE-01 | Runner Lifecycle | dev-a | 📋 Ready | 0% | - | - | 等待 CONF-01 |
 | CORE-03 | Output Parsing | dev-a | ⏳ Pending | 0% | - | - | CORE-01 |
 | SEC-02 | Prompt Injection | dev-b | ⏳ Pending | 0% | - | - | CORE-02 |
 
@@ -74,7 +74,7 @@
 | PLAT-03 | GitLab Adapter | dev-a | ⏳ Pending | 0% | - | - | PLAT-01 |
 | PLAT-04 | Jenkins Plugin | dev-a | ⏳ Pending | 0% | - | - | PLAT-01 |
 | PLAT-06 | Gitee Adapter | dev-a | ⏳ Pending | 0% | - | - | PLAT-01 |
-| PLAT-05 | Composite Actions | dev-b | ⏳ Pending | 0% | - | - | DIST-01 |
+| PLAT-05 | Composite Actions | dev-b | 📋 Ready | 0% | - | - | 等待 DIST-01 ✅ |
 
 ### Phase 4: 安全与治理
 
@@ -89,10 +89,10 @@
 
 | Spec ID | Spec 名称 | 负责人 | 状态 | 进度 | 开始日期 | 完成日期 | 阻塞 |
 |---------|-----------|--------|------|------|----------|----------|------|
-| LIB-01 | Standard Skills | dev-c | ⏳ Pending | 0% | - | - | SKILL-01 |
+| LIB-01 | Standard Skills | dev-c | 📋 Ready | 0% | - | - | 等待 SKILL-01 ✅ |
 | LIB-04 | Compliance Check | dev-c | ⏳ Pending | 0% | - | - | SKILL-01, GOV-01 |
-| LIB-02 | Extended Skills | dev-c | ⏳ Pending | 0% | - | - | SKILL-01, DIST-01 |
-| LIB-03 | Doc Generator | dev-c | ⏳ Pending | 0% | - | - | SKILL-01 |
+| LIB-02 | Extended Skills | dev-c | 📋 Ready | 0% | - | - | 等待 SKILL-01 ✅, DIST-01 ✅ |
+| LIB-03 | Doc Generator | dev-c | 📋 Ready | 0% | - | - | 等待 SKILL-01 ✅ |
 
 ### Phase 6: 高级特性
 
@@ -108,9 +108,9 @@
 | Spec ID | Spec 名称 | 负责人 | 状态 | 进度 | 开始日期 | 完成日期 | 阻塞 |
 |---------|-----------|--------|------|------|----------|----------|------|
 | MCP-01 | Dual Layer Architecture | dev-c | ⏳ Pending | 0% | - | - | - |
-| MCP-02 | External Integrations | dev-c | ⏳ Pending | 0% | - | - | MCP-01, SKILL-01 |
-| ECO-01 | Skill Marketplace | dev-c | ⏳ Pending | 0% | - | - | SKILL-01 |
-| RFC-01 | RFC Process | dev-c | ⏳ Pending | 0% | - | - | SKILL-01 |
+| MCP-02 | External Integrations | dev-c | 📋 Ready | 0% | - | - | 等待 SKILL-01 ✅ |
+| ECO-01 | Skill Marketplace | dev-c | 📋 Ready | 0% | - | - | 等待 SKILL-01 ✅ |
+| RFC-01 | RFC Process | dev-c | 📋 Ready | 0% | - | - | 等待 SKILL-01 ✅ |
 
 ---
 
@@ -118,9 +118,9 @@
 
 | 开发者 | 角色 | 已完成 | 进行中 | 待分配 | 总工作量 | 完成率 |
 |--------|------|--------|--------|----------|----------|--------|
-| dev-a | Core Platform | 0 | 1 | 11 | 12 | 0% |
+| dev-a | Core Platform | 1 | 1 | 10 | 12 | 8% |
 | dev-b | Security & Infra | 1 | 0 | 9 | 10 | 10% |
-| dev-c | AI & Skills | 0 | 0 | 10 | 10 | 0% |
+| dev-c | AI & Skills | 1 | 0 | 9 | 10 | 10% |
 
 ---
 
@@ -128,7 +128,8 @@
 
 | Spec | 被阻塞者 | 等待 | 状态 | 预计解除 |
 |------|----------|------|------|----------|
-| - | - | - | - | - |
+| CONF-02 | - | CONF-01 | 🔄 进行中 | 2026-01-25 |
+| CORE-01 | PLAT-01, SEC-01 | CONF-01, SKILL-01 | ⏳ 等待 CONF-01 | 2026-01-25 |
 
 ---
 
@@ -144,7 +145,8 @@
 
 | 事项 | 类型 | 涉及开发者 | 状态 |
 |------|------|------------|------|
-| - | - | - | - |
+| CONF-01 完成后启动 CORE-01 | 依赖解锁 | dev-a, dev-c | ⏳ 待 CONF-01 完成 |
+| SKILL-01 完成解锁 LIB 系列任务 | 依赖解锁 | dev-c | ✅ 已就绪 |
 
 ---
 
@@ -153,4 +155,7 @@
 | 日期 | 更新内容 | 更新人 |
 |------|----------|--------|
 | 2026-01-24 | 初始化进展跟踪文档 | project-manager |
-| 2026-01-24 | DIST-01 Distribution 已完成 | dev-b |
+| 2026-01-24 | 分配首批任务: PLAT-07, DIST-01, SKILL-01 | project-manager |
+| 2026-01-25 | DIST-01 Distribution 已完成 | dev-b |
+| 2026-01-25 | SKILL-01 Skill Definition 已完成 | dev-c |
+| 2026-01-25 | PLAT-07 Project Structure 已完成 | dev-a |
