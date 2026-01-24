@@ -126,8 +126,9 @@ jobs:
 
       - name: Create install.sh
         run: |
-          sed "s|{{BASE_URL}}|${{ github.server_url }}/${{ github.repository }}/releases|g" \
-            build/packaging/install.sh > artifacts/install.sh
+          # Use environment variables for safe substitution
+          export BASE_URL="${{ github.server_url }}/${{ github.repository }}/releases"
+          envsubst '$BASE_URL' < build/packaging/install.sh > artifacts/install.sh
           chmod +x artifacts/install.sh
 
       - name: Generate release notes

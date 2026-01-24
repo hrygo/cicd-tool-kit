@@ -31,7 +31,8 @@ vendor/
 Thumbs.db
 
 # Build artifacts
-build/
+build/bin/
+build/dist/
 dist/
 
 # Cache
