@@ -5,8 +5,8 @@
 package tools
 
 import (
-	// Linting and formatting tools (added via go mod tidy when network is stable)
-	// _ "github.com/golangci/golangci-lint/cmd/golangci-lint"
-	// _ "github.com/daixiang0/gci"
-	// _ "mvdan.cc/gofumpt"
+// Linting and formatting tools (added via go mod tidy when network is stable)
+// _ "github.com/golangci/golangci-lint/cmd/golangci-lint"
+// _ "github.com/daixiang0/gci"
+// _ "mvdan.cc/gofumpt"
 )

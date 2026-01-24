@@ -72,6 +72,8 @@ func (r *Registry) Get(name string) *Skill {
 }
 
 // MustGet retrieves a skill by name, panicking if not found.
+// This method is intended for use during initialization and testing only.
+// In production code, use Get() and handle the nil case appropriately.
 func (r *Registry) MustGet(name string) *Skill {
 	s := r.Get(name)
 	if s == nil {
