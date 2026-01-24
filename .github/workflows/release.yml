@@ -1,0 +1,227 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  version:
+    name: Extract Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          if [[ "${VERSION}" =~ -beta\.|-rc\.|-alpha\. ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    name: Build Binaries
+    needs: version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          ldflags="-s -w \
+            -X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.Version=${VERSION} \
+            -X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+            -X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.GitCommit=${{ github.sha }} \
+            -X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.GoVersion=$(go version | awk '{print $3}')"
+
+          go build -ldflags "${ldflags}" -trimpath \
+            -o cicd-runner-${{ matrix.goos }}-${{ matrix.goarch }} \
+            ./cmd/cicd-runner
+
+      - name: Create tarball
+        run: |
+          tar -czf cicd-runner-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz \
+            cicd-runner-${{ matrix.goos }}-${{ matrix.goarch }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cicd-runner-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: cicd-runner-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          retention-days: 7
+
+  checksums:
+    name: Generate Checksums
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum */*.tar.gz > checksums.txt
+          cat checksums.txt
+
+      - name: Upload checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: artifacts/checksums.txt
+
+  release:
+    name: Create Release
+    needs: [version, checksums]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create install.sh
+        run: |
+          sed "s|{{BASE_URL}}|${{ github.server_url }}/${{ github.repository }}/releases|g" \
+            build/packaging/install.sh > artifacts/install.sh
+          chmod +x artifacts/install.sh
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          cat > artifacts/release_notes.md << 'EOF'
+          ## Installation
+          \`\`\`bash
+          # Using install script
+          curl -fsSL https://get.cicd-toolkit.com | bash -s -- --version ${{ needs.version.outputs.version }}
+
+          # Or download binary directly
+          wget https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.version }}/cicd-runner-linux-amd64.tar.gz
+          tar -xzf cicd-runner-linux-amd64.tar.gz
+          sudo mv cicd-runner-linux-amd64 /usr/local/bin/cicd-runner
+          chmod +x /usr/local/bin/cicd-runner
+          \`\`\`
+
+          ## Docker Image
+          \`\`\`bash
+          docker pull ghcr.io/${{ github.repository }}:${{ needs.version.outputs.version }}
+          \`\`\`
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ needs.version.outputs.version }}
+          body_path: artifacts/release_notes.md
+          prerelease: ${{ needs.version.outputs.is_prerelease == 'true' }}
+          files: |
+            artifacts/*/*.tar.gz
+            artifacts/checksums.txt
+            artifacts/install.sh
+          fail_on_unmatched_files: true
+
+  docker:
+    name: Build and Push Docker Images
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.version.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.version.outputs.version }}
+            type=semver,pattern={{major}},value=${{ needs.version.outputs.version }}
+            type=raw,value=latest,enable=${{ needs.version.outputs.is_prerelease != 'true' }}
+
+      - name: Build and push (production)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ needs.version.outputs.version }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            GIT_COMMIT=${{ github.sha }}
+
+      - name: Build and push (slim)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.slim
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}-slim
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ needs.version.outputs.version }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            GIT_COMMIT=${{ github.sha }}
