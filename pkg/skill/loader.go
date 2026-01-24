@@ -5,43 +5,225 @@
 package skill
 
 import (
-	"context"
+	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
+// LoaderOption configures a Loader.
+type LoaderOption func(*Loader)
+
+// WithSkillDirs sets the directories to search for skills.
+func WithSkillDirs(dirs ...string) LoaderOption {
+	return func(l *Loader) {
+		l.skillDirs = dirs
+	}
+}
+
+// WithSkipInvalid configures whether to skip invalid skills during discovery.
+func WithSkipInvalid(skip bool) LoaderOption {
+	return func(l *Loader) {
+		l.skipInvalid = skip
+	}
+}
+
 // Loader loads skills from SKILL.md files.
-// This will be fully implemented in SPEC-SKILL-01.
 type Loader struct {
-	skillPaths []string //nolint:unused // TODO: Add loader configuration (SPEC-SKILL-01)
+	skillDirs  []string
+	skipInvalid bool
 }
 
 // NewLoader creates a new skill loader.
-func NewLoader() *Loader {
-	return &Loader{}
+func NewLoader(opts ...LoaderOption) *Loader {
+	l := &Loader{
+		skillDirs:   []string{"./skills"}, // Default skill directory
+		skipInvalid: false,
+	}
+	for _, opt := range opts {
+		opt(l)
+	}
+	return l
 }
 
-// LoadFromPath loads a skill from a directory.
-func (l *Loader) LoadFromPath(ctx context.Context, path string) (*Skill, error) {
-	// TODO: Implement per SPEC-SKILL-01
-	// Parse SKILL.md and extract metadata
-	return nil, nil
-}
+// LoadFromFile loads a skill from a SKILL.md file.
+func (l *Loader) LoadFromFile(path string) (*Skill, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("%w: %s", ErrFileNotFound, path)
+		}
+		return nil, fmt.Errorf("failed to read skill file: %w", err)
+	}
 
-// LoadFromDir loads all skills from a directory.
-func (l *Loader) LoadFromDir(ctx context.Context, dir string) ([]*Skill, error) {
-	// TODO: Implement per SPEC-SKILL-01
-	return nil, nil
-}
-
-// loadSkillMD parses a SKILL.md file.
-//nolint:unused // TODO: Implement in SPEC-SKILL-01
-func (l *Loader) loadSkillMD(path string) (*Skill, error) {
-	// TODO: Implement per SPEC-SKILL-01
-	// Parse YAML frontmatter and prompt content
-	data, err := os.ReadFile(path)
+	metadata, prompt, _, err := parseFrontmatter(string(content))
 	if err != nil {
 		return nil, err
 	}
-	_ = data
-	return nil, nil
+
+	// Validate metadata
+	if err := metadata.Validate(); err != nil {
+		return nil, err
+	}
+
+	skill := &Skill{
+		Metadata: metadata,
+		Prompt:   prompt,
+		File:     path,
+		Dir:      filepath.Dir(path),
+	}
+
+	return skill, nil
+}
+
+// Discover finds and loads all skills from the configured directories.
+// Returns a map of skill name to skill, and a slice of any errors encountered.
+func (l *Loader) Discover() (map[string]*Skill, []error) {
+	skills := make(map[string]*Skill)
+	var errs []error
+
+	for _, dir := range l.skillDirs {
+		dirSkills, dirErrs := l.discoverInDir(dir)
+		for name, skill := range dirSkills {
+			skills[name] = skill
+		}
+		errs = append(errs, dirErrs...)
+	}
+
+	return skills, errs
+}
+
+// discoverInDir discovers skills in a single directory.
+func (l *Loader) discoverInDir(dir string) (map[string]*Skill, []error) {
+	skills := make(map[string]*Skill)
+	var errs []error
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Directory doesn't exist, return empty results
+			return skills, nil
+		}
+		errs = append(errs, fmt.Errorf("failed to read directory %s: %w", dir, err))
+		return skills, errs
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		skillName := entry.Name()
+		skillFile := filepath.Join(dir, skillName, "SKILL.md")
+
+		// Check if SKILL.md exists before attempting to load
+		if _, err := os.Stat(skillFile); os.IsNotExist(err) {
+			// Directory doesn't contain a SKILL.md file, skip it silently
+			continue
+		}
+
+		skill, err := l.LoadFromFile(skillFile)
+		if err != nil {
+			if l.skipInvalid {
+				errs = append(errs, fmt.Errorf("skipping %s: %w", skillName, err))
+				continue
+			}
+			errs = append(errs, fmt.Errorf("failed to load skill %s: %w", skillName, err))
+			if len(errs) > 0 && !l.skipInvalid {
+				// Return immediately if not skipping invalid
+				return skills, errs
+			}
+			continue
+		}
+
+		// Verify skill name matches directory name
+		if skill.Name != skillName {
+			err := fmt.Errorf("skill name '%s' does not match directory name '%s'", skill.Name, skillName)
+			if l.skipInvalid {
+				errs = append(errs, fmt.Errorf("skipping %s: %w", skillName, err))
+				continue
+			}
+			errs = append(errs, err)
+			return skills, errs
+		}
+
+		skills[skillName] = skill
+	}
+
+	return skills, errs
+}
+
+// LoadByName loads a skill by name from the configured directories.
+func (l *Loader) LoadByName(name string) (*Skill, error) {
+	for _, dir := range l.skillDirs {
+		skillFile := filepath.Join(dir, name, "SKILL.md")
+		skill, err := l.LoadFromFile(skillFile)
+		if err == nil {
+			// Verify skill name matches
+			if skill.Name != name {
+				return nil, fmt.Errorf("skill name '%s' does not match requested name '%s'", skill.Name, name)
+			}
+			return skill, nil
+		}
+		if !os.IsNotExist(err) {
+			// Non-existence error, try next directory
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("%w: skill '%s' not found", ErrFileNotFound, name)
+}
+
+// LoadFromPath loads a skill from a directory (deprecated, use LoadFromFile).
+func (l *Loader) LoadFromPath(_ interface{}) (*Skill, error) {
+	// TODO: Implement per SPEC-SKILL-01
+	// This method is kept for backward compatibility
+	return nil, fmt.Errorf("not implemented: use LoadFromFile instead")
+}
+
+// LoadFromDir loads all skills from a directory (deprecated, use Discover).
+func (l *Loader) LoadFromDir(_ string) ([]*Skill, error) {
+	// TODO: Implement per SPEC-SKILL-01
+	// This method is kept for backward compatibility
+	return nil, fmt.Errorf("not implemented: use Discover instead")
+}
+
+// loadSkillMD parses a SKILL.md file.
+// Deprecated: Use LoadFromFile instead.
+func (l *Loader) loadSkillMD(path string) (*Skill, error) {
+	return l.LoadFromFile(path)
+}
+
+// parseFrontmatter parses a SKILL.md file content, extracting metadata and prompt.
+// Returns the metadata, the prompt content, the byte offset of the frontmatter end, and any error.
+func parseFrontmatter(content string) (Metadata, string, int, error) {
+	var metadata Metadata
+
+	// Check for frontmatter delimiter
+	if !strings.HasPrefix(content, "---") {
+		return metadata, "", 0, fmt.Errorf("%w: no frontmatter delimiter found", ErrInvalidFrontmatter)
+	}
+
+	// Find the end of frontmatter
+	endIndex := strings.Index(content[3:], "---")
+	if endIndex == -1 {
+		return metadata, "", 0, fmt.Errorf("%w: unclosed frontmatter delimiter", ErrInvalidFrontmatter)
+	}
+	endIndex += 3 // Account for the opening "---"
+
+	// Extract frontmatter YAML
+	frontmatter := content[3:endIndex]
+	if strings.TrimSpace(frontmatter) == "" {
+		return metadata, "", 0, fmt.Errorf("%w: empty frontmatter", ErrInvalidFrontmatter)
+	}
+
+	// Parse YAML
+	if err := parseYAML(frontmatter, &metadata); err != nil {
+		return metadata, "", 0, fmt.Errorf("%w: %w", ErrInvalidFrontmatter, err)
+	}
+
+	// Extract prompt content (everything after the closing "---")
+	promptStart := endIndex + 3
+	prompt := strings.TrimSpace(content[promptStart:])
+
+	return metadata, prompt, promptStart, nil
 }

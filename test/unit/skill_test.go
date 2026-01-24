@@ -21,13 +21,17 @@ func TestRegistryRegister(t *testing.T) {
 	reg := skill.NewRegistry()
 
 	s := &skill.Skill{
-		Name:    "test",
-		Version: "1.0.0",
+		Metadata: skill.Metadata{
+			Name:    "test",
+			Version: "1.0.0",
+		},
 	}
-	reg.Register(s)
+	if err := reg.Register(s); err != nil {
+		t.Fatal(err)
+	}
 
-	got, ok := reg.Get("test")
-	if !ok {
+	got := reg.Get("test")
+	if got == nil {
 		t.Fatal("Registry.Get() returned not found")
 	}
 	if got.Name != "test" {
@@ -38,8 +42,18 @@ func TestRegistryRegister(t *testing.T) {
 func TestRegistryList(t *testing.T) {
 	reg := skill.NewRegistry()
 
-	s1 := &skill.Skill{Name: "test1"}
-	s2 := &skill.Skill{Name: "test2"}
+	s1 := &skill.Skill{
+		Metadata: skill.Metadata{
+			Name:    "test1",
+			Version: "1.0.0",
+		},
+	}
+	s2 := &skill.Skill{
+		Metadata: skill.Metadata{
+			Name:    "test2",
+			Version: "1.0.0",
+		},
+	}
 	reg.Register(s1)
 	reg.Register(s2)
 

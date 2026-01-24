@@ -25,8 +25,8 @@ func NewExecutor(reg *Registry) *Executor {
 // Execute executes a skill by name.
 func (e *Executor) Execute(ctx context.Context, name string, input string) (string, error) {
 	// TODO: Implement per SPEC-SKILL-01
-	skill, ok := e.registry.Get(name)
-	if !ok {
+	skill := e.registry.Get(name)
+	if skill == nil {
 		return "", ErrSkillNotFound
 	}
 	return skill.Execute(ctx, input)
