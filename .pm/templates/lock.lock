@@ -1,0 +1,10 @@
+# .pm/locks/{name}.lock 模板
+
+locked_by: dev-{a,b,c}
+locked_at: 2026-01-25T10:30:00Z
+spec_id: {SPEC-ID}
+reason: "{任务原因}"
+files:
+  - {文件路径 1}
+  - {文件路径 2}
+expires_at: 2026-01-25T18:00:00Z
