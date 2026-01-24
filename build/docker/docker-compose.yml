@@ -1,0 +1,41 @@
+# docker-compose.yml - Local development environment
+version: "3.8"
+
+services:
+  cicd-runner:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.slim
+    image: cicd-ai-toolkit/runner:local
+    container_name: cicd-runner-dev
+    environment:
+      - CICD_AI_LOG_LEVEL=debug
+      - CICD_AI_CONFIG_PATH=/config/cicd-ai-toolkit.yaml
+    volumes:
+      # Mount project directory for analysis
+      - ./workspace:/workspace:rw
+      # Mount configuration
+      - ../../configs:/config:ro
+      # Mount skills (optional, for development)
+      - ../../skills:/opt/cicd-ai/skills:ro
+    working_dir: /workspace
+    # For local development, keep container running
+    command: ["--help"]
+    # command: ["run", "--skills", "code-reviewer"]
+
+  # Service for multi-container testing
+  cicd-runner-test:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: cicd-ai-toolkit/runner:test
+    container_name: cicd-runner-test
+    environment:
+      - CICD_AI_LOG_LEVEL=debug
+    volumes:
+      - ./workspace:/workspace:rw
+    working_dir: /workspace
+    command: ["--version"]
+
+volumes:
+  workspace:

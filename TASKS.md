@@ -1,56 +1,56 @@
 # 当前任务
 
-## ✅ 已完成: SKILL-01 - Skill Definition & Standard Schema
+## ✅ 已完成
 
-**完成日期**: 2026-01-25
+### 任务: DIST-01 - Distribution & Installation
+
 **优先级**: P0
-**Phase**: Phase 1
+**Phase**: Phase 0
+**预计工作量**: 0.5 人周
+**分配日期**: 2026-01-24
+**完成日期**: 2026-01-24
 
 ### 验收标准
 
-- [x] Format Parsing: 能够正确读取 Frontmatter 中的配置（如 `temperature`）
-- [x] Validation Error: 如果缺少 `name` 字段，加载器抛出错误
-- [x] Prompt Assembly: 验证最终发送给 Claude 的 Prompt 确实包含了 Markdown Body 的内容
-- [x] 单元测试覆盖率 > 80% (实际: 86.2%)
+- [x] Multi-Arch: 在 ARM64 机器上 `docker run` 镜像能正常启动
+- [x] Size: 最终 Docker 镜像大小应控制在 50MB 以内
+- [x] Checksum: 下载脚本必须验证 sha256sum，防止篡改
+- [x] GitHub Actions Workflow 自动触发构建和发布
+- [x] 安装脚本测试通过
 
 ### 交付物
 
-1. **SKILL.md Schema** - `pkg/skill/skill.go`
-   - YAML Frontmatter: metadata, options, tools, inputs
-   - Markdown Body: System Prompt, Task Instruction, Output Contract
+1. **多架构构建** ✅
+   - `build/packaging/build-all.sh` 支持 linux/amd64,linux/arm64,darwin/amd64,darwin/arm64
 
-2. **加载逻辑** - `pkg/skill/loader.go`
-   - Discovery: 扫描 `skills/` 目录
-   - Parsing: 使用 `yaml` 库解析 Head，读取 Body
-   - Validation: 检查 `name`, `inputs` 是否完整
+2. **容器镜像** ✅
+   - `Dockerfile` - 基于 gcr.io/distroless/static:nonroot
+   - `Dockerfile.slim` - 基于 alpine (用于调试)
+   - Non-Root 用户 (UID 65532)
 
-3. **Prompt 注入器** - `pkg/skill/injector.go`
-   - 将 Body 部分拼接到 Claude 的 System Prompt 中
-   - 支持占位符替换 (使用 `strings.Replacer` 优化性能)
+3. **安装脚本** ✅
+   - `build/packaging/install.sh` - 一键安装脚本
+   - 自动检测 OS/Arch
+   - SHA256 校验和验证
+   - Cosign 签名验证支持
 
-4. **Skill 注册表** - `pkg/skill/registry.go`
-   - 线程安全的 Skill 管理
+4. **版本策略** ✅
+   - `pkg/version/version.go` - ldflags 注入版本信息
+   - 遵循 Semantic Versioning (SemVer)
 
-5. **标准内置技能**
-   - `skills/code-reviewer/`: 通用代码审查
-   - `skills/test-generator/`: 单元测试生成
-   - `skills/committer/`: 生成 Commit Message
+### 已解锁的依赖
 
-### 解锁任务
-
-SKILL-01 完成后解锁以下 Spec：
-- CORE-01, CORE-03 (Runner 核心功能)
-- LIB-01, LIB-02, LIB-03, LIB-04 (标准技能库)
-- PLAT-05 (Composite Actions)
-- ECO-01 (Skill Marketplace)
-- MCP-02 (External Integrations)
-- RFC-01 (RFC Process)
+- **PLAT-05**: Composite Actions (可开始)
+- **LIB-02**: Extended Skills (可开始)
 
 ---
 
-## 队列任务
+## 下一步任务
 
 | Spec ID | Spec 名称 | Phase | 优先级 | 状态 |
 |---------|-----------|-------|--------|------|
-| LIB-01 | Standard Skills | 5 | P0 | 🟢 可开始 (SKILL-01 已完成) |
-| MCP-01 | Dual Layer Architecture | 7 | P1 | 🟢 可并行 (无阻塞) |
+| PLAT-07 | Project Structure | 0 | P0 | 🔄 进行中 (dev-a) |
+| CONF-01 | Configuration | 1 | P0 | ⏳ 可开始 |
+| SKILL-01 | Skill Definition | 1 | P0 | ⏳ 可开始 |
+| PLAT-05 | Composite Actions | 3 | P2 | ⏳ 可开始 (DIST-01 已完成) |
+| LIB-02 | Extended Skills | 5 | P1 | ⏳ 可开始 (DIST-01 已完成) |

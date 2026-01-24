@@ -1,0 +1,71 @@
+# Dockerfile.slim - Alpine-based variant for debugging
+# Slightly larger but includes shell for troubleshooting
+
+# ============================================
+# Stage 1: Builder
+# ============================================
+FROM golang:1.22.5-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache \
+    git \
+    ca-certificates \
+    make
+
+# Set working directory
+WORKDIR /src
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build arguments
+ARG VERSION=dev
+ARG BUILD_DATE=
+ARG GIT_COMMIT=
+
+# Build the binary
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-s -w \
+        -X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.Version=${VERSION} \
+        -X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.BuildDate=${BUILD_DATE} \
+        -X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.GitCommit=${GIT_COMMIT}" \
+    -trimpath \
+    -o /tmp/cicd-runner \
+    ./cmd/cicd-runner
+
+# ============================================
+# Stage 2: Alpine Runtime (Debug/Development)
+# ============================================
+FROM alpine:3.19
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    ca-certificates \
+    git \
+    bash
+
+# Create non-root user
+RUN addgroup -g 1000 cicd && \
+    adduser -D -u 1000 -G cicd cicd
+
+# Copy binary
+COPY --from=builder /tmp/cicd-runner /usr/local/bin/cicd-runner
+
+# Copy skills
+COPY skills/ /opt/cicd-ai/skills/
+
+# Set ownership
+RUN chown -R cicd:cicd /opt/cicd-ai
+
+# Switch to non-root user
+USER cicd
+
+# Set entrypoint
+ENTRYPOINT ["/usr/local/bin/cicd-runner"]
+
+# Default command
+CMD ["--help"]
