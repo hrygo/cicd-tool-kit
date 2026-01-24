@@ -11,7 +11,7 @@ import (
 // Process manages the Claude subprocess.
 // This will be fully implemented in SPEC-CORE-01.
 type Process struct {
-	binary string //nolint:unused // TODO: Add process management fields (SPEC-CORE-01)
+	binary string   //nolint:unused // TODO: Add process management fields (SPEC-CORE-01)
 	args   []string //nolint:unused // TODO: Add process management fields (SPEC-CORE-01)
 }
 

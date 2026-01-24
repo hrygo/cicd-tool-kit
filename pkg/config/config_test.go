@@ -294,7 +294,7 @@ func TestValidationError(t *testing.T) {
 func TestConfigError(t *testing.T) {
 	err := &config.ConfigError{
 		Path: "/path/to/config.yaml",
-		Err:   &config.ValidationError{Field: "test", Message: "failed"},
+		Err:  &config.ValidationError{Field: "test", Message: "failed"},
 	}
 	expected := "config error in /path/to/config.yaml: validation error for test: failed"
 	if err.Error() != expected {

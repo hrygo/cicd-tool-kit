@@ -63,7 +63,7 @@ func (i *Injector) BuildPrompt(skill *Skill, inputs map[string]any) (string, err
 	// Add skill prompt
 	prompt := skill.Prompt
 	if prompt == "" {
-		prompt = fmt.Sprintf("# Skill: %s\n\nYou are the %s skill.", skill.Name, skill.Name)
+		prompt = fmt.Sprintf("# Skill: %s\n\nYou are the %s skill.", skill.Name(), skill.Name())
 	}
 
 	// Merge provided inputs with defaults
@@ -167,7 +167,7 @@ func formatValue(v any) string {
 
 // BuildPromptWithTemplate uses Go templates for more complex prompt building.
 func (i *Injector) BuildPromptWithTemplate(skill *Skill, inputs map[string]any) (string, error) {
-	tmpl, err := template.New(skill.Name).Option("missingkey=error").Parse(skill.Prompt)
+	tmpl, err := template.New(skill.Name()).Option("missingkey=error").Parse(skill.Prompt)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse template: %w", err)
 	}

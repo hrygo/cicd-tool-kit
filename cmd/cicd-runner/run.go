@@ -6,7 +6,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -26,12 +25,12 @@ This command will:
 }
 
 var (
-	runSkills      string
-	runConfig      string
-	runPlatform    string
-	runEventPath   string
-	runDryRun      bool
-	runVerbose     bool
+	runSkills    string
+	runConfig    string
+	runPlatform  string
+	runEventPath string
+	runDryRun    bool
+	runVerbose   bool
 )
 
 func init() {
@@ -50,12 +49,10 @@ func init() {
 }
 
 func runRun(cmd *cobra.Command, args []string) error {
-	_, cancel := context.WithCancel(cmd.Context())
-	defer cancel()
+	ctx := cmd.Context()
 
-	// Setup signal handling
 	// TODO: Implement signal handling in CORE-01
-	_ = cancel
+	_ = ctx
 
 	if runVerbose {
 		fmt.Println("CICD AI Toolkit Runner")

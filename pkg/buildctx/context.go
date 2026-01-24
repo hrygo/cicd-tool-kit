@@ -17,15 +17,15 @@ type Context struct {
 	Event    *Event
 
 	// Git info
-	Branch     string
-	CommitSHA  string
-	CommitMsg  string
-	Author     string
+	Branch    string
+	CommitSHA string
+	CommitMsg string
+	Author    string
 
 	// PR/MR info (if applicable)
-	PRNumber   int
-	PRTitle    string
-	PRBody     string
+	PRNumber int
+	PRTitle  string
+	PRBody   string
 }
 
 // Event represents a CI/CD event.

@@ -34,10 +34,10 @@ type ClaudeConfig struct {
 
 // SkillConfig represents a single skill configuration.
 type SkillConfig struct {
-	Name     string            `yaml:"name"`
-	Enabled  bool              `yaml:"enabled"`
-	Options  map[string]any    `yaml:"options,omitempty"`
-	Priority int               `yaml:"priority,omitempty"`
+	Name     string         `yaml:"name"`
+	Enabled  bool           `yaml:"enabled"`
+	Options  map[string]any `yaml:"options,omitempty"`
+	Priority int            `yaml:"priority,omitempty"`
 }
 
 // PlatformConfig contains platform-specific settings.
@@ -73,9 +73,9 @@ type JenkinsPlatformConfig struct {
 
 // GlobalConfig contains global application settings.
 type GlobalConfig struct {
-	LogLevel    string `yaml:"log_level"`    // debug, info, warn, error
-	CachePath   string `yaml:"cache_path"`   // Path to cache directory
-	MaxCacheMB  int    `yaml:"max_cache_mb"` // Max cache size in MB
+	LogLevel   string `yaml:"log_level"`    // debug, info, warn, error
+	CachePath  string `yaml:"cache_path"`   // Path to cache directory
+	MaxCacheMB int    `yaml:"max_cache_mb"` // Max cache size in MB
 }
 
 // EnvConfig represents environment variable based configuration.

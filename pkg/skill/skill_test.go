@@ -9,9 +9,9 @@ import (
 
 func TestValidateName(t *testing.T) {
 	tests := []struct {
-		name         string
-		input        string
-		wantErr      bool
+		name          string
+		input         string
+		wantErr       bool
 		errorContains string
 	}{
 		{"valid simple", "myskill", false, ""},
@@ -132,7 +132,7 @@ func TestMetadata_Validate(t *testing.T) {
 			m: Metadata{
 				Name:    "test-skill",
 				Version: "1.0.0",
-				Options: RuntimeOptions{
+				Options: &RuntimeOptions{
 					Temperature: 3.0,
 				},
 			},
@@ -143,7 +143,7 @@ func TestMetadata_Validate(t *testing.T) {
 			m: Metadata{
 				Name:    "test-skill",
 				Version: "1.0.0",
-				Options: RuntimeOptions{
+				Options: &RuntimeOptions{
 					Temperature:    0.5,
 					MaxTokens:      4096,
 					BudgetTokens:   1000,
@@ -182,9 +182,9 @@ func TestSkill_GetInput(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		input    string
-		wantNil  bool
+		name    string
+		input   string
+		wantNil bool
 	}{
 		{"existing input", "input1", false},
 		{"existing input 2", "input2", false},
@@ -327,21 +327,21 @@ func TestSkill_ValidatePath(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		skill := &Skill{File: tmpFile}
+		skill := &Skill{Metadata: Metadata{File: tmpFile}}
 		if err := skill.ValidatePath(); err != nil {
 			t.Errorf("ValidatePath() unexpected error: %v", err)
 		}
 	})
 
 	t.Run("file not found", func(t *testing.T) {
-		skill := &Skill{File: "/nonexistent/file.md"}
+		skill := &Skill{Metadata: Metadata{File: "/nonexistent/file.md"}}
 		if err := skill.ValidatePath(); err != ErrFileNotFound {
 			t.Errorf("ValidatePath() = %v, want %v", err, ErrFileNotFound)
 		}
 	})
 
 	t.Run("empty path", func(t *testing.T) {
-		skill := &Skill{File: ""}
+		skill := &Skill{Metadata: Metadata{File: ""}}
 		if err := skill.ValidatePath(); err != nil {
 			t.Errorf("ValidatePath() unexpected error: %v", err)
 		}

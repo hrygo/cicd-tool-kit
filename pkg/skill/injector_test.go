@@ -107,43 +107,43 @@ func TestInjector_ExtractPlaceholders(t *testing.T) {
 	i := NewInjector()
 
 	tests := []struct {
-		name        string
-		prompt      string
-		wantCount   int
+		name             string
+		prompt           string
+		wantCount        int
 		wantPlaceholders []string
 	}{
 		{
-			name:     "no placeholders",
-			prompt:   "Just plain text",
+			name:      "no placeholders",
+			prompt:    "Just plain text",
 			wantCount: 0,
 		},
 		{
-			name:     "single placeholder",
-			prompt:   "Hello {{name}}",
-			wantCount: 1,
+			name:             "single placeholder",
+			prompt:           "Hello {{name}}",
+			wantCount:        1,
 			wantPlaceholders: []string{"name"},
 		},
 		{
-			name:     "multiple placeholders",
-			prompt:   "{{greeting}} {{name}}, you are {{age}} years old",
-			wantCount: 3,
+			name:             "multiple placeholders",
+			prompt:           "{{greeting}} {{name}}, you are {{age}} years old",
+			wantCount:        3,
 			wantPlaceholders: []string{"greeting", "name", "age"},
 		},
 		{
-			name:     "duplicate placeholder",
-			prompt:   "{{name}} says {{name}}",
-			wantCount: 1,
+			name:             "duplicate placeholder",
+			prompt:           "{{name}} says {{name}}",
+			wantCount:        1,
 			wantPlaceholders: []string{"name"},
 		},
 		{
-			name:     "nested braces",
-			prompt:   "{{outer}} and {{inner}} content",
+			name:      "nested braces",
+			prompt:    "{{outer}} and {{inner}} content",
 			wantCount: 2,
 		},
 		{
-			name:     "placeholder with underscores",
-			prompt:   "{{user_name}} is valid",
-			wantCount: 1,
+			name:             "placeholder with underscores",
+			prompt:           "{{user_name}} is valid",
+			wantCount:        1,
 			wantPlaceholders: []string{"user_name"},
 		},
 	}
@@ -178,10 +178,10 @@ func TestInjector_ValidatePrompt(t *testing.T) {
 	i := NewInjector()
 
 	tests := []struct {
-		name           string
-		prompt         string
+		name            string
+		prompt          string
 		availableInputs map[string]bool
-		wantErr        bool
+		wantErr         bool
 	}{
 		{
 			name:   "all inputs available",
@@ -201,10 +201,10 @@ func TestInjector_ValidatePrompt(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:   "no placeholders",
-			prompt: "Just text",
+			name:            "no placeholders",
+			prompt:          "Just text",
 			availableInputs: map[string]bool{},
-			wantErr: false,
+			wantErr:         false,
 		},
 	}
 
@@ -294,4 +294,3 @@ func TestInjector_CaseInsensitivePlaceholders(t *testing.T) {
 		t.Errorf("BuildPrompt() has unsubstituted placeholders: %v", result)
 	}
 }
-

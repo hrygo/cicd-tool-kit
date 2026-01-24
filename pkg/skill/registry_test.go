@@ -82,12 +82,16 @@ func TestRegistry_RegisterReplace(t *testing.T) {
 		},
 	}
 
-	r.Register(skill1)
-	r.Register(skill2)
+	if err := r.Register(skill1); err != nil {
+		t.Fatalf("Register(skill1) error = %v", err)
+	}
+	if err := r.Register(skill2); err != nil {
+		t.Fatalf("Register(skill2) error = %v", err)
+	}
 
 	got := r.Get("test-skill")
-	if got.Version != "2.0.0" {
-		t.Errorf("Register() replace failed, got version %s, want 2.0.0", got.Version)
+	if got.Version() != "2.0.0" {
+		t.Errorf("Register() replace failed, got version %s, want 2.0.0", got.Version())
 	}
 }
 
@@ -101,7 +105,9 @@ func TestRegistry_Unregister(t *testing.T) {
 		},
 	}
 
-	r.Register(skill)
+	if err := r.Register(skill); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
 	r.Unregister("test-skill")
 
 	if r.Exists("test-skill") {
@@ -125,15 +131,17 @@ func TestRegistry_Get(t *testing.T) {
 			Version: "1.0.0",
 		},
 	}
-	r.Register(skill)
+	if err := r.Register(skill); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
 
 	got = r.Get("test-skill")
 	if got == nil {
 		t.Error("Get() existing returned nil")
 	}
 
-	if got.Name != "test-skill" {
-		t.Errorf("Get() Name = %v, want 'test-skill'", got.Name)
+	if got.Name() != "test-skill" {
+		t.Errorf("Get() Name = %v, want 'test-skill'", got.Name())
 	}
 }
 
@@ -154,12 +162,14 @@ func TestRegistry_List(t *testing.T) {
 
 	skills := []string{"skill-1", "skill-2", "skill-3"}
 	for _, name := range skills {
-		r.Register(&Skill{
+		if err := r.Register(&Skill{
 			Metadata: Metadata{
 				Name:    name,
 				Version: "1.0.0",
 			},
-		})
+		}); err != nil {
+			t.Fatalf("Register(%s) error = %v", name, err)
+		}
 	}
 
 	list := r.List()
@@ -184,8 +194,12 @@ func TestRegistry_ListSkills(t *testing.T) {
 		},
 	}
 
-	r.Register(skill1)
-	r.Register(skill2)
+	if err := r.Register(skill1); err != nil {
+		t.Fatalf("Register(skill1) error = %v", err)
+	}
+	if err := r.Register(skill2); err != nil {
+		t.Fatalf("Register(skill2) error = %v", err)
+	}
 
 	skills := r.ListSkills()
 	if len(skills) != 2 {
@@ -196,19 +210,23 @@ func TestRegistry_ListSkills(t *testing.T) {
 func TestRegistry_Clear(t *testing.T) {
 	r := NewRegistry()
 
-	r.Register(&Skill{
+	if err := r.Register(&Skill{
 		Metadata: Metadata{
 			Name:    "skill-1",
 			Version: "1.0.0",
 		},
-	})
+	}); err != nil {
+		t.Fatalf("Register(skill-1) error = %v", err)
+	}
 
-	r.Register(&Skill{
+	if err := r.Register(&Skill{
 		Metadata: Metadata{
 			Name:    "skill-2",
 			Version: "1.0.0",
 		},
-	})
+	}); err != nil {
+		t.Fatalf("Register(skill-2) error = %v", err)
+	}
 
 	r.Clear()
 
@@ -316,7 +334,7 @@ func TestRegistry_ConcurrentAccess(t *testing.T) {
 					Version: "1.0.0",
 				},
 			}
-			r.Register(skill)
+			_ = r.Register(skill) // Error is acceptable in concurrent test
 			done <- true
 		}(i)
 	}

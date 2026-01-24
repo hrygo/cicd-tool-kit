@@ -21,27 +21,46 @@ func TestRegistryRegister(t *testing.T) {
 	reg := skill.NewRegistry()
 
 	s := &skill.Skill{
-		Name:    "test",
-		Version: "1.0.0",
+		Metadata: skill.Metadata{
+			Name:    "test",
+			Version: "1.0.0",
+		},
 	}
-	reg.Register(s)
+	err := reg.Register(s)
+	if err != nil {
+		t.Fatalf("Register() failed: %v", err)
+	}
 
-	got, ok := reg.Get("test")
-	if !ok {
+	got := reg.Get("test")
+	if got == nil {
 		t.Fatal("Registry.Get() returned not found")
 	}
-	if got.Name != "test" {
-		t.Errorf("Expected name 'test', got '%s'", got.Name)
+	if got.Name() != "test" {
+		t.Errorf("Expected name 'test', got '%s'", got.Name())
 	}
 }
 
 func TestRegistryList(t *testing.T) {
 	reg := skill.NewRegistry()
 
-	s1 := &skill.Skill{Name: "test1"}
-	s2 := &skill.Skill{Name: "test2"}
-	reg.Register(s1)
-	reg.Register(s2)
+	s1 := &skill.Skill{
+		Metadata: skill.Metadata{
+			Name:    "test1",
+			Version: "1.0.0",
+		},
+	}
+	s2 := &skill.Skill{
+		Metadata: skill.Metadata{
+			Name:    "test2",
+			Version: "1.0.0",
+		},
+	}
+	if err := reg.Register(s1); err != nil {
+		t.Fatalf("Register(s1) failed: %v", err)
+	}
+	if err := reg.Register(s2); err != nil {
+		t.Fatalf("Register(s2) failed: %v", err)
+	}
 
 	list := reg.List()
 	if len(list) != 2 {

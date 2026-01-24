@@ -136,16 +136,16 @@ content`,
 				t.Fatalf("LoadFromFile() unexpected error: %v", err)
 			}
 
-			if skill.Name != tt.wantName {
-				t.Errorf("LoadFromFile() Name = %v, want %v", skill.Name, tt.wantName)
+			if skill.Name() != tt.wantName {
+				t.Errorf("LoadFromFile() Name = %v, want %v", skill.Name(), tt.wantName)
 			}
 
 			if skill.Prompt != tt.wantPrompt {
 				t.Errorf("LoadFromFile() Prompt = %v, want %v", skill.Prompt, tt.wantPrompt)
 			}
 
-			if skill.File != tmpFile {
-				t.Errorf("LoadFromFile() File = %v, want %v", skill.File, tmpFile)
+			if skill.Metadata.File != tmpFile {
+				t.Errorf("LoadFromFile() File = %v, want %v", skill.Metadata.File, tmpFile)
 			}
 		})
 	}
@@ -368,8 +368,8 @@ Test prompt`
 		t.Fatalf("LoadByName() unexpected error: %v", err)
 	}
 
-	if skill.Name != "test-skill" {
-		t.Errorf("LoadByName() Name = %v, want 'test-skill'", skill.Name)
+	if skill.Name() != "test-skill" {
+		t.Errorf("LoadByName() Name = %v, want 'test-skill'", skill.Name())
 	}
 }
 
@@ -384,12 +384,12 @@ func TestLoader_LoadByName_NotFound(t *testing.T) {
 
 func TestParseFrontmatter(t *testing.T) {
 	tests := []struct {
-		name         string
-		content      string
-		wantName     string
-		wantVersion  string
-		wantPrompt   string
-		wantErr      error
+		name        string
+		content     string
+		wantName    string
+		wantVersion string
+		wantPrompt  string
+		wantErr     error
 	}{
 		{
 			name: "valid with full metadata",
@@ -437,7 +437,7 @@ Prompt`,
 			wantErr: ErrInvalidFrontmatter,
 		},
 		{
-			name:    "empty frontmatter",
+			name: "empty frontmatter",
 			content: `---
 ---
 content`,
@@ -496,7 +496,7 @@ func TestParseYAML(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "valid simple",
+			name: "valid simple",
 			content: `name: test
 version: "1.0.0"`,
 			v: &struct {
@@ -581,10 +581,10 @@ func TestLoader_Integration(t *testing.T) {
 
 	// Verify each skill has proper metadata
 	for name, skill := range skills {
-		if skill.Name != name {
-			t.Errorf("Skill %s: Name = %v, want %v", name, skill.Name, name)
+		if skill.Name() != name {
+			t.Errorf("Skill %s: Name = %v, want %v", name, skill.Name(), name)
 		}
-		if skill.Version == "" {
+		if skill.Version() == "" {
 			t.Errorf("Skill %s: Version is empty", name)
 		}
 		if skill.Prompt == "" {

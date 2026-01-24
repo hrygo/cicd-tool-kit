@@ -11,7 +11,7 @@ import (
 // Registry manages platform adapters.
 // This will be fully implemented in SPEC-PLAT-01.
 type Registry struct {
-	mu     sync.RWMutex
+	mu        sync.RWMutex
 	platforms map[string]Platform
 }
 
