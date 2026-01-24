@@ -4,135 +4,117 @@
 
 set -euo pipefail
 
+# 获取脚本目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-STATE_FILE="${STATE_FILE:-$REPO_ROOT/.pm/state.json}"
-STATE_FILE_TMP="${STATE_FILE}.tmp"
 
-# 清理临时文件
-cleanup() {
-    rm -f "$STATE_FILE_TMP" 2>/dev/null || true
-}
-trap cleanup EXIT
+# 加载公共库
+# shellcheck source=lib/lib.sh
+# shellcheck source=lib/validate.sh
+source "$SCRIPT_DIR/lib/lib.sh"
+source "$SCRIPT_DIR/lib/validate.sh"
 
-# 确保 jq 可用
+# ============================================
+# 确保依赖
+# ============================================
 if ! command -v jq >/dev/null 2>&1; then
-    echo '{"action": "state", "status": "error", "error": "需要 jq: brew install jq"}' >&2
+    pm_json_output "state" "error" '{"error": "需要 jq: brew install jq"}' >&2
     exit 1
 fi
 
 # 确保 state.json 存在
 if [[ ! -f "$STATE_FILE" ]]; then
-    echo '{"action": "state", "status": "error", "error": "状态文件不存在"}' >&2
+    pm_json_output "state" "error" '{"error": "状态文件不存在"}' >&2
     exit 1
 fi
 
-# 验证 spec_id 格式 ([A-Z]+-[0-9]+)
-validate_spec_id() {
-    local spec_id="$1"
-    if [[ ! "$spec_id" =~ ^[A-Z]+-[0-9]+$ ]]; then
-        echo "{\"action\": \"state\", \"status\": \"error\", \"error\": \"无效的 spec_id 格式: $spec_id (应为 CORE-01 格式)\"}"
-        return 1
-    fi
-    return 0
-}
-
-# 验证 developer_id 格式 (dev-[a-z])
-validate_developer_id() {
-    local dev_id="$1"
-    if [[ ! "$dev_id" =~ ^dev-[a-z]$ ]]; then
-        echo "{\"action\": \"state\", \"status\": \"error\", \"error\": \"无效的 developer_id 格式: $dev_id (应为 dev-a 格式)\"}"
-        return 1
-    fi
-    return 0
-}
-
-# 验证开发者是否存在
-check_developer_exists() {
-    local dev_id="$1"
-    if ! jq -e ".developers.\"$dev_id\"" "$STATE_FILE" >/dev/null 2>&1; then
-        echo "{\"action\": \"state\", \"status\": \"error\", \"error\": \"开发者不存在: $dev_id\"}"
-        return 1
-    fi
-    return 0
-}
-
-# 验证 Spec 是否存在
-check_spec_exists() {
-    local spec_id="$1"
-    if ! jq -e ".specs.\"$spec_id\"" "$STATE_FILE" >/dev/null 2>&1; then
-        echo "{\"action\": \"state\", \"status\": \"error\", \"error\": \"Spec 不存在: $spec_id\"}"
-        return 1
-    fi
-    return 0
-}
-
-# 输出 JSON 辅助函数
-json_output() {
-    local action="$1"
-    local status="$2"
-    local data="${3:-{}}"
-    local timestamp
-    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    cat <<EOF
-{
-  "action": "$action",
-  "status": "$status",
-  "data": $data,
-  "timestamp": "$timestamp"
-}
-EOF
-}
-
-# read 命令
+# ============================================
+# read 命令 - 读取状态
+# ============================================
 cmd_read() {
     local path="${1:-.}"
     jq -c "$path" "$STATE_FILE"
 }
 
-# update 命令
+# ============================================
+# update 命令 - 更新指定路径
+# ============================================
 cmd_update() {
     local path="$1"
     local value="$2"
-    local now
-    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+    if ! pm_lock_acquire; then
+        pm_json_output "state" "error" '{"error": "无法获取文件锁"}'
+        return 1
+    fi
+
+    local now
+    now=$(pm_now_iso)
     jq --arg now "$now" "$path = $value | .updated_at = \$now" "$STATE_FILE" > "$STATE_FILE_TMP"
-    mv "$STATE_FILE_TMP" "$STATE_FILE"
+
+    if ! mv "$STATE_FILE_TMP" "$STATE_FILE"; then
+        pm_lock_release
+        pm_json_output "state" "error" '{"error": "更新 state.json 失败"}'
+        return 1
+    fi
+
+    pm_lock_release
     jq -c "$path" "$STATE_FILE"
 }
 
-# set 命令
+# ============================================
+# set 命令 - 批量设置 (从 stdin)
+# ============================================
 cmd_set() {
-    local now
-    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local input
+    input=$(cat)
 
-    jq --arg now "$now" '.updated_at = $now' "$STATE_FILE" \
-        | jq --arg now "$now" '. * $in | .updated_at = $now' \
-        > "$STATE_FILE_TMP"
-    mv "$STATE_FILE_TMP" "$STATE_FILE"
+    if ! pm_lock_acquire; then
+        pm_json_output "state" "error" '{"error": "无法获取文件锁"}'
+        return 1
+    fi
+
+    local now
+    now=$(pm_now_iso)
+    echo "$input" | jq --arg now "$now" '. * $in | .updated_at = $now' > "$STATE_FILE_TMP"
+
+    if ! mv "$STATE_FILE_TMP" "$STATE_FILE"; then
+        pm_lock_release
+        pm_json_output "state" "error" '{"error": "更新 state.json 失败"}'
+        return 1
+    fi
+
+    pm_lock_release
     cat "$STATE_FILE"
 }
 
-# assign 命令
+# ============================================
+# assign 命令 - 分配任务给开发者
+# ============================================
 cmd_assign() {
     local spec_id="$1"
     local dev_id="$2"
 
     # 验证输入
-    validate_spec_id "$spec_id" || return 1
-    validate_developer_id "$dev_id" || return 1
-    check_developer_exists "$dev_id" || return 1
-    check_spec_exists "$spec_id" || return 1
+    pm_validate_spec_id "$spec_id" "state" || return 1
+    pm_validate_developer_id "$dev_id" "state" || return 1
+    pm_check_developer_exists "$dev_id" "state" || return 1
+    pm_check_spec_exists "$spec_id" "state" || return 1
+
+    # 获取锁
+    if ! pm_lock_acquire; then
+        pm_json_output "state" "error" '{"error": "无法获取文件锁"}'
+        return 1
+    fi
 
     local now
-    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    now=$(pm_now_iso)
 
     # 1. 检查开发者是否有进行中任务
     local current_task
     current_task=$(jq -r ".developers.\"$dev_id\".current_task" "$STATE_FILE")
     if [[ "$current_task" != "null" && -n "$current_task" ]]; then
-        echo "{\"action\": \"assign\", \"status\": \"error\", \"error\": \"开发者有进行中任务: $current_task\"}"
+        pm_lock_release
+        pm_json_output "assign" "error" "{\"error\": \"开发者有进行中任务: $current_task\"}"
         return 1
     fi
 
@@ -143,7 +125,8 @@ cmd_assign() {
         local dep_status
         dep_status=$(jq -r ".specs.\"$dep\".status" "$STATE_FILE" 2>/dev/null || echo "unknown")
         if [[ "$dep_status" != "completed" ]]; then
-            echo "{\"action\": \"assign\", \"status\": \"error\", \"error\": \"依赖未满足: $dep ($dep_status)\"}"
+            pm_lock_release
+            pm_json_output "assign" "error" "{\"error\": \"依赖未满足: $dep ($dep_status)\"}"
             return 1
         fi
     done
@@ -158,28 +141,43 @@ cmd_assign() {
         .developers[$dev].current_task = $spec |
         .updated_at = $now
         ' "$STATE_FILE" > "$STATE_FILE_TMP"
-    mv "$STATE_FILE_TMP" "$STATE_FILE"
+
+    if ! mv "$STATE_FILE_TMP" "$STATE_FILE"; then
+        pm_lock_release
+        pm_json_output "state" "error" '{"error": "更新 state.json 失败"}'
+        return 1
+    fi
+
+    pm_lock_release
 
     # 4. 输出结果
     local spec_info dev_info
     spec_info=$(jq -c ".specs.\"$spec_id\"" "$STATE_FILE")
     dev_info=$(jq -c ".developers.\"$dev_id\"" "$STATE_FILE")
-    echo "{\"action\": \"assign\", \"status\": \"success\", \"data\": {\"spec\": $spec_info, \"developer\": $dev_info}}"
+    pm_json_output "assign" "success" "{\"spec\": $spec_info, \"developer\": $dev_info}"
 }
 
-# complete 命令
+# ============================================
+# complete 命令 - 完成任务
+# ============================================
 cmd_complete() {
     local spec_id="$1"
     local dev_id="$2"
 
     # 验证输入
-    validate_spec_id "$spec_id" || return 1
-    validate_developer_id "$dev_id" || return 1
-    check_developer_exists "$dev_id" || return 1
-    check_spec_exists "$spec_id" || return 1
+    pm_validate_spec_id "$spec_id" "state" || return 1
+    pm_validate_developer_id "$dev_id" "state" || return 1
+    pm_check_developer_exists "$dev_id" "state" || return 1
+    pm_check_spec_exists "$spec_id" "state" || return 1
+
+    # 获取锁
+    if ! pm_lock_acquire; then
+        pm_json_output "state" "error" '{"error": "无法获取文件锁"}'
+        return 1
+    fi
 
     local now
-    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    now=$(pm_now_iso)
 
     jq --arg now "$now" \
         --arg spec "$spec_id" \
@@ -191,15 +189,24 @@ cmd_complete() {
         .developers[$dev].completed_specs += [$spec] |
         .updated_at = $now
         ' "$STATE_FILE" > "$STATE_FILE_TMP"
-    mv "$STATE_FILE_TMP" "$STATE_FILE"
+
+    if ! mv "$STATE_FILE_TMP" "$STATE_FILE"; then
+        pm_lock_release
+        pm_json_output "state" "error" '{"error": "更新 state.json 失败"}'
+        return 1
+    fi
+
+    pm_lock_release
 
     local spec_info dev_info
     spec_info=$(jq -c ".specs.\"$spec_id\"" "$STATE_FILE")
     dev_info=$(jq -c ".developers.\"$dev_id\"" "$STATE_FILE")
-    echo "{\"action\": \"complete\", \"status\": \"success\", \"data\": {\"spec\": $spec_info, \"developer\": $dev_info}}"
+    pm_json_output "complete" "success" "{\"spec\": $spec_info, \"developer\": $dev_info}"
 }
 
-# progress 命令
+# ============================================
+# progress 命令 - 计算进度统计
+# ============================================
 cmd_progress() {
     local total completed in_progress ready blocked
     total=$(jq '[.specs | to_entries[] | select(.value.status != "completed")] | length' "$STATE_FILE")
@@ -216,57 +223,73 @@ cmd_progress() {
         percent=0
     fi
 
-    local timestamp
-    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-    cat <<EOF
-{
-  "action": "progress",
-  "status": "success",
-  "data": {
-    "summary": {
-      "total_progress": "$percent%",
-      "total": $total_specs,
-      "completed": $completed,
-      "in_progress": $in_progress,
-      "ready": $ready,
-      "blocked": $blocked
-    },
-    "developers": {
-      "dev-a": $(jq -c '.developers["dev-a"] | {current_task, completed_specs: (.completed_specs | length)}' "$STATE_FILE"),
-      "dev-b": $(jq -c '.developers["dev-b"] | {current_task, completed_specs: (.completed_specs | length)}' "$STATE_FILE"),
-      "dev-c": $(jq -c '.developers["dev-c"] | {current_task, completed_specs: (.completed_specs | length)}' "$STATE_FILE")
-    },
-    "active_locks": $(jq -c '.locks | keys' "$STATE_FILE"),
-    "active_worktrees": $(jq -c '.worktrees | length' "$STATE_FILE")
-  },
-  "timestamp": "$timestamp"
+    # 使用 jq 生成 JSON (避免 heredoc)
+    jq -n \
+        --arg a "progress" \
+        --arg s "success" \
+        --arg ts "$(pm_now_iso)" \
+        --arg p "$percent%" \
+        --arg tot "$total_specs" \
+        --arg comp "$completed" \
+        --arg prog "$in_progress" \
+        --arg rd "$ready" \
+        --arg blk "$blocked" \
+        '{
+            action: $a,
+            status: $s,
+            data: {
+                summary: {
+                    total_progress: $p,
+                    total: ($tot | tonumber),
+                    completed: ($comp | tonumber),
+                    in_progress: ($prog | tonumber),
+                    ready: ($rd | tonumber),
+                    blocked: ($blk | tonumber)
+                }
+            },
+            timestamp: $ts
+        }' | jq '
+            .data.developers = {
+                "dev-a": (.input.developers["dev-a"] // {current_task: null, completed_specs: 0}),
+                "dev-b": (.input.developers["dev-b"] // {current_task: null, completed_specs: 0}),
+                "dev-c": (.input.developers["dev-c"] // {current_task: null, completed_specs: 0})
+            } |
+            .data.active_locks = (.input.locks | keys) |
+            .data.active_worktrees = (.input.worktrees | length)
+        ' "$STATE_FILE"
 }
-EOF
-}
 
-# validate 命令
+# ============================================
+# validate 命令 - 验证状态文件
+# ============================================
 cmd_validate() {
     local schema="$REPO_ROOT/.pm/state.schema.json"
+
     if command -v ajv >/dev/null 2>&1; then
-        ajv test -s "$schema" -d "$STATE_FILE" --valid 2>&1 | head -1
+        if ajv test -s "$schema" -d "$STATE_FILE" --valid 2>&1 | grep -q "true"; then
+            pm_json_output "validate" "success" '{"valid": true}'
+        else
+            pm_json_output "validate" "error" '{"valid": false}'
+        fi
     elif command -v check-jsonschema >/dev/null 2>&1; then
         if check-jsonschema "$STATE_FILE" "$schema" 2>&1 | grep -q "PASS"; then
-            echo '{"action": "validate", "status": "success", "valid": true}'
+            pm_json_output "validate" "success" '{"valid": true}'
         else
-            echo '{"action": "validate", "status": "error", "valid": false}'
+            pm_json_output "validate" "error" '{"valid": false}'
         fi
     else
         # 基础验证
         if jq '.' "$STATE_FILE" >/dev/null 2>&1; then
-            echo '{"action": "validate", "status": "success", "valid": true, "note": "安装 ajv 或 check-jsonschema 进行完整验证"}'
+            pm_json_output "validate" "success" '{"valid": true, "note": "安装 ajv 或 check-jsonschema 进行完整验证"}'
         else
-            echo '{"action": "validate", "status": "error", "valid": false}'
+            pm_json_output "validate" "error" '{"valid": false}'
         fi
     fi
 }
 
+# ============================================
 # 操作分发
+# ============================================
 ACTION="${1:-}"
 
 case "$ACTION" in
@@ -306,7 +329,7 @@ case "$ACTION" in
 
 示例:
   $(basename "$0") read .specs.CORE-01
-  $(basename "$0") update .specs.CORE-01.status '"'"'in_progress'"'"
+  $(basename "$0") update .specs.CORE-01.status 'in_progress'
   $(basename "$0") assign CORE-01 dev-a
   $(basename "$0") complete CORE-01 dev-a
   $(basename "$0") progress

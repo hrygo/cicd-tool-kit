@@ -5,90 +5,50 @@
 
 set -euo pipefail
 
+# 获取脚本目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-WORKTREE_BASE="${WORKTREE_BASE:-$HOME/.worktree}"
-STATE_FILE="${STATE_FILE:-$REPO_ROOT/.pm/state.json}"
-STATE_FILE_TMP="${STATE_FILE}.tmp"
 
-# 清理临时文件
-cleanup() {
-    rm -f "$STATE_FILE_TMP" 2>/dev/null || true
-}
-trap cleanup EXIT
+# 加载公共库
+# shellcheck source=lib/lib.sh
+# shellcheck source=lib/validate.sh
+source "$SCRIPT_DIR/lib/lib.sh"
+source "$SCRIPT_DIR/lib/validate.sh"
 
-# 确保 jq 可用
+# ============================================
+# worktree 特定配置
+# ============================================
+readonly WORKTREE_BASE="${WORKTREE_BASE:-$HOME/.worktree}"
+
+# ============================================
+# 确保依赖
+# ============================================
 if ! command -v jq >/dev/null 2>&1; then
-    echo '{"action": "worktree", "status": "error", "error": "需要 jq: brew install jq"}' >&2
+    pm_json_output "worktree" "error" '{"error": "需要 jq: brew install jq"}' >&2
     exit 1
 fi
 
-# 输出 JSON 辅助函数
-json_output() {
-    local action="$1"
-    local status="$2"
-    local data="${3:-{}}"
-    local timestamp
-    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    cat <<EOF
-{
-  "action": "$action",
-  "status": "$status",
-  "data": $data,
-  "timestamp": "$timestamp"
-}
-EOF
-}
+if ! command -v git >/dev/null 2>&1; then
+    pm_json_output "worktree" "error" '{"error": "需要 git"}' >&2
+    exit 1
+fi
 
-# 验证 developer_id 格式
-validate_developer_id() {
-    local dev_id="$1"
-    if [[ ! "$dev_id" =~ ^dev-[a-z]$ ]]; then
-        json_output "worktree" "error" "{\"error\": \"无效的 developer_id 格式: $dev_id (应为 dev-a 格式)\"}"
-        return 1
-    fi
-    return 0
-}
-
-# 验证 spec_id 格式
-validate_spec_id() {
-    local spec_id="$1"
-    if [[ ! "$spec_id" =~ ^[A-Z]+-[0-9]+$ ]]; then
-        json_output "worktree" "error" "{\"error\": \"无效的 spec_id 格式: $spec_id (应为 CORE-01 格式)\"}"
-        return 1
-    fi
-    return 0
-}
-
-# 验证 spec_id 不包含路径穿越字符
-validate_safe_spec_id() {
-    local spec_id="$1"
-    if [[ "$spec_id" =~ \.\. ]] || [[ "$spec_id" =~ / ]] || [[ "$spec_id" =~ \\ ]]; then
-        json_output "worktree" "error" "{\"error\": \"spec_id 包含非法字符: $spec_id\"}"
-        return 1
-    fi
-    return 0
-}
-
-# 验证开发者是否存在
-check_developer_exists() {
-    local dev_id="$1"
-    if ! jq -e ".developers.\"$dev_id\"" "$STATE_FILE" >/dev/null 2>&1; then
-        json_output "worktree" "error" "{\"error\": \"开发者不存在: $dev_id\"}"
-        return 1
-    fi
-    return 0
-}
+# ============================================
+# 内部辅助函数
+# ============================================
 
 # 添加 worktree 到 state.json
-add_worktree_to_state() {
+_add_worktree_to_state() {
     local developer="$1"
     local spec_id="$2"
     local path="$3"
     local branch="$4"
-    local now
-    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+    if ! pm_lock_acquire; then
+        return 1
+    fi
+
+    local now
+    now=$(pm_now_iso)
     jq --arg now "$now" \
         --arg dev "$developer" \
         --arg spec "$spec_id" \
@@ -96,34 +56,46 @@ add_worktree_to_state() {
         --arg branch "$branch" \
         '.worktrees += [{developer: $dev, spec_id: $spec, path: $path, branch: $branch}] | .updated_at = $now' \
         "$STATE_FILE" > "$STATE_FILE_TMP"
-    mv "$STATE_FILE_TMP" "$STATE_FILE"
+
+    local result=$?
+    pm_lock_release
+    return $result
 }
 
 # 从 state.json 移除 worktree
-remove_worktree_from_state() {
+_remove_worktree_from_state() {
     local developer="$1"
     local spec_id="$2"
-    local now
-    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+    if ! pm_lock_acquire; then
+        return 1
+    fi
+
+    local now
+    now=$(pm_now_iso)
     jq --arg now "$now" \
         --arg dev "$developer" \
         --arg spec "$spec_id" \
         '.worktrees |= map(select(.developer != $dev or .spec_id != $spec)) | .updated_at = $now' \
         "$STATE_FILE" > "$STATE_FILE_TMP"
-    mv "$STATE_FILE_TMP" "$STATE_FILE"
+
+    local result=$?
+    pm_lock_release
+    return $result
 }
 
-# create 命令
+# ============================================
+# create 命令 - 创建 worktree
+# ============================================
 cmd_create() {
     local developer_id="$1"
     local spec_id="$2"
 
     # 验证输入
-    validate_developer_id "$developer_id" || return 1
-    validate_spec_id "$spec_id" || return 1
-    validate_safe_spec_id "$spec_id" || return 1
-    check_developer_exists "$developer_id" || return 1
+    pm_validate_developer_id "$developer_id" "worktree" || return 1
+    pm_validate_spec_id "$spec_id" "worktree" || return 1
+    pm_validate_safe_spec_id "$spec_id" "worktree" || return 1
+    pm_check_developer_exists "$developer_id" "worktree" || return 1
 
     # 读取 state.json 获取开发者命名空间
     local namespace
@@ -136,43 +108,45 @@ cmd_create() {
 
     # 检查是否已存在
     if [[ -d "$worktree_path" ]]; then
-        json_output "worktree" "success" "{\"path\": \"$worktree_path\", \"branch\": \"$branch_name\", \"exists\": true, \"namespace\": \"$namespace\"}"
+        pm_json_output "worktree" "success" "{\"path\": \"$worktree_path\", \"branch\": \"$branch_name\", \"exists\": true, \"namespace\": \"$namespace\"}"
         return 0
     fi
 
     # 创建 worktree
     cd "$REPO_ROOT" || {
-        json_output "worktree" "error" '{"error": "无法进入项目根目录"}'
+        pm_json_output "worktree" "error" '{"error": "无法进入项目根目录"}'
         return 1
     }
 
     if ! git worktree add "$worktree_path" -b "$branch_name" 2>/dev/null; then
-        json_output "worktree" "error" "{\"error\": \"创建 worktree 失败: $worktree_path\"}"
+        pm_json_output "worktree" "error" "{\"error\": \"创建 worktree 失败: $worktree_path\"}"
         return 1
     fi
 
     # 更新 state.json
-    add_worktree_to_state "$developer_id" "$spec_id" "$worktree_path" "$branch_name"
+    _add_worktree_to_state "$developer_id" "$spec_id" "$worktree_path" "$branch_name"
 
-    json_output "worktree" "success" "{\"path\": \"$worktree_path\", \"branch\": \"$branch_name\", \"namespace\": \"$namespace\"}"
+    pm_json_output "worktree" "success" "{\"path\": \"$worktree_path\", \"branch\": \"$branch_name\", \"namespace\": \"$namespace\"}"
 }
 
-# remove 命令
+# ============================================
+# remove 命令 - 删除 worktree
+# ============================================
 cmd_remove() {
     local developer_id="$1"
     local spec_id="$2"
 
     # 验证输入
-    validate_developer_id "$developer_id" || return 1
-    validate_spec_id "$spec_id" || return 1
-    validate_safe_spec_id "$spec_id" || return 1
+    pm_validate_developer_id "$developer_id" "worktree" || return 1
+    pm_validate_spec_id "$spec_id" "worktree" || return 1
+    pm_validate_safe_spec_id "$spec_id" "worktree" || return 1
 
     local dev_short="${developer_id#dev-}"
     local branch_name="pr-${dev_short}-${spec_id}"
     local worktree_path="$WORKTREE_BASE/$branch_name"
 
     cd "$REPO_ROOT" || {
-        json_output "worktree" "error" '{"error": "无法进入项目根目录"}'
+        pm_json_output "worktree" "error" '{"error": "无法进入项目根目录"}'
         return 1
     }
 
@@ -189,53 +163,52 @@ cmd_remove() {
     fi
 
     # 从 state.json 中移除
-    remove_worktree_from_state "$developer_id" "$spec_id"
+    _remove_worktree_from_state "$developer_id" "$spec_id"
 
     if [[ "$removed" == "true" ]]; then
-        json_output "worktree" "success" "{\"removed\": \"$worktree_path\"}"
+        pm_json_output "worktree" "success" "{\"removed\": \"$worktree_path\"}"
     else
-        json_output "worktree" "success" "{\"removed\": null, \"note\": \"worktree 不存在，已从 state.json 中移除记录\"}"
+        pm_json_output "worktree" "success" "{\"removed\": null, \"note\": \"worktree 不存在，已从 state.json 中移除记录\"}"
     fi
 }
 
-# list 命令
+# ============================================
+# list 命令 - 列出所有 worktree
+# ============================================
 cmd_list() {
     cd "$REPO_ROOT" || {
-        json_output "worktree" "error" '{"error": "无法进入项目根目录"}'
+        pm_json_output "worktree" "error" '{"error": "无法进入项目根目录"}'
         return 1
     }
 
-    local worktrees_json="["
-    local first=true
+    # 使用 jq 构建 JSON 数组
+    local worktrees_json="[]"
+
     while IFS= read -r line; do
         if [[ "$line" =~ ^(/.+)\ ([a-f0-9]+)\ \[(.+)\]$ ]]; then
             local path="${BASH_REMATCH[1]}"
             local commit="${BASH_REMATCH[2]}"
             local branch="${BASH_REMATCH[3]}"
-            if [[ "$first" == "true" ]]; then
-                first=false
-            else
-                worktrees_json+=","
-            fi
-            # 转义路径中的双引号
-            path="${path//\"/\\\"}"
-            worktrees_json+="{\"path\": \"$path\", \"commit\": \"$commit\", \"branch\": \"$branch\"}"
+            # 使用 jq 添加到数组
+            worktrees_json=$(echo "$worktrees_json" | jq \
+                --arg p "$path" \
+                --arg c "$commit" \
+                --arg b "$branch" \
+                '. += [{path: $p, commit: $c, branch: $b}]')
         fi
     done < <(git worktree list)
-    worktrees_json+="]"
 
-    json_output "worktree" "success" "{\"worktrees\": $worktrees_json}"
+    pm_json_output "worktree" "success" "{\"worktrees\": $worktrees_json}"
 }
 
-# sync 命令 - 同步 state.json 中的 worktrees 与实际 Git worktrees
+# ============================================
+# sync 命令 - 同步 state.json 与实际 Git worktrees
+# ============================================
 cmd_sync() {
     cd "$REPO_ROOT" || {
-        json_output "worktree" "error" '{"error": "无法进入项目根目录"}'
+        pm_json_output "worktree" "error" '{"error": "无法进入项目根目录"}'
         return 1
-    }
-
-    local now
-    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    fi
 
     # 获取实际的 worktree 列表
     local actual_worktrees=()
@@ -250,32 +223,45 @@ cmd_sync() {
     state_worktrees=$(jq -r '.worktrees[].path' "$STATE_FILE" 2>/dev/null || echo "")
 
     # 清理 state.json 中不存在的 worktree
-    local new_worktrees="["
-    local first=true
+    local new_worktrees="[]"
+
+    if ! pm_lock_acquire; then
+        pm_json_output "worktree" "error" '{"error": "无法获取文件锁"}'
+        return 1
+    fi
+
     for wt_path in $state_worktrees; do
         if [[ " ${actual_worktrees[*]} " =~ " ${wt_path} " ]]; then
-            if [[ "$first" == "true" ]]; then
-                first=false
-            else
-                new_worktrees+=","
-            fi
-            new_worktrees+=$(jq -c --arg p "$wt_path" '.worktrees[] | select(.path == $p)' "$STATE_FILE")
+            # worktree 仍然存在，保留
+            local wt_entry
+            wt_entry=$(jq -c --arg p "$wt_path" '.worktrees[] | select(.path == $p)' "$STATE_FILE")
+            new_worktrees=$(echo "$new_worktrees" | jq --arg e "$wt_entry" '. += [$e | fromjson]')
         fi
     done
-    new_worktrees+="]"
 
-    jq --arg now "$now" \
-        --arg wt "$new_worktrees" \
-        '.worktrees = $wt | .updated_at = $now' \
-        "$STATE_FILE" > "$STATE_FILE_TMP"
+    # 更新 state.json
+    local now
+    now=$(pm_now_iso)
+    echo "$new_worktrees" | jq --arg now "$now" '.worktrees = $in | .updated_at = $now' > "$STATE_FILE_TMP"
+
+    local result=$?
+    pm_lock_release
+
+    if [[ $result -ne 0 ]]; then
+        pm_json_output "worktree" "error" '{"error": "更新 state.json 失败"}'
+        return 1
+    fi
+
     mv "$STATE_FILE_TMP" "$STATE_FILE"
 
     local actual_count=${#actual_worktrees[@]}
     local state_count=$(echo "$state_worktrees" | wc -w | xargs)
-    json_output "worktree" "success" "{\"actual_count\": $actual_count, \"state_count\": $state_count, \"synced\": true}"
+    pm_json_output "worktree" "success" "{\"actual_count\": $actual_count, \"state_count\": $state_count, \"synced\": true}"
 }
 
+# ============================================
 # 操作分发
+# ============================================
 ACTION="${1:-}"
 
 case "$ACTION" in
@@ -300,6 +286,9 @@ case "$ACTION" in
   remove <dev> <spec>  删除 worktree
   list                 列出所有 worktree
   sync                 同步 state.json 与实际 worktree
+
+环境变量:
+  WORKTREE_BASE  worktree 基础目录 (默认: ~/.worktree)
 
 示例:
   $(basename "$0") create dev-a CORE-01
