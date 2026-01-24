@@ -1,0 +1,13 @@
+# Minimal Dockerfile for production use
+FROM alpine:latest AS builder
+
+RUN apk add --no-cache git go
+
+WORKDIR /build
+COPY . .
+
+RUN CGO_ENABLED=0 go build -o cicd-runner ./cmd/cicd-runner
+
+FROM scratch
+COPY --from=builder /build/cicd-runner /cicd-runner
+ENTRYPOINT ["/cicd-runner"]

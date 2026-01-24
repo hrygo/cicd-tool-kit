@@ -1,27 +1,58 @@
-// Package main provides the cicd-runner CLI application.
+// Copyright 2026 CICD AI Toolkit. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+
 package main
 
 import (
 	"fmt"
 
-	"github.com/cicd-ai-toolkit/cicd-runner/pkg/version"
 	"github.com/spf13/cobra"
 )
 
-// versionCmd represents the version command
+var (
+	versionShort bool
+	versionJSON  bool
+)
+
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
-	Long:  `Display detailed version information including build date, git commit, and Go version.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		info := version.Info()
-		fmt.Printf("cicd-runner version: %s\n", info["version"])
-		fmt.Printf("  build date: %s\n", info["buildDate"])
-		fmt.Printf("  git commit: %s\n", info["gitCommit"])
-		fmt.Printf("  go version: %s\n", info["goVersion"])
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if versionJSON {
+			fmt.Printf(`{"version":"%s","commit":"%s","buildDate":"%s"}`,
+				getVersion(), getCommit(), getBuildDate())
+			return nil
+		}
+
+		if versionShort {
+			fmt.Println(getVersion())
+			return nil
+		}
+
+		fmt.Printf("CICD AI Toolkit Runner\n")
+		fmt.Printf("Version: %s\n", getVersion())
+		fmt.Printf("Commit: %s\n", getCommit())
+		fmt.Printf("Build Date: %s\n", getBuildDate())
+
+		return nil
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(versionCmd)
+	versionCmd.Flags().BoolVar(&versionShort, "short", false,
+		"Show only version number")
+	versionCmd.Flags().BoolVar(&versionJSON, "json", false,
+		"Output version as JSON")
+}
+
+func getCommit() string {
+	// Will be set by ldflags during build
+	return "unknown"
+}
+
+func getBuildDate() string {
+	// Will be set by ldflags during build
+	return "unknown"
 }

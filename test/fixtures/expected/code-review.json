@@ -1,0 +1,14 @@
+{
+  "summary": "Code review complete",
+  "issues": [
+    {
+      "severity": "low",
+      "file": "main.go",
+      "line": 5,
+      "description": "Function 'add' should include documentation"
+    }
+  ],
+  "positives": [
+    "Clean function structure"
+  ]
+}

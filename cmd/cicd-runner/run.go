@@ -1,45 +1,75 @@
-// Package main provides the cicd-runner CLI application.
+// Copyright 2026 CICD AI Toolkit. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+
 package main
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/cicd-ai-toolkit/cicd-runner/pkg/version"
 	"github.com/spf13/cobra"
 )
 
-// runCmd represents the run command
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: "Run the CICD AI Toolkit",
-	Long: `Run the CICD AI Toolkit to analyze your codebase.
+	Short: "Run AI analysis on CI/CD events",
+	Long: `Execute AI-powered analysis on pull requests, pushes, and other CI/CD events.
 
-This command will analyze the current git diff and provide
-AI-powered insights and suggestions.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("CICD AI Toolkit Runner v" + version.String())
-		fmt.Println("This is a placeholder implementation.")
-		fmt.Println("Full implementation coming in Phase 2 (CORE-01).")
-		return nil
-	},
+This command will:
+1. Detect the current platform (GitHub, GitLab, Gitee, etc.)
+2. Gather context (git diff, commit messages, files changed)
+3. Execute configured skills
+4. Post results back to the platform`,
+	RunE: runRun,
 }
 
-// runFlags holds the flags for the run command
-type runFlags struct {
-	skills    string
-	config    string
-	verbose   bool
-	dryRun    bool
-}
-
-var runOpts runFlags
+var (
+	runSkills      string
+	runConfig      string
+	runPlatform    string
+	runEventPath   string
+	runDryRun      bool
+	runVerbose     bool
+)
 
 func init() {
-	rootCmd.AddCommand(runCmd)
+	runCmd.Flags().StringVarP(&runSkills, "skills", "s", "code-reviewer",
+		"Comma-separated list of skills to run")
+	runCmd.Flags().StringVarP(&runConfig, "config", "c", ".cicd-ai-toolkit.yaml",
+		"Path to configuration file")
+	runCmd.Flags().StringVarP(&runPlatform, "platform", "p", "",
+		"Force platform (github, gitlab, gitee, jenkins)")
+	runCmd.Flags().StringVar(&runEventPath, "event", "",
+		"Path to event payload file")
+	runCmd.Flags().BoolVar(&runDryRun, "dry-run", false,
+		"Run without posting comments")
+	runCmd.Flags().BoolVarP(&runVerbose, "verbose", "v", false,
+		"Verbose output")
+}
 
-	// Local flags for the run command
-	runCmd.Flags().StringVarP(&runOpts.skills, "skills", "s", "code-reviewer", "Comma-separated list of skills to run")
-	runCmd.Flags().StringVarP(&runOpts.config, "config", "c", "", "Path to configuration file")
-	runCmd.Flags().BoolVarP(&runOpts.verbose, "verbose", "v", false, "Verbose output")
-	runCmd.Flags().BoolVar(&runOpts.dryRun, "dry-run", false, "Show what would be done without doing it")
+func runRun(cmd *cobra.Command, args []string) error {
+	_, cancel := context.WithCancel(cmd.Context())
+	defer cancel()
+
+	// Setup signal handling
+	// TODO: Implement signal handling in CORE-01
+	_ = cancel
+
+	if runVerbose {
+		fmt.Println("CICD AI Toolkit Runner")
+		fmt.Println("=======================")
+		fmt.Printf("Skills: %s\n", runSkills)
+		fmt.Printf("Config: %s\n", runConfig)
+		fmt.Printf("Platform: %s\n", runPlatform)
+		fmt.Printf("Dry Run: %v\n", runDryRun)
+	}
+
+	// TODO: Implement actual runner logic
+	// This will be implemented in CORE-01 spec
+
+	fmt.Println("Run command executed (stub implementation)")
+
+	return nil
 }

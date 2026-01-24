@@ -1,0 +1,15 @@
+# Basic code review configuration
+runner:
+  enabled_skills:
+    - code-reviewer
+  timeout: 300
+
+platform:
+  type: auto
+
+security:
+  sandbox_enabled: true
+  allowed_tools:
+    - read
+    - grep
+    - ls

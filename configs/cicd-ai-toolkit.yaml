@@ -1,0 +1,49 @@
+# CICD AI Toolkit Configuration
+# This is a complete example configuration file
+
+# Runner configuration
+runner:
+  timeout: 300  # Maximum execution time in seconds
+  max_concurrent: 3  # Maximum concurrent skill executions
+  enabled_skills:
+    - code-reviewer
+    - change-analyzer
+
+# Platform configuration
+platform:
+  type: auto  # auto, github, gitlab, gitee, jenkins
+  endpoint: ""  # Custom endpoint (for GitLab, Jenkins, etc.)
+  token: ""  # API token (read from environment: CICD_PLATFORM_TOKEN)
+  extra:  # Platform-specific settings
+    # GitHub: nothing needed
+    # GitLab: project_id, etc.
+    # Gitee: owner, repo, etc.
+
+# Skills configuration
+skills:
+  paths:
+    - ./skills
+    - ~/.cicd-ai-toolkit/skills
+
+# Security configuration
+security:
+  sandbox_enabled: true
+  allowed_tools:
+    - read
+    - grep
+    - ls
+    - glob
+    - ask_user
+
+# Observability configuration
+observability:
+  log_level: info  # debug, info, warn, error
+  metrics: true  # Enable Prometheus metrics
+  tracing: false  # Enable distributed tracing
+
+# Cache configuration
+cache:
+  enabled: true
+  memory_size: 100  # MB
+  disk_path: ~/.cicd-ai-toolkit/cache
+  ttl: 24h  # Cache TTL

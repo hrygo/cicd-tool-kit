@@ -1,42 +1,31 @@
-// Package version provides version information for the cicd-runner.
-// These variables are set via ldflags during the build process.
+// Copyright 2026 CICD AI Toolkit. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+
+// Package version provides version information.
 package version
 
-// Version is the current version of the binary.
-// Set via -ldflags "-X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.Version=..."
-var Version = "dev"
+const (
+	// Version is the application version.
+	Version = "0.1.0"
 
-// BuildDate is the date when the binary was built.
-// Set via -ldflags "-X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.BuildDate=..."
-var BuildDate = "unknown"
+	// GitCommit is the git commit hash.
+	GitCommit = "unknown"
 
-// GitCommit is the git commit hash used to build the binary.
-// Set via -ldflags "-X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.GitCommit=..."
-var GitCommit = "unknown"
+	// BuildDate is the build date.
+	BuildDate = "unknown"
+)
 
-// GoVersion is the Go version used to build the binary.
-// Set via -ldflags "-X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.GoVersion=..."
-var GoVersion = "unknown"
-
-// String returns a formatted version string.
-func String() string {
+// Info returns version information.
+func Info() string {
 	return Version
 }
 
-// FullString returns a detailed version string including build info.
-func FullString() string {
-	if Version == "dev" {
-		return "cicd-runner development version"
-	}
-	return "cicd-runner " + Version
-}
-
-// Info returns all version information as a map.
-func Info() map[string]string {
+// FullInfo returns full version information.
+func FullInfo() map[string]string {
 	return map[string]string{
 		"version":   Version,
+		"commit":    GitCommit,
 		"buildDate": BuildDate,
-		"gitCommit": GitCommit,
-		"goVersion": GoVersion,
 	}
 }

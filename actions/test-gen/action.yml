@@ -1,0 +1,32 @@
+name: 'AI Test Generator'
+description: 'Generate unit tests using AI'
+inputs:
+  skills:
+    description: 'Comma-separated list of skills to run'
+    required: false
+    default: 'test-generator'
+  api-key:
+    description: 'Anthropic API key for Claude'
+    required: true
+  config:
+    description: 'Path to configuration file'
+    required: false
+    default: '.cicd-ai-toolkit.yaml'
+  output-path:
+    description: 'Path to write generated tests'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate Tests
+      shell: bash
+      run: |
+        echo "::group::Generating tests"
+        cicd-runner run \
+          --skills "${{ inputs.skills }}" \
+          --config "${{ inputs.config }}"
+        echo "::endgroup::"
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.api-key }}
+        TEST_OUTPUT_PATH: ${{ inputs.output-path }}

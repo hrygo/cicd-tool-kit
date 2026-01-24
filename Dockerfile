@@ -1,61 +1,43 @@
-# Dockerfile for cicd-ai-toolkit/runner
-# Multi-stage build for minimal image size (~50MB target)
+# Build stage
+FROM golang:1.21-alpine AS builder
 
-# ============================================
-# Stage 1: Builder
-# ============================================
-FROM golang:1.22.5-alpine AS builder
+WORKDIR /build
 
 # Install build dependencies
-RUN apk add --no-cache \
-    git \
-    ca-certificates \
-    make
+RUN apk add --no-cache git make
 
-# Set working directory
-WORKDIR /src
-
-# Copy go mod files (for better caching)
-COPY go.mod go.sum ./
+# Copy go mod files
+COPY go.mod go.sum* ./
 RUN go mod download
 
 # Copy source code
 COPY . .
 
-# Build arguments
-ARG VERSION=dev
-ARG BUILD_DATE=
-ARG GIT_COMMIT=
-
 # Build the binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-s -w \
-        -X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.Version=${VERSION} \
-        -X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.BuildDate=${BUILD_DATE} \
-        -X github.com/cicd-ai-toolkit/cicd-runner/pkg/version.GitCommit=${GIT_COMMIT}" \
-    -trimpath \
-    -o /tmp/cicd-runner \
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-w -s" \
+    -o /build/cicd-runner \
     ./cmd/cicd-runner
 
-# ============================================
-# Stage 2: Distroless Runtime (Production)
-# ============================================
-FROM gcr.io/distroless/static:nonroot AS production
+# Final stage
+FROM alpine:latest
 
-# Copy CA certificates from builder
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+RUN apk add --no-cache git
 
-# Copy binary
-COPY --from=builder /tmp/cicd-runner /bin/cicd-runner
+WORKDIR /app
 
-# Copy skills (optional - for built-in skills)
-COPY skills/ /opt/cicd-ai/skills/
+# Copy binary from builder
+COPY --from=builder /build/cicd-runner /app/cicd-runner
 
-# Set non-root user (distroless:nonroot uses UID 65532)
-USER 65532:65532
+# Copy skills
+COPY --from=builder /build/skills /app/skills
 
-# Set entrypoint
-ENTRYPOINT ["/bin/cicd-runner"]
+# Create cache directory
+RUN mkdir -p /app/cache
 
-# Default command
+ENV PATH="/app:${PATH}"
+ENV CICD_SKILLS_PATH=/app/skills
+ENV CICD_CACHE_PATH=/app/cache
+
+ENTRYPOINT ["/app/cicd-runner"]
 CMD ["--help"]

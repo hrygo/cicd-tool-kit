@@ -1,0 +1,17 @@
+# Configuration for GitHub Actions usage
+# Place this as .cicd-ai-toolkit.yaml in your repository
+
+runner:
+  timeout: 300
+  enabled_skills:
+    - code-reviewer
+    - change-analyzer
+
+platform:
+  type: github
+  # Token is automatically provided by GitHub Actions
+  # via GITHUB_TOKEN environment variable
+
+observability:
+  log_level: info
+  metrics: false  # Disabled in GitHub Actions

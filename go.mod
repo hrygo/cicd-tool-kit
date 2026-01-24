@@ -1,9 +1,11 @@
-// go.mod - Go module definition for cicd-ai-toolkit
-module github.com/cicd-ai-toolkit/cicd-runner
+module github.com/cicd-ai-toolkit
 
-go 1.22
+go 1.21
 
-require github.com/spf13/cobra v1.8.1
+require (
+	github.com/spf13/cobra v1.8.0
+	gopkg.in/yaml.v3 v3.0.1
+)
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

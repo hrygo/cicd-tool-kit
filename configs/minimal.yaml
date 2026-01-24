@@ -1,0 +1,12 @@
+# Minimal CICD AI Toolkit Configuration
+# This is a minimal configuration for quick setup
+
+runner:
+  enabled_skills:
+    - code-reviewer
+
+platform:
+  type: auto
+
+security:
+  sandbox_enabled: true

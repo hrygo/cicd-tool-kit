@@ -1,0 +1,56 @@
+name: 'AI All-in-One'
+description: 'Run all AI analysis skills: code review, test generation, and change analysis'
+inputs:
+  api-key:
+    description: 'Anthropic API key for Claude'
+    required: true
+  config:
+    description: 'Path to configuration file'
+    required: false
+    default: '.cicd-ai-toolkit.yaml'
+  skip-review:
+    description: 'Skip code review'
+    required: false
+    default: 'false'
+  skip-test-gen:
+    description: 'Skip test generation'
+    required: false
+    default: 'false'
+  skip-analyze:
+    description: 'Skip change analysis'
+    required: false
+    default: 'false'
+runs:
+  using: 'composite'
+  steps:
+    - name: Run All AI Analysis
+      shell: bash
+      run: |
+        echo "::group::Running AI All-in-One Analysis"
+
+        SKILLS=""
+
+        if [ "${{ inputs.skip-review }}" != "true" ]; then
+          SKILLS="$SKILLS,code-reviewer"
+        fi
+
+        if [ "${{ inputs.skip-test-gen }}" != "true" ]; then
+          SKILLS="$SKILLS,test-generator"
+        fi
+
+        if [ "${{ inputs.skip-analyze }}" != "true" ]; then
+          SKILLS="$SKILLS,change-analyzer"
+        fi
+
+        # Remove leading comma
+        SKILLS="${SKILLS#,}"
+
+        echo "Running skills: $SKILLS"
+
+        cicd-runner run \
+          --skills "$SKILLS" \
+          --config "${{ inputs.config }}"
+
+        echo "::endgroup::"
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.api-key }}

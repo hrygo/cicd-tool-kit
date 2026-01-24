@@ -1,52 +1,47 @@
-# .dockerignore - Files to exclude from Docker build context
-
-# Git
-.git
-.gitignore
-.github
-
-# Documentation
-*.md
-docs/
-LICENSE
-
 # Build artifacts
-build/
 bin/
 *.exe
 *.dll
 *.so
 *.dylib
 
-# Dependencies
-vendor/
+# Test files
+coverage.out
+coverage.html
 
-# IDE
-.vscode/
+# Go files
+*.test
+
+# Editor directories
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
-# Test
-test/
-*.test
-coverage.out
+# Git
+.git/
+.gitignore
+
+# Documentation (except README)
+docs/
+*.md
+!README.md
 
 # CI/CD
-.claude/
-.agent/
-templates/
-TASKS.md
+.github/
 
-# Logs
-*.log
+# Build scripts (not needed in container)
+build/
+scripts/
+Makefile
 
-# Temporary
-tmp/
-temp/
-*.tmp
+# Test data
+test/
+
+# Examples
+examples/
