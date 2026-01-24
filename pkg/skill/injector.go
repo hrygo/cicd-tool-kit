@@ -84,17 +84,18 @@ func (i *Injector) BuildPrompt(skill *Skill, inputs map[string]any) (string, err
 }
 
 // substitutePlaceholders replaces {{VAR}} style placeholders with actual values.
+// Uses strings.Replacer for O(n) single-pass replacement instead of O(n×m).
 func (i *Injector) substitutePlaceholders(prompt string, inputs map[string]any) (string, error) {
-	result := prompt
-
 	// Find all unique placeholder names
-	placeholders := i.extractPlaceholders(result)
+	placeholders := i.extractPlaceholders(prompt)
 
-	// Replace each placeholder
+	// Build replacement pairs for strings.Replacer
+	// Each placeholder has two entries: lowercase and uppercase variant
+	oldNew := make([]string, 0, len(placeholders)*2)
+
 	for name := range placeholders {
-		value, ok := inputs[name]
 		var replacement string
-
+		value, ok := inputs[name]
 		if !ok {
 			// Try uppercase version too
 			if v, ok := inputs[strings.ToUpper(name)]; ok {
@@ -106,16 +107,20 @@ func (i *Injector) substitutePlaceholders(prompt string, inputs map[string]any) 
 			replacement = formatValue(value)
 		}
 
-		// Create the placeholder string
+		// Create both lowercase and uppercase placeholders
 		placeholder := fmt.Sprintf(i.placeholderFormat, name)
-		result = strings.ReplaceAll(result, placeholder, replacement)
-
-		// Also try uppercase version
 		placeholderUpper := fmt.Sprintf(i.placeholderFormat, strings.ToUpper(name))
-		result = strings.ReplaceAll(result, placeholderUpper, replacement)
+
+		oldNew = append(oldNew, placeholder, replacement)
+		oldNew = append(oldNew, placeholderUpper, replacement)
 	}
 
-	return result, nil
+	// Use strings.Replacer for efficient single-pass replacement
+	if len(oldNew) > 0 {
+		replacer := strings.NewReplacer(oldNew...)
+		return replacer.Replace(prompt), nil
+	}
+	return prompt, nil
 }
 
 // extractPlaceholders finds all unique placeholder names in the prompt.

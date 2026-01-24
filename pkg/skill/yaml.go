@@ -2,7 +2,6 @@ package skill
 
 import (
 	"strings"
-	"unicode"
 
 	"gopkg.in/yaml.v3"
 )
@@ -23,30 +22,4 @@ func encodeYAML(v any) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
-}
-
-// isYAMLString checks if content looks like YAML (heuristic).
-func isYAMLString(content string) bool {
-	trimmed := strings.TrimSpace(content)
-	if len(trimmed) == 0 {
-		return false
-	}
-
-	// Check for common YAML patterns
-	lines := strings.Split(trimmed, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || line[0] == '#' {
-			continue
-		}
-		// Look for key: value pattern
-		if len(line) > 0 && unicode.IsLetter(rune(line[0])) {
-			if idx := strings.Index(line, ":"); idx > 0 && idx < len(line)-1 {
-				// Found "key:" followed by something
-				return true
-			}
-		}
-	}
-
-	return false
 }

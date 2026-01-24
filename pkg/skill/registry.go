@@ -61,11 +61,13 @@ func (r *Registry) MustGet(name string) *Skill {
 }
 
 // List returns all registered skill names.
+// Order is not guaranteed due to map iteration randomness.
 func (r *Registry) List() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	names := make([]string, 0, len(r.skills))
+	// Pre-allocated capacity makes append efficient
 	for name := range r.skills {
 		names = append(names, name)
 	}
@@ -73,11 +75,13 @@ func (r *Registry) List() []string {
 }
 
 // ListSkills returns all registered skills.
+// Order is not guaranteed due to map iteration randomness.
 func (r *Registry) ListSkills() []*Skill {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	skills := make([]*Skill, 0, len(r.skills))
+	// Pre-allocated capacity makes append efficient
 	for _, skill := range r.skills {
 		skills = append(skills, skill)
 	}
