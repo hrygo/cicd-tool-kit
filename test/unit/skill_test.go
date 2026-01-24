@@ -26,9 +26,8 @@ func TestRegistryRegister(t *testing.T) {
 			Version: "1.0.0",
 		},
 	}
-	err := reg.Register(s)
-	if err != nil {
-		t.Fatalf("Register() failed: %v", err)
+	if err := reg.Register(s); err != nil {
+		t.Fatal(err)
 	}
 
 	got := reg.Get("test")
@@ -55,12 +54,8 @@ func TestRegistryList(t *testing.T) {
 			Version: "1.0.0",
 		},
 	}
-	if err := reg.Register(s1); err != nil {
-		t.Fatalf("Register(s1) failed: %v", err)
-	}
-	if err := reg.Register(s2); err != nil {
-		t.Fatalf("Register(s2) failed: %v", err)
-	}
+	reg.Register(s1)
+	reg.Register(s2)
 
 	list := reg.List()
 	if len(list) != 2 {

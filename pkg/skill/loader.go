@@ -5,22 +5,10 @@
 package skill
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-)
-
-var (
-	// ErrInvalidFrontmatter is returned when frontmatter parsing fails.
-	ErrInvalidFrontmatter = errors.New("invalid frontmatter")
-	// ErrMissingName is returned when skill name is missing.
-	ErrMissingName = errors.New("missing required field: name")
-	// ErrMissingVersion is returned when skill version is missing.
-	ErrMissingVersion = errors.New("missing required field: version")
-	// ErrInvalidSkillName is returned when skill name is invalid.
-	ErrInvalidSkillName = errors.New("invalid skill name: must be lowercase kebab-case")
+	"strings"
 )
 
 // LoaderOption configures a Loader.
@@ -33,7 +21,7 @@ func WithSkillDirs(dirs ...string) LoaderOption {
 	}
 }
 
-// WithSkipInvalid sets whether to skip invalid skills during discovery.
+// WithSkipInvalid configures whether to skip invalid skills during discovery.
 func WithSkipInvalid(skip bool) LoaderOption {
 	return func(l *Loader) {
 		l.skipInvalid = skip
@@ -41,16 +29,15 @@ func WithSkipInvalid(skip bool) LoaderOption {
 }
 
 // Loader loads skills from SKILL.md files.
-// This will be fully implemented in SPEC-SKILL-01.
 type Loader struct {
-	skillDirs   []string
+	skillDirs  []string
 	skipInvalid bool
 }
 
 // NewLoader creates a new skill loader.
 func NewLoader(opts ...LoaderOption) *Loader {
 	l := &Loader{
-		skillDirs:   []string{"./skills"},
+		skillDirs:   []string{"./skills"}, // Default skill directory
 		skipInvalid: false,
 	}
 	for _, opt := range opts {
@@ -59,58 +46,38 @@ func NewLoader(opts ...LoaderOption) *Loader {
 	return l
 }
 
-// LoadFromPath loads a skill from a directory.
-func (l *Loader) LoadFromPath(ctx context.Context, path string) (*Skill, error) {
-	// Check for context cancellation
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
-	}
-
-	skillFile := filepath.Join(path, "SKILL.md")
-	return l.LoadFromFile(skillFile)
-}
-
-// LoadFromDir loads all skills from a directory.
-func (l *Loader) LoadFromDir(ctx context.Context, dir string) ([]*Skill, error) {
-	// TODO: Implement per SPEC-SKILL-01
-	return nil, nil
-}
-
 // LoadFromFile loads a skill from a SKILL.md file.
 func (l *Loader) LoadFromFile(path string) (*Skill, error) {
-	data, err := os.ReadFile(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
-	}
-
-	metadata, prompt, raw, err := parseFrontmatter(string(data))
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate skill name
-	if err := validateSkillName(metadata.Name); err != nil {
-		return nil, err
-	}
-
-	metadata.File = path
-
-	// Parse inputs from raw frontmatter if present
-	if inputsRaw, ok := raw["inputs"]; ok {
-		if inputsList, ok := inputsRaw.([]any); ok {
-			metadata.Inputs = parseInputs(inputsList)
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("%w: %s", ErrFileNotFound, path)
 		}
+		return nil, fmt.Errorf("failed to read skill file: %w", err)
 	}
 
-	return &Skill{
+	metadata, prompt, _, err := parseFrontmatter(string(content))
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate metadata
+	if err := metadata.Validate(); err != nil {
+		return nil, err
+	}
+
+	skill := &Skill{
 		Metadata: metadata,
 		Prompt:   prompt,
-	}, nil
+		File:     path,
+		Dir:      filepath.Dir(path),
+	}
+
+	return skill, nil
 }
 
-// Discover finds and loads all skills in the configured directories.
+// Discover finds and loads all skills from the configured directories.
+// Returns a map of skill name to skill, and a slice of any errors encountered.
 func (l *Loader) Discover() (map[string]*Skill, []error) {
 	skills := make(map[string]*Skill)
 	var errs []error
@@ -134,9 +101,11 @@ func (l *Loader) discoverInDir(dir string) (map[string]*Skill, []error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
+			// Directory doesn't exist, return empty results
 			return skills, nil
 		}
-		return skills, []error{err}
+		errs = append(errs, fmt.Errorf("failed to read directory %s: %w", dir, err))
+		return skills, errs
 	}
 
 	for _, entry := range entries {
@@ -144,40 +113,41 @@ func (l *Loader) discoverInDir(dir string) (map[string]*Skill, []error) {
 			continue
 		}
 
-		skillDir := filepath.Join(dir, entry.Name())
-		skillFile := filepath.Join(skillDir, "SKILL.md")
+		skillName := entry.Name()
+		skillFile := filepath.Join(dir, skillName, "SKILL.md")
 
-		if _, err := os.Stat(skillFile); err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			errs = append(errs, err)
+		// Check if SKILL.md exists before attempting to load
+		if _, err := os.Stat(skillFile); os.IsNotExist(err) {
+			// Directory doesn't contain a SKILL.md file, skip it silently
 			continue
 		}
 
 		skill, err := l.LoadFromFile(skillFile)
 		if err != nil {
 			if l.skipInvalid {
-				errs = append(errs, fmt.Errorf("skip %s: %w", entry.Name(), err))
+				errs = append(errs, fmt.Errorf("skipping %s: %w", skillName, err))
 				continue
 			}
-			errs = append(errs, fmt.Errorf("%s: %w", entry.Name(), err))
+			errs = append(errs, fmt.Errorf("failed to load skill %s: %w", skillName, err))
+			if len(errs) > 0 && !l.skipInvalid {
+				// Return immediately if not skipping invalid
+				return skills, errs
+			}
 			continue
 		}
 
-		// Verify directory name matches skill name
-		if skill.Metadata.Name != entry.Name() {
-			err := fmt.Errorf("skill name '%s' does not match directory name '%s'", skill.Metadata.Name, entry.Name())
+		// Verify skill name matches directory name
+		if skill.Name != skillName {
+			err := fmt.Errorf("skill name '%s' does not match directory name '%s'", skill.Name, skillName)
 			if l.skipInvalid {
-				errs = append(errs, err)
+				errs = append(errs, fmt.Errorf("skipping %s: %w", skillName, err))
 				continue
 			}
-			delete(skills, skill.Metadata.Name)
 			errs = append(errs, err)
-			continue
+			return skills, errs
 		}
 
-		skills[skill.Metadata.Name] = skill
+		skills[skillName] = skill
 	}
 
 	return skills, errs
@@ -186,67 +156,74 @@ func (l *Loader) discoverInDir(dir string) (map[string]*Skill, []error) {
 // LoadByName loads a skill by name from the configured directories.
 func (l *Loader) LoadByName(name string) (*Skill, error) {
 	for _, dir := range l.skillDirs {
-		skillDir := filepath.Join(dir, name)
-		skillFile := filepath.Join(skillDir, "SKILL.md")
-
-		if _, err := os.Stat(skillFile); err == nil {
-			return l.LoadFromFile(skillFile)
+		skillFile := filepath.Join(dir, name, "SKILL.md")
+		skill, err := l.LoadFromFile(skillFile)
+		if err == nil {
+			// Verify skill name matches
+			if skill.Name != name {
+				return nil, fmt.Errorf("skill name '%s' does not match requested name '%s'", skill.Name, name)
+			}
+			return skill, nil
+		}
+		if !os.IsNotExist(err) {
+			// Non-existence error, try next directory
+			return nil, err
 		}
 	}
-	return nil, fmt.Errorf("skill not found: %s", name)
+	return nil, fmt.Errorf("%w: skill '%s' not found", ErrFileNotFound, name)
 }
 
-// parseInputs parses input definitions from raw YAML.
-func parseInputs(raw []any) []InputDef {
-	inputs := make([]InputDef, 0, len(raw))
-	for _, item := range raw {
-		if m, ok := item.(map[string]any); ok {
-			input := InputDef{
-				Name:     getString(m, "name"),
-				Required: getBool(m, "required"),
-			}
+// LoadFromPath loads a skill from a directory (deprecated, use LoadFromFile).
+func (l *Loader) LoadFromPath(_ interface{}) (*Skill, error) {
+	// TODO: Implement per SPEC-SKILL-01
+	// This method is kept for backward compatibility
+	return nil, fmt.Errorf("not implemented: use LoadFromFile instead")
+}
 
-			if typeName := getString(m, "type"); typeName != "" {
-				input.Type = InputType(typeName)
-			} else {
-				input.Type = InputTypeString
-			}
+// LoadFromDir loads all skills from a directory (deprecated, use Discover).
+func (l *Loader) LoadFromDir(_ string) ([]*Skill, error) {
+	// TODO: Implement per SPEC-SKILL-01
+	// This method is kept for backward compatibility
+	return nil, fmt.Errorf("not implemented: use Discover instead")
+}
 
-			if val, ok := m["default"]; ok {
-				input.Default = val
-			}
+// loadSkillMD parses a SKILL.md file.
+// Deprecated: Use LoadFromFile instead.
+func (l *Loader) loadSkillMD(path string) (*Skill, error) {
+	return l.LoadFromFile(path)
+}
 
-			if desc := getString(m, "description"); desc != "" {
-				input.Description = desc
-			}
+// parseFrontmatter parses a SKILL.md file content, extracting metadata and prompt.
+// Returns the metadata, the prompt content, the byte offset of the frontmatter end, and any error.
+func parseFrontmatter(content string) (Metadata, string, int, error) {
+	var metadata Metadata
 
-			inputs = append(inputs, input)
-		}
+	// Check for frontmatter delimiter
+	if !strings.HasPrefix(content, "---") {
+		return metadata, "", 0, fmt.Errorf("%w: no frontmatter delimiter found", ErrInvalidFrontmatter)
 	}
-	return inputs
-}
 
-// getString extracts a string value from map.
-func getString(m map[string]any, key string) string {
-	if v, ok := m[key]; ok {
-		if s, ok := v.(string); ok {
-			return s
-		}
+	// Find the end of frontmatter
+	endIndex := strings.Index(content[3:], "---")
+	if endIndex == -1 {
+		return metadata, "", 0, fmt.Errorf("%w: unclosed frontmatter delimiter", ErrInvalidFrontmatter)
 	}
-	return ""
-}
+	endIndex += 3 // Account for the opening "---"
 
-// getBool extracts a bool value from map.
-func getBool(m map[string]any, key string) bool {
-	if v, ok := m[key]; ok {
-		if b, ok := v.(bool); ok {
-			return b
-		}
+	// Extract frontmatter YAML
+	frontmatter := content[3:endIndex]
+	if strings.TrimSpace(frontmatter) == "" {
+		return metadata, "", 0, fmt.Errorf("%w: empty frontmatter", ErrInvalidFrontmatter)
 	}
-	return false
-}
 
-// validateSkillName validates that the skill name follows kebab-case convention.
-func validateSkillName(name string) error {
-	return ValidateName(name)
+	// Parse YAML
+	if err := parseYAML(frontmatter, &metadata); err != nil {
+		return metadata, "", 0, fmt.Errorf("%w: %w", ErrInvalidFrontmatter, err)
+	}
+
+	// Extract prompt content (everything after the closing "---")
+	promptStart := endIndex + 3
+	prompt := strings.TrimSpace(content[promptStart:])
+
+	return metadata, prompt, promptStart, nil
 }

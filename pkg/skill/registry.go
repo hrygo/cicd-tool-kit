@@ -5,7 +5,7 @@
 package skill
 
 import (
-	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -30,23 +30,24 @@ func NewRegistry() *Registry {
 	}
 }
 
-// Register registers a skill.
+// Register registers a skill, returning an error if the skill is invalid.
+// If a skill with the same name already exists, it will be replaced.
 func (r *Registry) Register(s *Skill) error {
 	if s == nil {
-		return ErrInvalidSkill
+		return fmt.Errorf("cannot register nil skill")
 	}
-	if s.Metadata.Name == "" {
-		return ErrInvalidSkill
+	if err := s.Validate(); err != nil {
+		return err
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.skills[s.Metadata.Name] = s
+	r.skills[s.Name] = s
 	return nil
 }
 
 // RegisterAll registers multiple skills at once.
-// Returns an error if any skill fails to register.
+// Returns an error if any skill fails to validate, but may have partially registered skills.
 func (r *Registry) RegisterAll(skills []*Skill) error {
 	for _, s := range skills {
 		if err := r.Register(s); err != nil {
@@ -64,18 +65,18 @@ func (r *Registry) Unregister(name string) {
 }
 
 // Get retrieves a skill by name.
-// Returns the skill or nil if not found.
+// Returns nil if the skill is not found.
 func (r *Registry) Get(name string) *Skill {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.skills[name]
 }
 
-// MustGet retrieves a skill by name and panics if not found.
+// MustGet retrieves a skill by name, panicking if not found.
 func (r *Registry) MustGet(name string) *Skill {
 	s := r.Get(name)
 	if s == nil {
-		panic(ErrSkillNotFound)
+		panic(fmt.Sprintf("skill not found: %s", name))
 	}
 	return s
 }
@@ -126,13 +127,15 @@ func (r *Registry) Clear() {
 	r.skills = make(map[string]*Skill)
 }
 
-// LoadFrom loads skills from a loader.
+// LoadFrom loads skills from a Loader into the registry.
+// Returns a slice of any errors encountered during loading.
 func (r *Registry) LoadFrom(l *Loader) ([]error, error) {
 	skills, errs := l.Discover()
 
+	// Register all successfully loaded skills
 	for _, skill := range skills {
 		if err := r.Register(skill); err != nil {
-			return errs, err
+			return nil, err
 		}
 	}
 
