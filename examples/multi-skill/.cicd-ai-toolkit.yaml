@@ -1,0 +1,15 @@
+# Multi-skill configuration
+runner:
+  enabled_skills:
+    - code-reviewer
+    - change-analyzer
+    - test-generator
+  max_concurrent: 3
+  timeout: 600
+
+platform:
+  type: auto
+
+observability:
+  log_level: debug
+  metrics: true

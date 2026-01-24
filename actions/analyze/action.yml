@@ -1,0 +1,27 @@
+name: 'AI Change Analyzer'
+description: 'Analyze code changes and categorize impact'
+inputs:
+  skills:
+    description: 'Comma-separated list of skills to run'
+    required: false
+    default: 'change-analyzer'
+  api-key:
+    description: 'Anthropic API key for Claude'
+    required: true
+  config:
+    description: 'Path to configuration file'
+    required: false
+    default: '.cicd-ai-toolkit.yaml'
+runs:
+  using: 'composite'
+  steps:
+    - name: Analyze Changes
+      shell: bash
+      run: |
+        echo "::group::Analyzing changes"
+        cicd-runner run \
+          --skills "${{ inputs.skills }}" \
+          --config "${{ inputs.config }}"
+        echo "::endgroup::"
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.api-key }}

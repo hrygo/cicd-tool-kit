@@ -1,0 +1,33 @@
+name: 'AI Code Review'
+description: 'Perform AI-powered code review using Claude'
+inputs:
+  skills:
+    description: 'Comma-separated list of skills to run'
+    required: false
+    default: 'code-reviewer,change-analyzer'
+  api-key:
+    description: 'Anthropic API key for Claude'
+    required: true
+  config:
+    description: 'Path to configuration file'
+    required: false
+    default: '.cicd-ai-toolkit.yaml'
+  dry-run:
+    description: 'Run without posting comments'
+    required: false
+    default: 'false'
+runs:
+  using: 'composite'
+  steps:
+    - name: Run AI Code Review
+      shell: bash
+      run: |
+        echo "::group::Running AI Code Review"
+        cicd-runner run \
+          --skills "${{ inputs.skills }}" \
+          --config "${{ inputs.config }}" \
+          ${DRY_RUN:+--dry-run}
+        echo "::endgroup::"
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.api-key }}
+        DRY_RUN: ${{ inputs.dry-run == 'true' && '--dry-run' || '' }}

@@ -1,0 +1,36 @@
+name: 'CICD AI Toolkit Setup'
+description: 'Setup CICD AI Toolkit for use in GitHub Actions'
+inputs:
+  version:
+    description: 'Version of CICD AI Toolkit to install'
+    required: false
+    default: 'latest'
+  api-key:
+    description: 'Anthropic API key for Claude'
+    required: true
+  config:
+    description: 'Path to configuration file'
+    required: false
+    default: '.cicd-ai-toolkit.yaml'
+outputs:
+  bin-path:
+    description: 'Path to the cicd-runner binary'
+    value: ${{ steps.install.outputs.bin-path }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Install CICD AI Toolkit
+      id: install
+      shell: bash
+      run: |
+        echo "::group::Installing CICD AI Toolkit"
+        # Download and install the binary
+        # TODO: Implement download from releases
+        BIN_PATH="/usr/local/bin/cicd-runner"
+        echo "bin-path=${BIN_PATH}" >> $GITHUB_OUTPUT
+        echo "::endgroup::"
+    - name: Setup environment
+      shell: bash
+      run: |
+        echo "ANTHROPIC_API_KEY=${{ inputs.api-key }}" >> $GITHUB_ENV
+        echo "CICD_CONFIG=${{ inputs.config }}" >> $GITHUB_ENV

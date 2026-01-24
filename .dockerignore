@@ -1,0 +1,47 @@
+# Build artifacts
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+coverage.out
+coverage.html
+
+# Go files
+*.test
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation (except README)
+docs/
+*.md
+!README.md
+
+# CI/CD
+.github/
+
+# Build scripts (not needed in container)
+build/
+scripts/
+Makefile
+
+# Test data
+test/
+
+# Examples
+examples/
