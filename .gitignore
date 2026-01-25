@@ -46,3 +46,6 @@ dist/
 .env
 .env.local
 *.env
+
+# Project Manager worktrees (created inside project)
+.pm/worktrees/

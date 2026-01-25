@@ -126,6 +126,10 @@ cmd_create() {
     # 更新 state.json
     _add_worktree_to_state "$developer_id" "$spec_id" "$worktree_path" "$branch_name"
 
+    # 自动生成 TASK.md (脚本做搬运工，AI 做创造性工作)
+    cd "$REPO_ROOT"
+    "$SCRIPT_DIR/gen-task.sh" "$spec_id" "$developer_id" >/dev/null 2>&1 || true
+
     pm_json_output "worktree" "success" "{\"path\": \"$worktree_path\", \"branch\": \"$branch_name\", \"namespace\": \"$namespace\"}"
 }
 
@@ -208,7 +212,7 @@ cmd_sync() {
     cd "$REPO_ROOT" || {
         pm_json_output "worktree" "error" '{"error": "无法进入项目根目录"}'
         return 1
-    fi
+    }
 
     # 获取实际的 worktree 列表
     local actual_worktrees=()

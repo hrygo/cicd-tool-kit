@@ -205,6 +205,49 @@ cmd_prune() {
 }
 
 # ============================================
+# force-release 命令 - 强制释放锁 (危险操作)
+# ============================================
+cmd_force_release() {
+    local lock_name="$1"
+
+    pm_validate_lock_name "$lock_name" "lock" || return 1
+
+    # 检查锁是否存在
+    if ! pm_check_lock_exists "$lock_name"; then
+        pm_json_output "lock" "error" "{\"error\": \"锁不存在: $lock_name\"}"
+        return 1
+    fi
+
+    local lock_info
+    lock_info=$(jq -c ".locks.\"$lock_name\"" "$STATE_FILE")
+
+    # 获取文件锁
+    if ! pm_lock_acquire; then
+        pm_json_output "lock" "error" '{"error": "无法获取文件锁"}'
+        return 1
+    fi
+
+    local now
+    now=$(pm_now_iso)
+    jq --arg now "$now" \
+        --arg lock "$lock_name" \
+        'del(.locks[$lock]) | .updated_at = $now' \
+        "$STATE_FILE" > "$STATE_FILE_TMP"
+
+    if ! mv "$STATE_FILE_TMP" "$STATE_FILE"; then
+        pm_lock_release
+        pm_json_output "lock" "error" '{"error": "强制释放失败"}'
+        return 1
+    fi
+
+    pm_lock_release
+
+    pm_log_warn "强制释放锁: $lock_name" >&2
+
+    pm_json_output "lock" "success" "{\"lock_name\": \"$lock_name\", \"force_released\": true, \"previous_lock\": $lock_info}"
+}
+
+# ============================================
 # 操作分发
 # ============================================
 ACTION="${1:-}"
@@ -215,6 +258,9 @@ case "$ACTION" in
         ;;
     release)
         cmd_release "$2"
+        ;;
+    force-release)
+        cmd_force_release "$2"
         ;;
     list)
         cmd_list
@@ -232,6 +278,7 @@ case "$ACTION" in
 命令:
   acquire <lock> <dev> <spec> [reason] [duration]  获取锁
   release <lock>                                释放锁
+  force-release <lock>                           强制释放锁
   list                                         列出所有锁
   check <lock>                                 检查锁状态
   prune                                        清理过期锁
@@ -242,9 +289,10 @@ case "$ACTION" in
 示例:
   $(basename "$0") acquire runner dev-a CORE-01 "实现 Runner 生命周期"
   $(basename "$0") release runner
+  $(basename "$0") force-release runner  # 危险操作
   $(basename "$0") list
   $(basename "$0") check runner
-  $(basename "$0\") prune
+  $(basename "$0") prune
 
 EOF
         exit 1
