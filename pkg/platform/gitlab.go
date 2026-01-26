@@ -47,3 +47,21 @@ func (g *GitLab) GetEvent(ctx context.Context) (*Event, error) {
 	// TODO: Implement per SPEC-PLAT-03
 	return nil, nil
 }
+
+// GetFileContent retrieves a file from the GitLab repository.
+func (g *GitLab) GetFileContent(ctx context.Context, path, ref string) (string, error) {
+	// TODO: Implement per SPEC-PLAT-03
+	return "", nil
+}
+
+// ListFiles lists files in a directory on GitLab.
+func (g *GitLab) ListFiles(ctx context.Context, path, ref string) ([]string, error) {
+	// TODO: Implement per SPEC-PLAT-03
+	return nil, nil
+}
+
+// CreateStatus creates a status check for a commit on GitLab.
+func (g *GitLab) CreateStatus(ctx context.Context, sha, state, description, context string) error {
+	// TODO: Implement per SPEC-PLAT-03
+	return nil
+}

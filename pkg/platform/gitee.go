@@ -47,3 +47,21 @@ func (g *Gitee) GetEvent(ctx context.Context) (*Event, error) {
 	// TODO: Implement per SPEC-PLAT-06
 	return nil, nil
 }
+
+// GetFileContent retrieves a file from the Gitee repository.
+func (g *Gitee) GetFileContent(ctx context.Context, path, ref string) (string, error) {
+	// TODO: Implement per SPEC-PLAT-06
+	return "", nil
+}
+
+// ListFiles lists files in a directory on Gitee.
+func (g *Gitee) ListFiles(ctx context.Context, path, ref string) ([]string, error) {
+	// TODO: Implement per SPEC-PLAT-06
+	return nil, nil
+}
+
+// CreateStatus creates a status check for a commit on Gitee.
+func (g *Gitee) CreateStatus(ctx context.Context, sha, state, description, context string) error {
+	// TODO: Implement per SPEC-PLAT-06
+	return nil
+}

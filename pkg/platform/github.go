@@ -47,3 +47,21 @@ func (g *GitHub) GetEvent(ctx context.Context) (*Event, error) {
 	// TODO: Implement per SPEC-PLAT-01
 	return nil, nil
 }
+
+// GetFileContent retrieves a file from the GitHub repository.
+func (g *GitHub) GetFileContent(ctx context.Context, path, ref string) (string, error) {
+	// TODO: Implement per SPEC-PLAT-01
+	return "", nil
+}
+
+// ListFiles lists files in a directory on GitHub.
+func (g *GitHub) ListFiles(ctx context.Context, path, ref string) ([]string, error) {
+	// TODO: Implement per SPEC-PLAT-01
+	return nil, nil
+}
+
+// CreateStatus creates a status check for a commit on GitHub.
+func (g *GitHub) CreateStatus(ctx context.Context, sha, state, description, context string) error {
+	// TODO: Implement per SPEC-PLAT-01
+	return nil
+}
