@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_at": "2026-01-25T12:16:34Z",
+  "updated_at": "2026-01-26T04:09:42Z",
   "developers": {
     "dev-a": {
       "id": "dev-a",
@@ -10,10 +10,11 @@
         "pkg/platform/",
         "pkg/config/"
       ],
-      "current_task": "CORE-01",
+      "current_task": null,
       "completed_specs": [
         "PLAT-07",
-        "CONF-01"
+        "CONF-01",
+        "CORE-02"
       ],
       "worktree": null,
       "branch": null
@@ -28,7 +29,8 @@
       ],
       "current_task": null,
       "completed_specs": [
-        "DIST-01"
+        "DIST-01",
+        "GOV-01"
       ],
       "worktree": null,
       "branch": null
@@ -43,7 +45,8 @@
       ],
       "current_task": null,
       "completed_specs": [
-        "SKILL-01"
+        "SKILL-01",
+        "LIB-01"
       ],
       "worktree": null,
       "branch": null
@@ -117,11 +120,13 @@
     "CORE-02": {
       "id": "CORE-02",
       "name": "Context Chunking",
-      "status": "ready",
+      "status": "completed",
       "dependencies": [],
-      "assignee": "dev-a",
+      "assignee": null,
       "priority": "p0",
-      "phase": "Phase 2"
+      "phase": "Phase 2",
+      "started_at": "2026-01-26T03:09:34Z",
+      "completed_at": "2026-01-26T04:09:41Z"
     },
     "CORE-03": {
       "id": "CORE-03",
@@ -171,11 +176,13 @@
     "GOV-01": {
       "id": "GOV-01",
       "name": "Policy As Code",
-      "status": "pending",
+      "status": "completed",
       "dependencies": [],
-      "assignee": "dev-b",
+      "assignee": null,
       "priority": "p1",
-      "phase": "Phase 4"
+      "phase": "Phase 4",
+      "started_at": "2026-01-26T03:06:45Z",
+      "completed_at": "2026-01-26T04:09:42Z"
     },
     "GOV-02": {
       "id": "GOV-02",
@@ -257,13 +264,15 @@
     "LIB-01": {
       "id": "LIB-01",
       "name": "Standard Skills",
-      "status": "ready",
+      "status": "completed",
       "dependencies": [
         "SKILL-01"
       ],
-      "assignee": "dev-c",
+      "assignee": null,
       "priority": "p1",
-      "phase": "Phase 5"
+      "phase": "Phase 5",
+      "started_at": "2026-01-26T03:06:46Z",
+      "completed_at": "2026-01-26T04:09:42Z"
     },
     "LIB-02": {
       "id": "LIB-02",
@@ -386,15 +395,7 @@
       "phase": "Phase 6"
     }
   },
-  "locks": {
-    "runner": {
-      "locked_by": "dev-a",
-      "locked_at": "2026-01-25T10:06:07Z",
-      "spec_id": "CORE-01",
-      "reason": "实现 Runner 生命周期",
-      "expires_at": "2026-01-25T16:06:07Z"
-    }
-  },
+  "locks": {},
   "worktrees": [],
   "milestones": {
     "M0": {
