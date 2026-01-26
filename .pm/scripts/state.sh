@@ -294,7 +294,7 @@ cmd_unassign() {
 # ============================================
 cmd_progress() {
     # 单次 jq 调用完成所有计算
-    jq -n \
+    jq \
         --arg a "progress" \
         --arg s "success" \
         --arg ts "$(pm_now_iso)" \
@@ -312,7 +312,7 @@ cmd_progress() {
                     pending: ([.specs | to_entries[] | select(.value.status == "pending")] | length),
                     total_progress: (
                         if (.specs | length) > 0
-                        then "\([.specs | to_entries[] | select(.value.status == "completed")] | length * 100 / (.specs | length))%"
+                        then "\((([.specs | to_entries[] | select(.value.status == "completed")] | length) * 100 / (.specs | length)) | tostring)%"
                         else "0%"
                         end
                     )

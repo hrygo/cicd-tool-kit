@@ -127,7 +127,8 @@ cmd_release() {
 cmd_list() {
     local locks
     locks=$(jq -c '.locks' "$STATE_FILE")
-    pm_json_output "lock" "success" "{\"locks\": $locks}"
+    # 直接传递 jq 输出给 pm_json_output
+    pm_json_output "lock" "success" "$locks"
 }
 
 # ============================================
@@ -141,9 +142,13 @@ cmd_check() {
     if pm_check_lock_exists "$lock_name"; then
         local lock_info
         lock_info=$(jq -c ".locks.\"$lock_name\"" "$STATE_FILE")
-        pm_json_output "lock" "success" "{\"lock_name\": \"$lock_name\", \"locked\": true, \"lock\": $lock_info}"
+        local output
+        output=$(jq -c -n --arg ln "$lock_name" --argjson li "$lock_info" '{lock_name: $ln, locked: true, lock: $li}')
+        pm_json_output "lock" "success" "$output"
     else
-        pm_json_output "lock" "success" "{\"lock_name\": \"$lock_name\", \"locked\": false}"
+        local output
+        output=$(jq -c -n --arg ln "$lock_name" '{lock_name: $ln, locked: false}')
+        pm_json_output "lock" "success" "$output"
     fi
 }
 

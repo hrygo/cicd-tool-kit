@@ -13,58 +13,41 @@ __PM_ERROR_LOADED__=true
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 # ============================================
-# 错误代码定义
-# ============================================
-declare -A PM_ERROR_CODES=(
-    # 输入验证错误 (1xxx)
-    ["E1001"]="INVALID_INPUT"
-    ["E1002"]="INVALID_SPEC_ID"
-    ["E1003"]="INVALID_DEVELOPER_ID"
-    ["E1004"]="INVALID_LOCK_NAME"
-    ["E1005"]="PATH_TRAVERSAL_DETECTED"
-
-    # 状态错误 (2xxx)
-    ["E2001"]="SPEC_NOT_FOUND"
-    ["E2002"]="DEVELOPER_NOT_FOUND"
-    ["E2003"]="LOCK_NOT_FOUND"
-    ["E2004"]="SPEC_ALREADY_ASSIGNED"
-    ["E2005"]="DEVELOPER_BUSY"
-    ["E2006"]="DEPENDENCY_NOT_MET"
-
-    # 锁错误 (3xxx)
-    ["E3001"]="LOCK_CONFLICT"
-    ["E3002"]="LOCK_ACQUIRE_FAILED"
-    ["E3003"]="LOCK_EXPIRED"
-
-    # 文件系统错误 (4xxx)
-    ["E4001"]="FILE_NOT_FOUND"
-    ["E4002"]="FILE_WRITE_FAILED"
-    ["E4003"]="STATE_CORRUPTED"
-
-    # Git 错误 (5xxx)
-    ["E5001"]="WORKTREE_CREATE_FAILED"
-    ["E5002"]="WORKTREE_REMOVE_FAILED"
-    ["E5003"]="GIT_COMMAND_FAILED"
-
-    # 系统错误 (6xxx)
-    ["E6001"]="FLOCK_UNAVAILABLE"
-    ["E6002"]="JQ_NOT_FOUND"
-    ["E6003"]="GIT_NOT_FOUND"
-
-    # 事务错误 (7xxx)
-    ["E7001"]="BACKUP_FAILED"
-    ["E7002"]="ROLLBACK_FAILED"
-    ["E7003"]="TRANSACTION_ABORTED"
-)
-
-# ============================================
-# 错误处理辅助函数
+# 错误代码定义 (使用 case 语句支持 bash 3.2+)
 # ============================================
 
 # 获取错误代码对应的错误名称
 pm_error_code_to_name() {
     local code="$1"
-    echo "${PM_ERROR_CODES[$code]:-UNKNOWN_ERROR}"
+    case "$code" in
+        E1001) echo "INVALID_INPUT" ;;
+        E1002) echo "INVALID_SPEC_ID" ;;
+        E1003) echo "INVALID_DEVELOPER_ID" ;;
+        E1004) echo "INVALID_LOCK_NAME" ;;
+        E1005) echo "PATH_TRAVERSAL_DETECTED" ;;
+        E2001) echo "SPEC_NOT_FOUND" ;;
+        E2002) echo "DEVELOPER_NOT_FOUND" ;;
+        E2003) echo "LOCK_NOT_FOUND" ;;
+        E2004) echo "SPEC_ALREADY_ASSIGNED" ;;
+        E2005) echo "DEVELOPER_BUSY" ;;
+        E2006) echo "DEPENDENCY_NOT_MET" ;;
+        E3001) echo "LOCK_CONFLICT" ;;
+        E3002) echo "LOCK_ACQUIRE_FAILED" ;;
+        E3003) echo "LOCK_EXPIRED" ;;
+        E4001) echo "FILE_NOT_FOUND" ;;
+        E4002) echo "FILE_WRITE_FAILED" ;;
+        E4003) echo "STATE_CORRUPTED" ;;
+        E5001) echo "WORKTREE_CREATE_FAILED" ;;
+        E5002) echo "WORKTREE_REMOVE_FAILED" ;;
+        E5003) echo "GIT_COMMAND_FAILED" ;;
+        E6001) echo "FLOCK_UNAVAILABLE" ;;
+        E6002) echo "JQ_NOT_FOUND" ;;
+        E6003) echo "GIT_NOT_FOUND" ;;
+        E7001) echo "BACKUP_FAILED" ;;
+        E7002) echo "ROLLBACK_FAILED" ;;
+        E7003) echo "TRANSACTION_ABORTED" ;;
+        *) echo "UNKNOWN_ERROR" ;;
+    esac
 }
 
 # 获取错误代码的建议

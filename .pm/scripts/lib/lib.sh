@@ -59,6 +59,7 @@ pm_log_error() { pm_log "ERROR" 3 "$@"; }
 
 # 检测是否有 flock 命令
 PM_HAS_FLOCK=false
+PM_FLOCK_WARN_SHOWN=false
 if command -v flock >/dev/null 2>&1; then
     PM_HAS_FLOCK=true
 fi
@@ -175,17 +176,33 @@ pm_json_write() {
 # 用法: pm_json_output "action" "status" '{"key": "value"}'
 pm_json_output() {
     local action="$1"
-    local status="$2"
-    local data="${3:-{}}"
+    local st="$2"
+    local data="${3:-}"
+
     local timestamp
     timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    jq -n \
-        --arg a "$action" \
-        --arg s "$status" \
-        --arg ts "$timestamp" \
-        --argjson d "$data" \
-        '{action: $a, status: $s, data: $d, timestamp: $ts}'
+    # 如果没有提供 data，输出不含 data 字段的 JSON
+    if [[ -z "$data" ]]; then
+        jq -n \
+            --arg a "$action" \
+            --arg s "$st" \
+            --arg ts "$timestamp" \
+            '{action: $a, status: $s, timestamp: $ts}'
+    else
+        # 使用 jq --slurpfile 安全读取外部 JSON (避免 --argjson 转义问题)
+        local tmp_json
+        tmp_json=$(mktemp)
+        echo "$data" > "$tmp_json"
+
+        # 使用 -n 不从 stdin 读取，使用 --slurpfile 读取 data
+        jq -n --slurpfile d "$tmp_json" \
+            --arg a "$action" \
+            --arg s "$st" \
+            --arg ts "$timestamp" \
+            '{action: $a, status: $s, data: $d[0], timestamp: $ts}' \
+            && rm -f "$tmp_json"
+    fi
 }
 
 # ============================================
@@ -202,8 +219,19 @@ pm_json_error() {
     if declare -f pm_error_output >/dev/null 2>&1; then
         pm_error_output "$action" "$error_code" "$error_message" "$context"
     else
-        # 简化版本
-        pm_json_output "$action" "error" "{\"error_code\": $error_code, \"error_message\": \"$error_message\", \"context\": $context}"
+        # 简化版本 - 使用 jq 构建 JSON，避免转义问题
+        local tmp_ctx
+        tmp_ctx=$(mktemp)
+        echo "$context" > "$tmp_ctx"
+
+        local output
+        output=$(jq -n --slurpfile c "$tmp_ctx" \
+            --arg ec "$error_code" \
+            --arg em "$error_message" \
+            '{error_code: $ec, error_message: $em, context: $c[0]}')
+        rm -f "$tmp_ctx"
+
+        pm_json_output "$action" "error" "$output"
     fi
 }
 
@@ -242,14 +270,18 @@ pm_date_offset() {
         case "$offset" in
             *hour*|*hours*)
                 local num="${offset%% *}"
+                # 去掉可能的 + 号
+                num="${num#+}"
                 date -u -v+${num}H +"%Y-%m-%dT%H:%M:%SZ"
                 ;;
             *day*|*days*)
                 local num="${offset%% *}"
+                num="${num#+}"
                 date -u -v+${num}d +"%Y-%m-%dT%H:%M:%SZ"
                 ;;
             *week*|*weeks*)
                 local num="${offset%% *}"
+                num="${num#+}"
                 date -u -v+${num}w +"%Y-%m-%dT%H:%M:%SZ"
                 ;;
             *)

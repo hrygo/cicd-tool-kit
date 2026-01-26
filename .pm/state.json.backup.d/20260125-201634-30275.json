@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_at": "2026-01-25T12:16:34Z",
+  "updated_at": "2026-01-25T10:06:07Z",
   "developers": {
     "dev-a": {
       "id": "dev-a",
@@ -10,7 +10,7 @@
         "pkg/platform/",
         "pkg/config/"
       ],
-      "current_task": "CORE-01",
+      "current_task": null,
       "completed_specs": [
         "PLAT-07",
         "CONF-01"
@@ -104,15 +104,14 @@
     "CORE-01": {
       "id": "CORE-01",
       "name": "Runner Lifecycle",
-      "status": "in_progress",
+      "status": "ready",
       "dependencies": [
         "CONF-01",
         "SKILL-01"
       ],
       "assignee": "dev-a",
       "priority": "p0",
-      "phase": "Phase 2",
-      "started_at": "2026-01-25T12:16:34Z"
+      "phase": "Phase 2"
     },
     "CORE-02": {
       "id": "CORE-02",

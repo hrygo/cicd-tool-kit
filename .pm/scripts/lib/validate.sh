@@ -18,7 +18,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 _validate_error() {
     local action="$1"
     local message="$2"
-    pm_json_output "$action" "error" "{\"error\": $message}"
+    local output
+    output=$(jq -n --arg msg "$message" '{error: $msg}')
+    pm_json_output "$action" "error" "$output"
     return 1
 }
 
@@ -40,12 +42,12 @@ pm_validate_lock_name() {
     local action="${2:-lock}"
 
     if [[ -z "$lock_name" ]]; then
-        _validate_error "$action" '"lock_name 不能为空"'
+        _validate_error "$action" 'lock_name 不能为空'
         return 1
     fi
 
     if [[ ! "$lock_name" =~ $PM_REGEX_LOCK_NAME ]]; then
-        _validate_error "$action" "\"无效的 lock_name 格式: $lock_name (只允许小写字母和下划线)\""
+        _validate_error "$action" "无效的 lock_name 格式: $lock_name (只允许小写字母和下划线)"
         return 1
     fi
 
@@ -59,12 +61,12 @@ pm_validate_developer_id() {
     local action="${2:-unknown}"
 
     if [[ -z "$dev_id" ]]; then
-        _validate_error "$action" '"developer_id 不能为空"'
+        _validate_error "$action" 'developer_id 不能为空'
         return 1
     fi
 
     if [[ ! "$dev_id" =~ $PM_REGEX_DEVELOPER_ID ]]; then
-        _validate_error "$action" "\"无效的 developer_id 格式: $dev_id (应为 dev-a 格式)\""
+        _validate_error "$action" "无效的 developer_id 格式: $dev_id (应为 dev-a 格式)"
         return 1
     fi
 
@@ -78,12 +80,12 @@ pm_validate_spec_id() {
     local action="${2:-unknown}"
 
     if [[ -z "$spec_id" ]]; then
-        _validate_error "$action" '"spec_id 不能为空"'
+        _validate_error "$action" 'spec_id 不能为空'
         return 1
     fi
 
     if [[ ! "$spec_id" =~ $PM_REGEX_SPEC_ID ]]; then
-        _validate_error "$action" "\"无效的 spec_id 格式: $spec_id (应为 CORE-01 格式)\""
+        _validate_error "$action" "无效的 spec_id 格式: $spec_id (应为 CORE-01 格式)"
         return 1
     fi
 
@@ -97,7 +99,7 @@ pm_validate_safe_spec_id() {
     local action="${2:-unknown}"
 
     if [[ "$spec_id" =~ \.\. ]] || [[ "$spec_id" =~ / ]] || [[ "$spec_id" =~ \\ ]]; then
-        _validate_error "$action" "\"spec_id 包含非法字符: $spec_id\""
+        _validate_error "$action" "spec_id 包含非法字符: $spec_id"
         return 1
     fi
 
@@ -120,7 +122,7 @@ pm_validate_status() {
     done
 
     if [[ "$valid" == "false" ]]; then
-        _validate_error "$action" "\"无效的 status: $status (允许值: ${valid_statuses[*]})\""
+        _validate_error "$action" "无效的 status: $status (允许值: ${valid_statuses[*]})"
         return 1
     fi
 
@@ -143,7 +145,7 @@ pm_validate_priority() {
     done
 
     if [[ "$valid" == "false" ]]; then
-        _validate_error "$action" "\"无效的 priority: $priority (允许值: ${valid_priorities[*]})\""
+        _validate_error "$action" "无效的 priority: $priority (允许值: ${valid_priorities[*]})"
         return 1
     fi
 
@@ -160,7 +162,7 @@ pm_check_developer_exists() {
     local action="${2:-unknown}"
 
     if ! jq -e ".developers.\"$dev_id\"" "$STATE_FILE" >/dev/null 2>&1; then
-        _validate_error "$action" "\"开发者不存在: $dev_id\""
+        _validate_error "$action" "开发者不存在: $dev_id"
         return 1
     fi
 
@@ -173,7 +175,7 @@ pm_check_spec_exists() {
     local action="${2:-unknown}"
 
     if ! jq -e ".specs.\"$spec_id\"" "$STATE_FILE" >/dev/null 2>&1; then
-        _validate_error "$action" "\"Spec 不存在: $spec_id\""
+        _validate_error "$action" "Spec 不存在: $spec_id"
         return 1
     fi
 
