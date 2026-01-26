@@ -1,33 +1,74 @@
 name: 'AI Code Review'
 description: 'Perform AI-powered code review using Claude'
+author: 'cicd-ai-toolkit'
+
+branding:
+  icon: 'search'
+  color: 'purple'
+
 inputs:
   skills:
     description: 'Comma-separated list of skills to run'
     required: false
     default: 'code-reviewer,change-analyzer'
-  api-key:
-    description: 'Anthropic API key for Claude'
-    required: true
+  severity-threshold:
+    description: 'Minimum severity to report (critical, high, medium, low, info)'
+    required: false
+    default: 'medium'
+  fail-on-error:
+    description: 'Fail the workflow if critical issues are found'
+    required: false
+    default: 'false'
   config:
     description: 'Path to configuration file'
     required: false
     default: '.cicd-ai-toolkit.yaml'
-  dry-run:
-    description: 'Run without posting comments'
+  post-comment:
+    description: 'Post results as PR comment'
     required: false
-    default: 'false'
+    default: 'true'
+
+outputs:
+  issues-found:
+    description: 'Number of issues found'
+    value: ${{ steps.run.outputs.issues }}
+  critical-count:
+    description: 'Number of critical issues'
+    value: ${{ steps.run.outputs.critical }}
+  high-count:
+    description: 'Number of high severity issues'
+    value: ${{ steps.run.outputs.high }}
+
 runs:
   using: 'composite'
   steps:
-    - name: Run AI Code Review
+    - name: Run AI Review
+      id: run
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
         echo "::group::Running AI Code Review"
         cicd-runner run \
           --skills "${{ inputs.skills }}" \
+          --severity-threshold "${{ inputs.severity-threshold }}" \
           --config "${{ inputs.config }}" \
-          ${DRY_RUN:+--dry-run}
+          --post-comment "${{ inputs.post-comment }}" \
+          --output-json > /tmp/cicd-result.json
+
+        # Extract metrics
+        echo "issues=$(jq '.total_issues // 0' /tmp/cicd-result.json)" >> $GITHUB_OUTPUT
+        echo "critical=$(jq '.issues | map(select(.severity == "critical")) | length' /tmp/cicd-result.json)" >> $GITHUB_OUTPUT
+        echo "high=$(jq '.issues | map(select(.severity == "high")) | length' /tmp/cicd-result.json)" >> $GITHUB_OUTPUT
+
+        # Display summary
+        echo "Review Summary:"
+        jq '.' /tmp/cicd-result.json
         echo "::endgroup::"
-      env:
-        ANTHROPIC_API_KEY: ${{ inputs.api-key }}
-        DRY_RUN: ${{ inputs.dry-run == 'true' && '--dry-run' || '' }}
+
+    - name: Fail on critical issues
+      if: inputs.fail-on-error == 'true' && steps.run.outputs.critical != '0'
+      shell: bash
+      run: |
+        echo "::error::Critical issues found: ${{ steps.run.outputs.critical }}"
+        exit 1

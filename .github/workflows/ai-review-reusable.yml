@@ -1,0 +1,62 @@
+name: AI Code Review (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      skills:
+        description: 'Skills to run'
+        required: false
+        type: string
+        default: 'code-reviewer,change-analyzer'
+      fail-on-critical:
+        description: 'Fail on critical issues'
+        required: false
+        type: boolean
+        default: true
+      config:
+        description: 'Path to configuration file'
+        required: false
+        type: string
+        default: '.cicd-ai-toolkit.yaml'
+    secrets:
+      github-token:
+        required: true
+    outputs:
+      issues-found:
+        description: 'Number of issues found'
+        value: ${{ jobs.review.outputs.issues }}
+      critical-count:
+        description: 'Number of critical issues'
+        value: ${{ jobs.review.outputs.critical }}
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    outputs:
+      issues: ${{ steps.run.outputs.issues }}
+      critical: ${{ steps.run.outputs.critical }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: cicd-ai-toolkit/cicd-ai-toolkit/actions/setup@v1
+
+      - name: Run AI Review
+        id: run
+        env:
+          GITHUB_TOKEN: ${{ secrets.github-token }}
+        run: |
+          cicd-runner run \
+            --skills "${{ inputs.skills }}" \
+            --config "${{ inputs.config }}" \
+            --output-json > /tmp/result.json
+
+          echo "issues=$(jq '.total_issues // 0' /tmp/result.json)" >> $GITHUB_OUTPUT
+          echo "critical=$(jq '.issues | map(select(.severity == "critical")) | length' /tmp/result.json)" >> $GITHUB_OUTPUT
+
+      - name: Check critical issues
+        if: inputs.fail-on-critical && steps.run.outputs.critical != '0'
+        run: |
+          echo "::error::Critical issues found: ${{ steps.run.outputs.critical }}"
+          exit 1
