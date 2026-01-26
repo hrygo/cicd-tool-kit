@@ -192,3 +192,31 @@ func (l *Loader) LoadFromDir(_ string) ([]*Skill, error) {
 func (l *Loader) loadSkillMD(path string) (*Skill, error) {
 	return l.LoadFromFile(path)
 }
+
+// Load loads a skill by name. Alias for LoadByName.
+func (l *Loader) Load(name string) (*Skill, error) {
+	return l.LoadByName(name)
+}
+
+// ScanDirectory scans a directory for skills and adds them to the loader's directories.
+func (l *Loader) ScanDirectory(dir string) error {
+	// Check if directory exists
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return nil // Directory doesn't exist, not an error
+	}
+
+	// Add to skill dirs if not already present
+	for _, d := range l.skillDirs {
+		if d == dir {
+			return nil
+		}
+	}
+	l.skillDirs = append(l.skillDirs, dir)
+
+	// Discover skills in this directory
+	_, errs := l.discoverInDir(dir)
+	if len(errs) > 0 {
+		return errs[0]
+	}
+	return nil
+}

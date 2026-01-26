@@ -210,3 +210,9 @@ func (i *Injector) ExtractPlaceholders(prompt string) []string {
 	}
 	return result
 }
+
+// Inject substitutes placeholders in the prompt with input values.
+// This is a convenience method that directly substitutes placeholders.
+func (i *Injector) Inject(prompt string, inputs map[string]any) (string, error) {
+	return i.substitutePlaceholders(prompt, inputs)
+}

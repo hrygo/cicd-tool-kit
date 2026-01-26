@@ -26,10 +26,11 @@ type Config struct {
 
 // ClaudeConfig contains Claude AI settings.
 type ClaudeConfig struct {
-	Model        string        `yaml:"model"`
-	MaxBudget    float64       `yaml:"max_budget_usd"`
-	Timeout      time.Duration `yaml:"timeout"`
-	AllowedTools []string      `yaml:"allowed_tools"`
+	Model           string        `yaml:"model"`
+	MaxBudget       float64       `yaml:"max_budget_usd"`
+	Timeout         time.Duration `yaml:"timeout"`
+	AllowedTools    []string      `yaml:"allowed_tools"`
+	SkipPermissions bool          `yaml:"skip_permissions"` // WARNING: Only enable in trusted CI environments
 }
 
 // SkillConfig represents a single skill configuration.

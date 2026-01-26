@@ -1,8 +1,8 @@
 # CICD AI Toolkit - 项目进展跟踪
 
-**更新时间**: 2026-01-25
-**当前 Phase**: Phase 0 → Phase 1
-**总进度**: 9% (3/32 Specs)
+**更新时间**: 2026-01-26
+**当前 Phase**: Phase 2
+**总进度**: 13% (4/32 Specs)
 
 ---
 
@@ -10,9 +10,9 @@
 
 | 指标 | 当前值 | 目标值 | 状态 |
 |------|--------|--------|------|
-| **已完成 Specs** | 3 | 32 | 🟢 Phase 0 完成 |
+| **已完成 Specs** | 4 | 32 | 🟢 Phase 2 进行中 |
 | **进行中 Specs** | 0 | - | - |
-| **本周完成** | 3 | - | PLAT-07, DIST-01, SKILL-01 |
+| **本周完成** | 1 | - | CORE-01 |
 
 ---
 
@@ -22,7 +22,7 @@
 |--------|----------|------|----------|------|
 | M0: 项目启动 | Week 1 | ✅ Completed | 2026-01-25 | Phase 0 全部完成 |
 | M1: 基础就绪 | Week 3 | ✅ Completed | 2026-01-25 | CONF-01 ✅, SKILL-01 ✅ |
-| M2: 核心 MVP | Week 6 | ⏳ Pending | - | Runner 核心功能 |
+| M2: 核心 MVP | Week 6 | 🔄 In Progress | - | CORE-01 ✅, Runner 核心功能 |
 | M3: 平台集成 | Week 10 | ⏳ Pending | - | 3 个平台适配器 |
 | M4: 安全合规 | Week 13 | ⏳ Pending | - | 沙箱 + 治理 |
 | M5: 技能完整 | Week 17 | ⏳ Pending | - | 8 个内置 Skill |
@@ -54,20 +54,20 @@
 | SKILL-01 | Skill Definition | dev-c | ✅ Completed | 100% | 2026-01-25 | - |
 | CONF-02 | Idempotency | dev-a | 📋 Ready | 0% | - | 等待 CONF-01 ✅ |
 
-### Phase 2: 核心层
+### Phase 2: 核心层 🔄 进行中
 
-| Spec ID | Spec 名称 | 负责人 | 状态 | 进度 | 阻塞 |
-|---------|-----------|--------|------|------|------|
-| CORE-02 | Context Chunking | dev-a | 📋 Ready | 0% | - |
-| CORE-01 | Runner Lifecycle | dev-a | 📋 Ready | 0% | CONF-01 ✅, SKILL-01 ✅ |
-| CORE-03 | Output Parsing | dev-a | ⏳ Pending | 0% | CORE-01 |
-| SEC-02 | Prompt Injection | dev-b | ⏳ Pending | 0% | CORE-02 |
+| Spec ID | Spec 名称 | 负责人 | 状态 | 进度 | 完成日期 | 阻塞 |
+|---------|-----------|--------|------|------|----------|------|
+| CORE-01 | Runner Lifecycle | dev-a | ✅ Completed | 100% | 2026-01-26 | - |
+| CORE-02 | Context Chunking | dev-a | 📋 Ready | 0% | - | - |
+| CORE-03 | Output Parsing | dev-a | 📋 Ready | 0% | - | CORE-01 ✅ |
+| SEC-02 | Prompt Injection | dev-b | ⏳ Pending | 0% | - | CORE-02 |
 
 ### Phase 3: 平台适配层
 
 | Spec ID | Spec 名称 | 负责人 | 状态 | 进度 | 阻塞 |
 |---------|-----------|--------|------|------|------|
-| PLAT-01 | Platform Adapter | dev-a | 📋 Ready | 0% | CORE-01 |
+| PLAT-01 | Platform Adapter | dev-a | 📋 Ready | 0% | CORE-01 ✅ |
 | PLAT-02 | Async Execution | dev-a | ⏳ Pending | 0% | PLAT-01 |
 | PLAT-03 | GitLab Adapter | dev-a | ⏳ Pending | 0% | PLAT-01 |
 | PLAT-04 | Jenkins Plugin | dev-a | ⏳ Pending | 0% | PLAT-01 |
@@ -78,7 +78,7 @@
 
 | Spec ID | Spec 名称 | 负责人 | 状态 | 进度 | 阻塞 |
 |---------|-----------|--------|------|------|------|
-| SEC-01 | Sandboxing | dev-b | 📋 Ready | 0% | CORE-01 |
+| SEC-01 | Sandboxing | dev-b | 📋 Ready | 0% | CORE-01 ✅ |
 | GOV-01 | Policy As Code | dev-b | ⏳ Pending | 0% | - |
 | SEC-03 | RBAC | dev-b | ⏳ Pending | 0% | GOV-01, SEC-01 |
 | GOV-02 | Quality Gates | dev-b | ⏳ Pending | 0% | CORE-02 |
@@ -97,7 +97,7 @@
 | Spec ID | Spec 名称 | 负责人 | 状态 | 进度 | 阻塞 |
 |---------|-----------|--------|------|------|------|
 | PERF-01 | Caching | dev-b | ⏳ Pending | 0% | CONF-02 |
-| HOOKS-01 | Integration | dev-a | 📋 Ready | 0% | CORE-01, SEC-01 |
+| HOOKS-01 | Integration | dev-a | 📋 Ready | 0% | CORE-01 ✅, SEC-01 |
 | OPS-01 | Observability | dev-b | ⏳ Pending | 0% | CONF-02 |
 | STATS-01 | Availability | dev-b | ⏳ Pending | 0% | - |
 
@@ -116,7 +116,7 @@
 
 | 开发者 | 角色 | 已完成 | 待分配 | 总工作量 | 完成率 |
 |--------|------|--------|--------|----------|--------|
-| dev-a | Core Platform | 2 | 10 | 12 | 17% |
+| dev-a | Core Platform | 3 | 9 | 12 | 25% |
 | dev-b | Security & Infra | 1 | 9 | 10 | 10% |
 | dev-c | AI & Skills | 1 | 9 | 10 | 10% |
 
@@ -124,7 +124,13 @@
 
 ## 5. 当前阻塞
 
-无阻塞 - Phase 0 和 Phase 1 全部完成！
+无阻塞 - CORE-01 完成后解锁多个下游任务！
+
+**已解锁任务**:
+- PLAT-01 Platform Adapter
+- CORE-03 Output Parsing
+- SEC-01 Sandboxing
+- HOOKS-01 Integration
 
 ---
 
@@ -140,7 +146,7 @@
 
 | 事项 | 类型 | 涉及开发者 | 状态 |
 |------|------|------------|------|
-| Phase 2 启动 | 任务分配 | 全员 | ✅ 已就绪 |
+| CORE-01 完成通知 | 依赖解锁 | dev-a, dev-b | ✅ 已通知 |
 
 ---
 
@@ -155,3 +161,4 @@
 | 2026-01-25 | PLAT-07 Project Structure 已完成 | dev-a |
 | 2026-01-25 | CONF-01 Configuration 已完成 | dev-a |
 | 2026-01-25 | **Phase 0 + Phase 1 全部完成** | project-manager |
+| 2026-01-26 | **CORE-01 Runner Lifecycle 已完成** | dev-a |
