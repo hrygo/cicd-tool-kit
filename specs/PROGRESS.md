@@ -1,8 +1,8 @@
 # CICD AI Toolkit - 项目进展跟踪
 
-**更新时间**: 2026-01-25
+**更新时间**: 2026-01-26
 **当前 Phase**: Phase 0 → Phase 1
-**总进度**: 9% (3/32 Specs)
+**总进度**: 12% (4/32 Specs)
 
 ---
 
@@ -10,9 +10,9 @@
 
 | 指标 | 当前值 | 目标值 | 状态 |
 |------|--------|--------|------|
-| **已完成 Specs** | 3 | 32 | 🟢 Phase 0 完成 |
+| **已完成 Specs** | 4 | 32 | 🟢 Phase 0 完成 |
 | **进行中 Specs** | 0 | - | - |
-| **本周完成** | 3 | - | PLAT-07, DIST-01, SKILL-01 |
+| **本周完成** | 4 | - | PLAT-07, DIST-01, SKILL-01, PLAT-05 |
 
 ---
 
@@ -72,7 +72,7 @@
 | PLAT-03 | GitLab Adapter | dev-a | ⏳ Pending | 0% | PLAT-01 |
 | PLAT-04 | Jenkins Plugin | dev-a | ⏳ Pending | 0% | PLAT-01 |
 | PLAT-06 | Gitee Adapter | dev-a | ⏳ Pending | 0% | PLAT-01 |
-| PLAT-05 | Composite Actions | dev-b | 📋 Ready | 0% | DIST-01 ✅ |
+| PLAT-05 | Composite Actions | dev-b | ✅ Completed | 100% | DIST-01 ✅ |
 
 ### Phase 4: 安全与治理
 
@@ -117,7 +117,7 @@
 | 开发者 | 角色 | 已完成 | 待分配 | 总工作量 | 完成率 |
 |--------|------|--------|--------|----------|--------|
 | dev-a | Core Platform | 2 | 10 | 12 | 17% |
-| dev-b | Security & Infra | 1 | 9 | 10 | 10% |
+| dev-b | Security & Infra | 2 | 8 | 10 | 20% |
 | dev-c | AI & Skills | 1 | 9 | 10 | 10% |
 
 ---
@@ -155,3 +155,4 @@
 | 2026-01-25 | PLAT-07 Project Structure 已完成 | dev-a |
 | 2026-01-25 | CONF-01 Configuration 已完成 | dev-a |
 | 2026-01-25 | **Phase 0 + Phase 1 全部完成** | project-manager |
+| 2026-01-26 | PLAT-05 Composite Actions 已完成 | dev-b |
