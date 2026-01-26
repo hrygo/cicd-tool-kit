@@ -1,36 +1,106 @@
-name: 'CICD AI Toolkit Setup'
-description: 'Setup CICD AI Toolkit for use in GitHub Actions'
+name: 'Setup cicd-ai-toolkit'
+description: 'Install and configure cicd-ai-toolkit for AI-powered CI/CD'
+author: 'cicd-ai-toolkit'
+
+branding:
+  icon: 'cpu'
+  color: 'blue'
+
 inputs:
   version:
-    description: 'Version of CICD AI Toolkit to install'
+    description: 'Version of cicd-ai-toolkit to install'
     required: false
     default: 'latest'
-  api-key:
-    description: 'Anthropic API key for Claude'
-    required: true
+  claude-version:
+    description: 'Claude Code version to use'
+    required: false
+    default: 'latest'
   config:
     description: 'Path to configuration file'
     required: false
     default: '.cicd-ai-toolkit.yaml'
+
 outputs:
-  bin-path:
+  runner-path:
     description: 'Path to the cicd-runner binary'
-    value: ${{ steps.install.outputs.bin-path }}
+    value: ${{ steps.install.outputs.path }}
+  version:
+    description: 'Installed version'
+    value: ${{ steps.install.outputs.version }}
+
 runs:
   using: 'composite'
   steps:
-    - name: Install CICD AI Toolkit
+    - name: Detect OS
+      id: os
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          echo "arch=$(uname -m)" >> $GITHUB_OUTPUT
+          echo "platform=linux" >> $GITHUB_OUTPUT
+        elif [[ "$RUNNER_OS" == "macOS" ]]; then
+          echo "arch=$(uname -m)" >> $GITHUB_OUTPUT
+          echo "platform=darwin" >> $GITHUB_OUTPUT
+        else
+          echo "::error::Unsupported OS: $RUNNER_OS"
+          exit 1
+        fi
+
+    - name: Install cicd-runner
       id: install
       shell: bash
       run: |
-        echo "::group::Installing CICD AI Toolkit"
-        # Download and install the binary
-        # TODO: Implement download from releases
-        BIN_PATH="/usr/local/bin/cicd-runner"
-        echo "bin-path=${BIN_PATH}" >> $GITHUB_OUTPUT
+        VERSION="${{ inputs.version }}"
+        if [[ "$VERSION" == "latest" ]]; then
+          VERSION=$(curl -s https://api.github.com/repos/cicd-ai-toolkit/cicd-ai-toolkit/releases/latest | jq -r .tag_name)
+        fi
+
+        ARCH="${{ steps.os.outputs.arch }}"
+        PLATFORM="${{ steps.os.outputs.platform }}"
+
+        # Install to RUNNER_TEMP to avoid sudo requirement
+        INSTALL_DIR="${RUNNER_TEMP:-/tmp}/cicd-ai-toolkit"
+        mkdir -p "$INSTALL_DIR"
+
+        BINARY_NAME="cicd-runner-${PLATFORM}-${ARCH}"
+        URL="https://github.com/cicd-ai-toolkit/cicd-ai-toolkit/releases/download/${VERSION}/${BINARY_NAME}"
+        CHECKSUM_URL="${URL}.sha256"
+
+        echo "::group::Installing cicd-runner $VERSION"
+        echo "Downloading from $URL"
+
+        curl -fsSL "$URL" -o "$INSTALL_DIR/cicd-runner"
+        chmod +x "$INSTALL_DIR/cicd-runner"
+
+        # Verify checksum if available
+        if curl -fsSL "$CHECKSUM_URL" -o "$INSTALL_DIR/checksum.sha256" 2>/dev/null; then
+          echo "Verifying checksum..."
+          cd "$INSTALL_DIR"
+          echo "$(cat checksum.sha256)  cicd-runner" | sha256sum -c - || {
+            echo "::error::Checksum verification failed"
+            exit 1
+          }
+          rm -f checksum.sha256
+        else
+          echo "::warning::Checksum file not available, skipping verification"
+        fi
+
+        # Add to PATH for subsequent steps
+        echo "$INSTALL_DIR" >> $GITHUB_PATH
+
+        echo "path=$INSTALL_DIR/cicd-runner" >> $GITHUB_OUTPUT
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+        "$INSTALL_DIR/cicd-runner" --version
         echo "::endgroup::"
-    - name: Setup environment
+
+    - name: Validate config
       shell: bash
       run: |
-        echo "ANTHROPIC_API_KEY=${{ inputs.api-key }}" >> $GITHUB_ENV
-        echo "CICD_CONFIG=${{ inputs.config }}" >> $GITHUB_ENV
+        if [[ -f "${{ inputs.config }}" ]]; then
+          echo "::group::Validating config: ${{ inputs.config }}"
+          cicd-runner validate --config "${{ inputs.config }}"
+          echo "::endgroup::"
+        else
+          echo "No config found at ${{ inputs.config }}, using defaults"
+        fi

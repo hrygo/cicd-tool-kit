@@ -1,0 +1,84 @@
+name: 'AI Security Scan'
+description: 'Perform AI-powered security analysis on code changes'
+author: 'cicd-ai-toolkit'
+
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  scan-type:
+    description: 'Type of security scan (all, secrets, vulnerabilities, dependencies)'
+    required: false
+    default: 'all'
+  severity-threshold:
+    description: 'Minimum severity to report (critical, high, medium, low)'
+    required: false
+    default: 'medium'
+  fail-on-critical:
+    description: 'Fail the workflow if critical issues are found'
+    required: false
+    default: 'true'
+  config:
+    description: 'Path to configuration file'
+    required: false
+    default: '.cicd-ai-toolkit.yaml'
+
+outputs:
+  vulnerabilities-found:
+    description: 'Number of vulnerabilities found'
+    value: ${{ steps.scan.outputs.count }}
+  critical-count:
+    description: 'Number of critical vulnerabilities'
+    value: ${{ steps.scan.outputs.critical }}
+  high-count:
+    description: 'Number of high severity vulnerabilities'
+    value: ${{ steps.scan.outputs.high }}
+  report-path:
+    description: 'Path to detailed security report'
+    value: ${{ steps.scan.outputs.report }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run Security Scan
+      id: scan
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        echo "::group::Running Security Scan"
+        REPORT_PATH="/tmp/security-report.json"
+
+        cicd-runner run \
+          --skills security-scan \
+          --scan-type "${{ inputs.scan-type }}" \
+          --severity-threshold "${{ inputs.severity-threshold }}" \
+          --config "${{ inputs.config }}" \
+          --output-json > "$REPORT_PATH"
+
+        # Extract metrics
+        echo "count=$(jq '.total_vulnerabilities // 0' "$REPORT_PATH")" >> $GITHUB_OUTPUT
+        echo "critical=$(jq '.vulnerabilities | map(select(.severity == "critical")) | length' "$REPORT_PATH")" >> $GITHUB_OUTPUT
+        echo "high=$(jq '.vulnerabilities | map(select(.severity == "high")) | length' "$REPORT_PATH")" >> $GITHUB_OUTPUT
+        echo "report=$REPORT_PATH" >> $GITHUB_OUTPUT
+
+        # Display summary
+        echo "Security Scan Summary:"
+        jq '{total: .total_vulnerabilities, critical: (.vulnerabilities | map(select(.severity == "critical")) | length), high: (.vulnerabilities | map(select(.severity == "high")) | length)}' "$REPORT_PATH"
+        echo "::endgroup::"
+
+    - name: Upload security report
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-report
+        path: /tmp/security-report.json
+        retention-days: 30
+
+    - name: Fail on critical vulnerabilities
+      if: inputs.fail-on-critical == 'true' && steps.scan.outputs.critical != '0'
+      shell: bash
+      run: |
+        echo "::error::Critical security vulnerabilities found: ${{ steps.scan.outputs.critical }}"
+        echo "Please review the security report and address critical issues before merging."
+        exit 1

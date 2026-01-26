@@ -1,18 +1,17 @@
-name: 'AI All-in-One'
-description: 'Run all AI analysis skills: code review, test generation, and change analysis'
+name: 'AI CI/CD Complete'
+description: 'Run complete AI-powered CI/CD pipeline'
+author: 'cicd-ai-toolkit'
+
+branding:
+  icon: 'zap'
+  color: 'yellow'
+
 inputs:
-  api-key:
-    description: 'Anthropic API key for Claude'
-    required: true
-  config:
-    description: 'Path to configuration file'
-    required: false
-    default: '.cicd-ai-toolkit.yaml'
   skip-review:
     description: 'Skip code review'
     required: false
     default: 'false'
-  skip-test-gen:
+  skip-tests:
     description: 'Skip test generation'
     required: false
     default: 'false'
@@ -20,37 +19,88 @@ inputs:
     description: 'Skip change analysis'
     required: false
     default: 'false'
+  skip-security:
+    description: 'Skip security scan'
+    required: false
+    default: 'false'
+  fail-on-critical:
+    description: 'Fail on critical issues'
+    required: false
+    default: 'true'
+  config:
+    description: 'Path to configuration file'
+    required: false
+    default: '.cicd-ai-toolkit.yaml'
+
+outputs:
+  review-issues:
+    description: 'Number of review issues found'
+    value: ${{ steps.review.outputs.issues-found }}
+  risk-score:
+    description: 'Change risk score'
+    value: ${{ steps.analyze.outputs.risk-score }}
+  tests-generated:
+    description: 'Number of tests generated'
+    value: ${{ steps.tests.outputs.tests-generated }}
+  security-issues:
+    description: 'Number of security issues found'
+    value: ${{ steps.security.outputs.vulnerabilities-found }}
+
 runs:
   using: 'composite'
   steps:
-    - name: Run All AI Analysis
+    - name: Setup cicd-ai-toolkit
+      uses: cicd-ai-toolkit/cicd-ai-toolkit/actions/setup@v1
+      with:
+        config: ${{ inputs.config }}
+
+    - name: Code Review
+      id: review
+      if: inputs.skip-review != 'true'
+      uses: cicd-ai-toolkit/cicd-ai-toolkit/actions/review@v1
+      with:
+        fail-on-error: ${{ inputs.fail-on-critical }}
+        config: ${{ inputs.config }}
+
+    - name: Change Analysis
+      id: analyze
+      if: inputs.skip-analyze != 'true'
+      uses: cicd-ai-toolkit/cicd-ai-toolkit/actions/analyze@v1
+      with:
+        config: ${{ inputs.config }}
+
+    - name: Security Scan
+      id: security
+      if: inputs.skip-security != 'true'
+      uses: cicd-ai-toolkit/cicd-ai-toolkit/actions/security-scan@v1
+      with:
+        fail-on-critical: ${{ inputs.fail-on-critical }}
+        config: ${{ inputs.config }}
+
+    - name: Generate Tests
+      id: tests
+      if: inputs.skip-tests != 'true'
+      uses: cicd-ai-toolkit/cicd-ai-toolkit/actions/test-gen@v1
+      with:
+        create-pr: 'true'
+        config: ${{ inputs.config }}
+
+    - name: Summary
       shell: bash
       run: |
-        echo "::group::Running AI All-in-One Analysis"
-
-        SKILLS=""
-
-        if [ "${{ inputs.skip-review }}" != "true" ]; then
-          SKILLS="$SKILLS,code-reviewer"
+        echo "## AI CI/CD Complete Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Check | Result |" >> $GITHUB_STEP_SUMMARY
+        echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ inputs.skip-review }}" != "true" ]]; then
+          echo "| Code Review | ${{ steps.review.outputs.issues-found }} issues |" >> $GITHUB_STEP_SUMMARY
         fi
-
-        if [ "${{ inputs.skip-test-gen }}" != "true" ]; then
-          SKILLS="$SKILLS,test-generator"
+        if [[ "${{ inputs.skip-analyze }}" != "true" ]]; then
+          echo "| Risk Score | ${{ steps.analyze.outputs.risk-score }}/100 |" >> $GITHUB_STEP_SUMMARY
         fi
-
-        if [ "${{ inputs.skip-analyze }}" != "true" ]; then
-          SKILLS="$SKILLS,change-analyzer"
+        if [[ "${{ inputs.skip-security }}" != "true" ]]; then
+          echo "| Security | ${{ steps.security.outputs.vulnerabilities-found }} vulnerabilities |" >> $GITHUB_STEP_SUMMARY
         fi
-
-        # Remove leading comma
-        SKILLS="${SKILLS#,}"
-
-        echo "Running skills: $SKILLS"
-
-        cicd-runner run \
-          --skills "$SKILLS" \
-          --config "${{ inputs.config }}"
-
-        echo "::endgroup::"
-      env:
-        ANTHROPIC_API_KEY: ${{ inputs.api-key }}
+        if [[ "${{ inputs.skip-tests }}" != "true" ]]; then
+          echo "| Tests Generated | ${{ steps.tests.outputs.tests-generated }} files |" >> $GITHUB_STEP_SUMMARY
+        fi

@@ -1,27 +1,92 @@
 name: 'AI Change Analyzer'
-description: 'Analyze code changes and categorize impact'
+description: 'Analyze PR changes and generate summary with risk scoring'
+author: 'cicd-ai-toolkit'
+
+branding:
+  icon: 'activity'
+  color: 'orange'
+
 inputs:
-  skills:
-    description: 'Comma-separated list of skills to run'
+  include-changelog:
+    description: 'Include changelog entry in output'
     required: false
-    default: 'change-analyzer'
-  api-key:
-    description: 'Anthropic API key for Claude'
-    required: true
+    default: 'true'
+  risk-threshold:
+    description: 'Risk score threshold (0-100) for warnings'
+    required: false
+    default: '50'
   config:
     description: 'Path to configuration file'
     required: false
     default: '.cicd-ai-toolkit.yaml'
+
+outputs:
+  summary:
+    description: 'PR summary text'
+    value: ${{ steps.analyze.outputs.summary }}
+  risk-score:
+    description: 'Calculated risk score (0-100)'
+    value: ${{ steps.analyze.outputs.risk }}
+  labels:
+    description: 'Suggested labels (comma-separated)'
+    value: ${{ steps.analyze.outputs.labels }}
+  changelog:
+    description: 'Changelog entry'
+    value: ${{ steps.analyze.outputs.changelog }}
+
 runs:
   using: 'composite'
   steps:
     - name: Analyze Changes
+      id: analyze
       shell: bash
-      run: |
-        echo "::group::Analyzing changes"
-        cicd-runner run \
-          --skills "${{ inputs.skills }}" \
-          --config "${{ inputs.config }}"
-        echo "::endgroup::"
       env:
-        ANTHROPIC_API_KEY: ${{ inputs.api-key }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        echo "::group::Analyzing Changes"
+        RESULT=$(cicd-runner run \
+          --skills change-analyzer \
+          --include-changelog "${{ inputs.include-changelog }}" \
+          --config "${{ inputs.config }}" \
+          --output-json)
+
+        echo "$RESULT" | jq '.'
+
+        # Extract outputs using heredoc for multiline safety
+        {
+          echo 'summary<<EOF'
+          echo "$RESULT" | jq -r '.summary // "No summary available"'
+          echo 'EOF'
+        } >> $GITHUB_OUTPUT
+
+        echo "risk=$(echo "$RESULT" | jq -r '.risk_score // 0')" >> $GITHUB_OUTPUT
+        echo "labels=$(echo "$RESULT" | jq -r '.labels // [] | join(",")')" >> $GITHUB_OUTPUT
+
+        {
+          echo 'changelog<<EOF'
+          echo "$RESULT" | jq -r '.changelog // ""'
+          echo 'EOF'
+        } >> $GITHUB_OUTPUT
+
+        # Warn on high risk
+        RISK=$(echo "$RESULT" | jq -r '.risk_score // 0')
+        if [ "$RISK" -gt "${{ inputs.risk-threshold }}" ]; then
+          echo "::warning::High risk change detected (score: $RISK)"
+        fi
+        echo "::endgroup::"
+
+    - name: Apply labels
+      if: steps.analyze.outputs.labels != ''
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        LABELS: ${{ steps.analyze.outputs.labels }}
+      run: |
+        if [[ -n "$LABELS" && -n "${{ github.event.number }}" ]]; then
+          echo "::group::Applying labels: $LABELS"
+          IFS=',' read -ra LABEL_ARRAY <<< "$LABELS"
+          for label in "${LABEL_ARRAY[@]}"; do
+            gh pr edit "${{ github.event.number }}" --add-label "$label" 2>/dev/null || echo "Could not add label: $label"
+          done
+          echo "::endgroup::"
+        fi
