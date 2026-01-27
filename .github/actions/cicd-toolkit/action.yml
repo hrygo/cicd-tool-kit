@@ -1,0 +1,92 @@
+name: 'cicd-ai-toolkit'
+description: 'AI-powered CI/CD toolkit using Claude Code for code review, change analysis, and test generation'
+inputs:
+  github_token:
+    description: 'GitHub token for API access'
+    required: true
+    default: ${{ github.token }}
+  anthropic_key:
+    description: 'Anthropic API key for Claude access'
+    required: true
+  run_skills:
+    description: 'Comma-separated list of skills to run (e.g., code-reviewer,change-analyzer)'
+    required: false
+    default: 'code-reviewer'
+  pr_number:
+    description: 'Pull request number (auto-detected from event)'
+    required: false
+    default: '0'
+  post_comment:
+    description: 'Post results as PR comment'
+    required: false
+    default: 'true'
+  config:
+    description: 'Path to config file'
+    required: false
+    default: '.cicd-ai-toolkit.yaml'
+  working_directory:
+    description: 'Working directory'
+    required: false
+    default: '.'
+outputs:
+  review_summary:
+    description: 'Summary of the code review'
+    value: ${{ steps.run.outputs.summary }}
+  issues_found:
+    description: 'Number of issues found'
+    value: ${{ steps.run.outputs.issues }}
+  risk_score:
+    description: 'Risk assessment score (1-10)'
+    value: ${{ steps.run.outputs.risk }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+        cache: true
+
+    - name: Build cicd-runner
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+      run: |
+        go build -o /tmp/cicd-runner ./cmd/cicd-runner
+
+    - name: Run AI Code Review
+      shell: bash
+      id: run
+      working-directory: ${{ inputs.working_directory }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic_key }}
+      run: |
+        # Detect PR number from event if not provided
+        PR_NUM="${{ inputs.pr_number }}"
+        if [ "$PR_NUM" = "0" ]; then
+          PR_NUM="${{ github.event.pull_request.number }}"
+        fi
+
+        # Build command args
+        ARGS=""
+        if [ -n "${{ inputs.run_skills }}" ]; then
+          ARGS="$ARGS --skills ${{ inputs.run_skills }}"
+        fi
+        if [ "${{ inputs.post_comment }}" = "true" ]; then
+          ARGS="$ARGS --post"
+        fi
+        if [ "$PR_NUM" != "0" ]; then
+          ARGS="$ARGS --pr $PR_NUM"
+        fi
+
+        # Run the review
+        /tmp/cicd-runner review $ARGS 2>&1 | tee /tmp/review-output.txt
+
+        # Extract metrics for outputs
+        echo "summary=Review completed" >> $GITHUB_OUTPUT
+        if grep -q "issues" /tmp/review-output.txt; then
+          ISSUES=$(grep -o "Total Issues: [0-9]*" /tmp/review-output.txt | grep -o "[0-9]*" || echo "0")
+          echo "issues=$ISSUES" >> $GITHUB_OUTPUT
+        else
+          echo "issues=0" >> $GITHUB_OUTPUT
+        fi
