@@ -13,6 +13,7 @@ import (
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/claude"
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/config"
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/platform"
+	"github.com/cicd-ai-toolkit/cicd-runner/pkg/skill"
 )
 
 // DefaultRunner implements the Runner interface
@@ -22,6 +23,7 @@ type DefaultRunner struct {
 	builder   *buildcontext.Builder
 	parser    claude.OutputParser
 	cache     *Cache
+	skillLoader *skill.Loader
 }
 
 // NewRunner creates a new runner instance
@@ -38,12 +40,17 @@ func NewRunner(cfg *config.Config, platform platform.Platform, baseDir string) (
 		return nil, fmt.Errorf("failed to initialize cache: %w", err)
 	}
 
+	// Initialize skill loader from skills directory
+	skillsDir := filepath.Join(baseDir, "skills")
+	skillLoader := skill.NewLoader(skillsDir)
+
 	return &DefaultRunner{
-		cfg:      cfg,
-		platform: platform,
-		builder:  builder,
-		parser:   claude.NewParser(),
-		cache:    cache,
+		cfg:         cfg,
+		platform:    platform,
+		builder:     builder,
+		parser:      claude.NewParser(),
+		cache:       cache,
+		skillLoader: skillLoader,
 	}, nil
 }
 
@@ -489,13 +496,8 @@ func (r *DefaultRunner) getReviewSkills(requested []string) []string {
 		return requested
 	}
 
-	var skills []string
-	for _, skill := range r.cfg.Skills {
-		if skill.Enabled && strings.Contains(skill.Name, "review") {
-			skills = append(skills, skill.Path)
-		}
-	}
-	return skills
+	// Use skill loader to discover review skills
+	return r.skillLoader.GetSkillNamesForOperation("review")
 }
 
 // getAnalysisSkills returns enabled analysis skills
@@ -504,13 +506,8 @@ func (r *DefaultRunner) getAnalysisSkills(requested []string) []string {
 		return requested
 	}
 
-	var skills []string
-	for _, skill := range r.cfg.Skills {
-		if skill.Enabled && strings.Contains(skill.Name, "analyze") {
-			skills = append(skills, skill.Path)
-		}
-	}
-	return skills
+	// Use skill loader to discover analysis skills
+	return r.skillLoader.GetSkillNamesForOperation("analyze")
 }
 
 // detectLanguage detects the programming language from file path
