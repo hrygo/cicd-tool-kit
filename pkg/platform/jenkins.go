@@ -280,6 +280,23 @@ func (j *JenkinsClient) GetFile(ctx context.Context, path, ref string) (string, 
 	// The ref parameter is interpreted as a build number
 	buildNumber := "lastSuccessfulBuild"
 	if ref != "" {
+		// Validate ref parameter - only allow specific build references or positive integers
+		// This prevents path traversal or injection via the ref parameter
+		validRefs := map[string]bool{
+			"lastSuccessfulBuild": true,
+			"lastCompletedBuild":  true,
+			"lastFailedBuild":     true,
+			"lastStableBuild":     true,
+			"lastUnstableBuild":   true,
+		}
+		if !validRefs[ref] {
+			// Check if it's a valid positive integer
+			num := 0
+			_, err := fmt.Sscanf(ref, "%d", &num)
+			if err != nil || num <= 0 {
+				return "", fmt.Errorf("invalid build reference: %s", ref)
+			}
+		}
 		buildNumber = ref
 	}
 
@@ -531,7 +548,10 @@ func (j *JenkinsClient) TriggerBuild(ctx context.Context, parameters map[string]
 	for i, part := range parts {
 		if part == j.jobName && i+1 < len(parts) {
 			var buildNum int
-			fmt.Sscanf(parts[i+1], "%d", &buildNum)
+			n, err := fmt.Sscanf(parts[i+1], "%d", &buildNum)
+			if n != 1 || err != nil || buildNum <= 0 {
+				return 0, fmt.Errorf("invalid build number from location: %s", parts[i+1])
+			}
 			return buildNum, nil
 		}
 	}

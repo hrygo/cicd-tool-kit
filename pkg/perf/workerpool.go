@@ -73,6 +73,10 @@ func (p *WorkerPool) Submit(task func()) bool {
 	if task == nil {
 		return false
 	}
+	// Check stopped flag first to avoid submitting to closed channel
+	if p.stopped.Load() {
+		return false
+	}
 	select {
 	case <-p.ctx.Done():
 		return false
@@ -118,11 +122,17 @@ func (p *WorkerPool) Stop() {
 		return // Already stopped
 	}
 
+	// Step 1: Cancel context to signal all workers to stop
 	p.cancelOnce.Do(func() {
 		p.cancel()
-		close(p.taskQueue)
 	})
+
+	// Step 2: Wait for all workers to finish their current tasks
 	p.wg.Wait()
+
+	// Step 3: Close the task queue (no longer needed after workers are done)
+	// This must be after wg.Wait() to avoid sending to closed channel
+	close(p.taskQueue)
 }
 
 // ActiveJobs returns the number of currently active jobs

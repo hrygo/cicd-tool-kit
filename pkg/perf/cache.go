@@ -213,16 +213,32 @@ func (c *Cache[K, V]) cleanupExpired() {
 				c.mu.Unlock()
 				return
 			}
-			for elem := c.lru.Back(); elem != nil; {
+
+			// First pass: collect expired elements
+			var expired []*list.Element
+			for elem := c.lru.Back(); elem != nil; elem = elem.Prev() {
 				item := elem.Value.(*CacheItem[K, V])
-				next := elem.Prev()
-
 				if !item.ExpiresAt.IsZero() && time.Now().After(item.ExpiresAt) {
-					c.removeElement(elem)
+					expired = append(expired, elem)
 				}
-
-				elem = next
 			}
+
+			// Second pass: remove all expired elements
+			// This avoids unlock/relock during iteration
+			for _, elem := range expired {
+				c.lru.Remove(elem)
+				item := elem.Value.(*CacheItem[K, V])
+				delete(c.items, item.Key)
+
+				// Call onEvicted callback without holding lock
+				onEvicted := c.onEvicted
+				if onEvicted != nil {
+					c.mu.Unlock()
+					onEvicted(item.Key, item.Value)
+					c.mu.Lock()
+				}
+			}
+
 			c.mu.Unlock()
 		case <-c.closeCh:
 			return
