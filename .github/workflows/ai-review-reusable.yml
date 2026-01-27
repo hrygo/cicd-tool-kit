@@ -36,7 +36,7 @@ jobs:
       issues: ${{ steps.run.outputs.issues }}
       critical: ${{ steps.run.outputs.critical }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
