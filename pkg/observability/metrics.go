@@ -14,14 +14,15 @@ import (
 
 // MetricsCollector collects and reports metrics
 type MetricsCollector struct {
-	mu            sync.RWMutex
-	metrics      map[string]interface{}
-	samples      []*MetricSample
-	maxSamples    int
-	enabled       bool
-	flushInterval time.Duration
-	stopCh        chan struct{}
-	closeOnce     sync.Once
+	mu                 sync.RWMutex
+	metrics            map[string]interface{}
+	samples            []*MetricSample
+	maxSamples         int
+	maxHistogramSamples int
+	enabled            bool
+	flushInterval      time.Duration
+	stopCh             chan struct{}
+	closeOnce          sync.Once
 }
 
 // MetricSample represents a single metric sample at a point in time
@@ -32,9 +33,10 @@ type MetricSample struct {
 
 // MetricConfig configures metrics collection
 type MetricConfig struct {
-	Enabled        bool          `json:"enabled" yaml:"enabled"`
-	FlushInterval  time.Duration `json:"flush_interval" yaml:"flush_interval"`
-	MaxSamples     int           `json:"max_samples" yaml:"max_samples"`
+	Enabled            bool          `json:"enabled" yaml:"enabled"`
+	FlushInterval      time.Duration `json:"flush_interval" yaml:"flush_interval"`
+	MaxSamples         int           `json:"max_samples" yaml:"max_samples"`
+	MaxHistogramSamples int          `json:"max_histogram_samples" yaml:"max_histogram_samples"`
 }
 
 // NewMetricsCollector creates a new metrics collector
@@ -42,17 +44,21 @@ func NewMetricsCollector(config MetricConfig) *MetricsCollector {
 	if config.MaxSamples == 0 {
 		config.MaxSamples = 1000
 	}
+	if config.MaxHistogramSamples == 0 {
+		config.MaxHistogramSamples = 10000
+	}
 	if config.FlushInterval == 0 {
 		config.FlushInterval = 30 * time.Second
 	}
 
 	m := &MetricsCollector{
-		metrics:      make(map[string]interface{}),
-		samples:      make([]*MetricSample, 0, config.MaxSamples),
-		maxSamples:    config.MaxSamples,
-		enabled:       config.Enabled,
-		flushInterval: config.FlushInterval,
-		stopCh:        make(chan struct{}),
+		metrics:            make(map[string]interface{}),
+		samples:            make([]*MetricSample, 0, config.MaxSamples),
+		maxSamples:         config.MaxSamples,
+		maxHistogramSamples: config.MaxHistogramSamples,
+		enabled:            config.Enabled,
+		flushInterval:      config.FlushInterval,
+		stopCh:             make(chan struct{}),
 	}
 
 	if m.enabled {
@@ -161,7 +167,13 @@ func (m *MetricsCollector) Histogram(name string, value float64, labels map[stri
 		// If type assertion fails, samples remains nil and we start fresh
 	}
 
-	m.metrics[key] = append(samples, value)
+	samples = append(samples, value)
+	// Limit histogram size to prevent unbounded growth
+	if len(samples) > m.maxHistogramSamples {
+		// Keep the most recent samples by discarding the oldest
+		samples = samples[len(samples)-m.maxHistogramSamples:]
+	}
+	m.metrics[key] = samples
 }
 
 // Timing records the duration of an operation
@@ -347,9 +359,11 @@ func (m *MetricsCollector) GetAverageDuration(operationName string) time.Duratio
 
 // AuditLogger logs security-relevant events for audit trails
 type AuditLogger struct {
-	mu      sync.Mutex
-	entries []AuditEntry
-	logger  *log.Logger
+	mu       sync.Mutex
+	entries  []AuditEntry
+	logger   *log.Logger
+	file     *os.File
+	closeOnce sync.Once
 }
 
 // AuditEntry represents a single audit log entry
@@ -366,11 +380,13 @@ type AuditEntry struct {
 // NewAuditLogger creates a new audit logger
 func NewAuditLogger(logFile string) (*AuditLogger, error) {
 	var logger *log.Logger
+	var file *os.File
 	if logFile != "" {
 		f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open audit log file: %w", err)
 		}
+		file = f
 		logger = log.New(f, "", log.LstdFlags)
 	} else {
 		logger = log.New(os.Stdout, "[AUDIT]", log.LstdFlags)
@@ -379,6 +395,7 @@ func NewAuditLogger(logFile string) (*AuditLogger, error) {
 	return &AuditLogger{
 		entries: make([]AuditEntry, 0, 1000),
 		logger:  logger,
+		file:    file,
 	}, nil
 }
 
@@ -485,6 +502,17 @@ func (a *AuditLogger) Clear() error {
 	defer a.mu.Unlock()
 
 	a.entries = make([]AuditEntry, 0, 1000)
+	return nil
+}
+
+// Close closes the audit logger and releases resources
+// Safe to call multiple times - subsequent calls are no-ops
+func (a *AuditLogger) Close() error {
+	a.closeOnce.Do(func() {
+		if a.file != nil {
+			a.file.Close()
+		}
+	})
 	return nil
 }
 

@@ -11,7 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -78,7 +78,7 @@ type JenkinsJob struct {
 func NewJenkinsClient(baseURL, username, apiToken, jobName string) *JenkinsClient {
 	// Sanitize jobName to prevent path traversal attacks
 	// Remove any directory traversal components and special characters
-	cleanJobName := path.Clean(jobName)
+	cleanJobName := filepath.Clean(jobName)
 	cleanJobName = strings.TrimPrefix(cleanJobName, ".")
 	cleanJobName = strings.TrimPrefix(cleanJobName, "/")
 
@@ -193,6 +193,11 @@ func (j *JenkinsClient) GetDiff(ctx context.Context, prID int) (string, error) {
 
 // GetFile retrieves a file's content from the workspace of a build
 func (j *JenkinsClient) GetFile(ctx context.Context, path, ref string) (string, error) {
+	// Sanitize path to prevent directory traversal attacks
+	cleanPath := filepath.Clean(path)
+	cleanPath = strings.TrimPrefix(cleanPath, ".")
+	cleanPath = strings.TrimPrefix(cleanPath, "/")
+
 	// In Jenkins, we get the file from the workspace
 	// The ref parameter is interpreted as a build number
 	buildNumber := "lastSuccessfulBuild"
@@ -200,7 +205,7 @@ func (j *JenkinsClient) GetFile(ctx context.Context, path, ref string) (string, 
 		buildNumber = ref
 	}
 
-	url := fmt.Sprintf("%s/job/%s/%s/ws/%s", j.baseURL, j.jobName, buildNumber, path)
+	url := fmt.Sprintf("%s/job/%s/%s/ws/%s", j.baseURL, j.jobName, buildNumber, cleanPath)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -570,6 +575,9 @@ func ParseJenkinsWebhook(authToken string, handler func(ctx context.Context, web
 				return
 			}
 		}
+
+		// Limit request body size to prevent memory exhaustion attacks (max 1MB)
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 
 		var webhook JenkinsWebhook
 		if err := json.NewDecoder(r.Body).Decode(&webhook); err != nil {

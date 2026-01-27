@@ -68,8 +68,11 @@ func (p *WorkerPool) worker(_ int) {
 }
 
 // Submit submits a task to the worker pool
-// Returns false if the pool is closed or the task queue is full
+// Returns false if the pool is closed, the task is nil, or the task queue is full
 func (p *WorkerPool) Submit(task func()) bool {
+	if task == nil {
+		return false
+	}
 	select {
 	case <-p.ctx.Done():
 		return false
