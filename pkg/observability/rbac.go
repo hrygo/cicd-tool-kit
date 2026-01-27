@@ -453,10 +453,8 @@ func (g *ResourceGuard) CreateResource(name, resourceType, ownerID string) error
 }
 
 // GrantResourcePermission grants a user permission on a resource
-// WARNING: This method does NOT check if the caller has authorization to grant permissions.
-// In production use, pass the grantor's user ID and verify they have admin permission
-// on the resource before granting. This is a simplified implementation for demonstration.
-func (g *ResourceGuard) GrantResourcePermission(resourceName, userID string, permission Permission) error {
+// The grantorUserID must have PermissionAdmin on the resource or be the resource owner.
+func (g *ResourceGuard) GrantResourcePermission(resourceName, grantorUserID, targetUserID string, permission Permission) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -465,22 +463,35 @@ func (g *ResourceGuard) GrantResourcePermission(resourceName, userID string, per
 		return fmt.Errorf("resource %s does not exist", resourceName)
 	}
 
-	// SECURITY NOTE: No authorization check performed here.
-	// In production, verify the grantor has PermissionAdmin or is the resource owner.
+	// Authorization check: grantor must be owner or have admin permission
+	if resource.OwnerUserID != grantorUserID {
+		// Check if grantor has admin permission
+		hasAdmin := false
+		for _, p := range resource.Permissions[grantorUserID] {
+			if p == PermissionAdmin {
+				hasAdmin = true
+				break
+			}
+		}
+		if !hasAdmin {
+			return fmt.Errorf("grantor %s lacks authorization to grant permissions on resource %s", grantorUserID, resourceName)
+		}
+	}
 
-	perms := resource.Permissions[userID]
+	perms := resource.Permissions[targetUserID]
 	for _, p := range perms {
 		if p == permission {
 			return nil // Already has permission
 		}
 	}
 
-	resource.Permissions[userID] = append(perms, permission)
+	resource.Permissions[targetUserID] = append(perms, permission)
 
 	if g.audit != nil {
 		g.audit.LogEvent("info", "resource_permission_granted", "grant_permission", map[string]interface{}{
 			"resource": resourceName,
-			"user_id":  userID,
+			"grantor_id": grantorUserID,
+			"user_id":   targetUserID,
 			"permission": permission,
 		})
 	}

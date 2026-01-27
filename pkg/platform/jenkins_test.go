@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewJenkinsClient(t *testing.T) {
-	client := NewJenkinsClient("http://localhost:8080", "user", "token", "test-job")
+	client, _ := NewJenkinsClient("http://localhost:8080", "user", "token", "test-job")
 
 	if client.Name() != "jenkins" {
 		t.Errorf("Expected name 'jenkins', got '%s'", client.Name())
@@ -42,7 +42,7 @@ func TestJenkinsClientHealth(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewJenkinsClient(server.URL, "user", "token", "test-job")
+	client, _ := NewJenkinsClient(server.URL, "user", "token", "test-job")
 
 	err := client.Health(context.Background())
 	if err != nil {
@@ -56,7 +56,7 @@ func TestJenkinsClientHealthFailure(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewJenkinsClient(server.URL, "user", "token", "test-job")
+	client, _ := NewJenkinsClient(server.URL, "user", "token", "test-job")
 
 	err := client.Health(context.Background())
 	if err == nil {
@@ -84,7 +84,7 @@ func TestJenkinsGetJob(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewJenkinsClient(server.URL, "user", "token", "test-job")
+	client, _ := NewJenkinsClient(server.URL, "user", "token", "test-job")
 
 	job, err := client.GetJob(context.Background())
 	if err != nil {
@@ -129,7 +129,7 @@ func TestJenkinsGetBuildInfo(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewJenkinsClient(server.URL, "user", "token", "test-job")
+	client, _ := NewJenkinsClient(server.URL, "user", "token", "test-job")
 
 	buildInfo, err := client.getBuildInfo(context.Background(), 42)
 	if err != nil {
@@ -155,7 +155,7 @@ func TestJenkinsGetBuildStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewJenkinsClient(server.URL, "user", "token", "test-job")
+	client, _ := NewJenkinsClient(server.URL, "user", "token", "test-job")
 
 	result, building, err := client.GetBuildStatus(context.Background(), 42)
 	if err != nil {
@@ -182,7 +182,7 @@ func TestJenkinsGetBuildLog(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewJenkinsClient(server.URL, "user", "token", "test-job")
+	client, _ := NewJenkinsClient(server.URL, "user", "token", "test-job")
 
 	log, err := client.GetBuildLog(context.Background(), 42)
 	if err != nil {
@@ -221,7 +221,7 @@ func TestJenkinsTriggerBuild(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewJenkinsClient(server.URL, "user", "token", "test-job")
+	client, _ := NewJenkinsClient(server.URL, "user", "token", "test-job")
 
 	// Note: TriggerBuild with actual form data would require different test setup
 	// This tests the basic flow
@@ -275,7 +275,7 @@ func TestJenkinsGetPRInfo(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewJenkinsClient(server.URL, "user", "token", "test-job")
+	client, _ := NewJenkinsClient(server.URL, "user", "token", "test-job")
 
 	prInfo, err := client.GetPRInfo(context.Background(), 42)
 	if err != nil {
@@ -319,7 +319,7 @@ func TestJenkinsGetFile(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewJenkinsClient(server.URL, "user", "token", "test-job")
+	client, _ := NewJenkinsClient(server.URL, "user", "token", "test-job")
 
 	// Test with default ref (lastSuccessfulBuild)
 	content, err := client.GetFile(context.Background(), "README.md", "")
@@ -356,7 +356,7 @@ func TestJenkinsCreateCrumb(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewJenkinsClient(server.URL, "user", "token", "test-job")
+	client, _ := NewJenkinsClient(server.URL, "user", "token", "test-job")
 
 	field, crumb, err := client.CreateCrumb(context.Background())
 	if err != nil {
@@ -382,7 +382,7 @@ func TestJenkinsCreateCrumbDisabled(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewJenkinsClient(server.URL, "user", "token", "test-job")
+	client, _ := NewJenkinsClient(server.URL, "user", "token", "test-job")
 
 	_, _, err := client.CreateCrumb(context.Background())
 	if err != nil {

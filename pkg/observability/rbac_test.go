@@ -326,8 +326,8 @@ func TestResourceGuard(t *testing.T) {
 		t.Error("Non-owner should not have access")
 	}
 
-	// Grant permission to another user
-	err = guard.GrantResourcePermission("repo1", "user2", PermissionRead)
+	// Grant permission to another user (owner1 is the owner, so they can grant)
+	err = guard.GrantResourcePermission("repo1", "owner1", "user2", PermissionRead)
 	if err != nil {
 		t.Fatalf("GrantResourcePermission failed: %v", err)
 	}

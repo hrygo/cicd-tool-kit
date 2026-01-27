@@ -241,11 +241,15 @@ func (m *MetricsCollector) FlushMetrics() error {
 		return nil
 	}
 
-	// Get snapshot first (with RLock)
-	snapshot := m.GetSnapshot()
-
-	// Then Lock for updating samples
 	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Create snapshot under the same lock to avoid lock ordering issues
+	snapshot := make(map[string]interface{})
+	for k, v := range m.metrics {
+		snapshot[k] = v
+	}
+
 	sample := &MetricSample{
 		Timestamp: time.Now(),
 		Metrics:   snapshot,
@@ -255,7 +259,6 @@ func (m *MetricsCollector) FlushMetrics() error {
 	if len(m.samples) > m.maxSamples {
 		m.samples = m.samples[1:]
 	}
-	m.mu.Unlock()
 
 	// In production, this would send to a metrics backend
 	// For now, we'll log if verbose mode is on

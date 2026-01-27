@@ -152,12 +152,11 @@ type JenkinsJob struct {
 }
 
 // NewJenkinsClient creates a new Jenkins client
-func NewJenkinsClient(baseURL, username, apiToken, jobName string) *JenkinsClient {
+func NewJenkinsClient(baseURL, username, apiToken, jobName string) (*JenkinsClient, error) {
 	// Validate and sanitize jobName to prevent path traversal attacks
 	cleanJobName, err := sanitizeJobPath(jobName)
 	if err != nil {
-		// Fall back to safe default if validation fails
-		cleanJobName = "unknown"
+		return nil, fmt.Errorf("invalid job name: %w", err)
 	}
 
 	return &JenkinsClient{
@@ -168,7 +167,7 @@ func NewJenkinsClient(baseURL, username, apiToken, jobName string) *JenkinsClien
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-	}
+	}, nil
 }
 
 // Name returns the platform name
