@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 )
@@ -324,10 +325,10 @@ func ParsePRIDFromGitLabEnv() (int, error) {
 	return 0, fmt.Errorf("could not parse MR ID from GitLab environment")
 }
 
-// urlPathEncode encodes a path for URL in GitLab format (/ instead of %2F)
+// urlPathEncode encodes a path for URL in GitLab format
+// Uses url.QueryEscape for proper encoding to prevent path traversal attacks
 func urlPathEncode(path string) string {
-	// GitLab uses URL-encoded paths with / for project paths
-	// For simplicity, we'll just replace / with %2F for the project path only
-	// In production, use url.PathEscape or similar
-	return path
+	// Use url.QueryEscape to properly encode the path
+	// This prevents path traversal and injection attacks
+	return url.QueryEscape(path)
 }

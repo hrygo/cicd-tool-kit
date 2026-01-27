@@ -256,8 +256,8 @@ func (r *DefaultRunner) executeReview(ctx context.Context, diffContext string, s
 
 	prompt := r.buildReviewPrompt(diffContext, skills)
 
-	timeout, _ := r.cfg.Claude.GetTimeout()
-	if timeout == 0 {
+	timeout, err := r.cfg.Claude.GetTimeout()
+	if err != nil || timeout == 0 {
 		timeout = 5 * time.Minute
 	}
 
@@ -292,8 +292,8 @@ func (r *DefaultRunner) executeAnalysis(ctx context.Context, analysisContext str
 
 	prompt := r.buildAnalysisPrompt(analysisContext, skills)
 
-	timeout, _ := r.cfg.Claude.GetTimeout()
-	if timeout == 0 {
+	timeout, err := r.cfg.Claude.GetTimeout()
+	if err != nil || timeout == 0 {
 		timeout = 5 * time.Minute
 	}
 
@@ -560,16 +560,24 @@ func severityIcon(severity string) string {
 }
 
 // RunParallel runs multiple skills in parallel
+// If any task fails, all other tasks are cancelled via context
 func (r *DefaultRunner) RunParallel(ctx context.Context, tasks []func(context.Context) error) error {
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(tasks))
+	cancelCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	for _, task := range tasks {
 		wg.Add(1)
 		go func(t func(context.Context) error) {
 			defer wg.Done()
-			if err := t(ctx); err != nil {
-				errChan <- err
+			if err := t(cancelCtx); err != nil {
+				select {
+				case errChan <- err:
+					cancel() // Cancel other tasks on first error
+				case <-cancelCtx.Done():
+					return // Another task already failed
+				}
 			}
 		}(task)
 	}

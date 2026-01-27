@@ -91,7 +91,9 @@ func (p *parser) parseTextIssues(output string) ([]Issue, error) {
 		// Check for file:line pattern
 		if matches := fileLineRe.FindStringSubmatch(line); matches != nil {
 			currentFile = matches[1]
-			fmt.Sscanf(matches[2], "%d", &currentLine)
+			if _, err := fmt.Sscanf(matches[2], "%d", &currentLine); err != nil {
+				currentLine = 0 // Reset to default on parse error
+			}
 		}
 
 		// Check for severity/category patterns

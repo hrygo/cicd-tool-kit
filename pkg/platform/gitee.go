@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 )
@@ -112,7 +113,7 @@ func (g *GiteeClient) PostComment(ctx context.Context, opts CommentOptions) erro
 		return fmt.Errorf("failed to marshal comment: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/repos/%s/pulls/%d/comments", g.baseURL, g.repo, opts.PRID)
+	url := fmt.Sprintf("%s/repos/%s/pulls/%d/comments", g.baseURL, url.QueryEscape(g.repo), opts.PRID)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
@@ -138,7 +139,7 @@ func (g *GiteeClient) PostComment(ctx context.Context, opts CommentOptions) erro
 
 // GetDiff retrieves the diff for a Gitee pull request
 func (g *GiteeClient) GetDiff(ctx context.Context, prID int) (string, error) {
-	url := fmt.Sprintf("%s/repos/%s/pulls/%d/files", g.baseURL, g.repo, prID)
+	url := fmt.Sprintf("%s/repos/%s/pulls/%d/files", g.baseURL, url.QueryEscape(g.repo), prID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -177,7 +178,7 @@ func (g *GiteeClient) GetDiff(ctx context.Context, prID int) (string, error) {
 
 // GetFile retrieves a file from the Gitee repository
 func (g *GiteeClient) GetFile(ctx context.Context, path, ref string) (string, error) {
-	url := fmt.Sprintf("%s/repos/%s/contents/%s?ref=%s", g.baseURL, g.repo, path, ref)
+	url := fmt.Sprintf("%s/repos/%s/contents/%s?ref=%s", g.baseURL, url.QueryEscape(g.repo), url.QueryEscape(path), ref)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -220,7 +221,7 @@ func (g *GiteeClient) GetFile(ctx context.Context, path, ref string) (string, er
 
 // GetPRInfo retrieves pull request information from Gitee
 func (g *GiteeClient) GetPRInfo(ctx context.Context, prID int) (*PRInfo, error) {
-	url := fmt.Sprintf("%s/repos/%s/pulls/%d", g.baseURL, g.repo, prID)
+	url := fmt.Sprintf("%s/repos/%s/pulls/%d", g.baseURL, url.QueryEscape(g.repo), prID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -259,7 +260,7 @@ func (g *GiteeClient) GetPRInfo(ctx context.Context, prID int) (*PRInfo, error) 
 
 // Health checks if the Gitee API is accessible
 func (g *GiteeClient) Health(ctx context.Context) error {
-	url := fmt.Sprintf("%s/repos/%s", g.baseURL, g.repo)
+	url := fmt.Sprintf("%s/repos/%s", g.baseURL, url.QueryEscape(g.repo))
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {

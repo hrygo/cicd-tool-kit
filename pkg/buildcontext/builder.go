@@ -7,11 +7,61 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/errors"
 )
+
+// validGitRefPattern matches safe git refs (branch names, tags, commits)
+var validGitRefPattern = regexp.MustCompile(`^[a-zA-Z0-9/_\-\.]+$`)
+
+// sanitizeGitRef validates that a git ref is safe to use in commands
+func sanitizeGitRef(ref string) error {
+	if ref == "" {
+		return nil // Empty ref is valid (defaults to HEAD)
+	}
+	// Check for path traversal attempts
+	if strings.Contains(ref, "..") || strings.Contains(ref, "\\") {
+		return fmt.Errorf("invalid git ref: contains path traversal sequence")
+	}
+	// Check for shell metacharacters
+	dangerousChars := []string{"|", "&", ";", "$", "(", ")", "`", "{", "}", ">", "<", "\n", "\t"}
+	for _, ch := range dangerousChars {
+		if strings.Contains(ref, ch) {
+			return fmt.Errorf("invalid git ref: contains dangerous character '%s'", ch)
+		}
+	}
+	// Check against safe pattern
+	if !validGitRefPattern.MatchString(ref) {
+		return fmt.Errorf("invalid git ref: contains invalid characters")
+	}
+	return nil
+}
+
+// sanitizePath validates that a file path is safe
+func sanitizePath(path string) error {
+	if path == "" {
+		return nil // Empty path is valid
+	}
+	// Check for path traversal
+	if strings.Contains(path, "..") {
+		return fmt.Errorf("invalid path: contains path traversal")
+	}
+	// Check for absolute paths (only relative paths allowed)
+	if filepath.IsAbs(path) {
+		return fmt.Errorf("invalid path: absolute paths not allowed")
+	}
+	// Check for shell metacharacters
+	dangerousChars := []string{"|", "&", ";", "$", "(", ")", "`", "{", "}", ">", "<", "\n", "\t"}
+	for _, ch := range dangerousChars {
+		if strings.Contains(path, ch) {
+			return fmt.Errorf("invalid path: contains dangerous character '%s'", ch)
+		}
+	}
+	return nil
+}
 
 // Builder builds context for Claude Code analysis
 type Builder struct {
@@ -31,6 +81,17 @@ func NewBuilder(baseDir string, diffContext int, exclude []string) *Builder {
 
 // BuildDiff builds the git diff for the current changes
 func (b *Builder) BuildDiff(ctx context.Context, opts DiffOptions) (string, error) {
+	// Validate inputs to prevent command injection
+	if err := sanitizeGitRef(opts.TargetRef); err != nil {
+		return "", fmt.Errorf("invalid target ref: %w", err)
+	}
+	if err := sanitizeGitRef(opts.SourceRef); err != nil {
+		return "", fmt.Errorf("invalid source ref: %w", err)
+	}
+	if err := sanitizePath(opts.Path); err != nil {
+		return "", fmt.Errorf("invalid path: %w", err)
+	}
+
 	args := b.buildDiffArgs(opts)
 
 	cmd := exec.CommandContext(ctx, "git", args...)
@@ -292,7 +353,11 @@ func (b *Builder) GetCommitInfo(ctx context.Context) (*CommitInfo, error) {
 	}
 
 	var timestamp int64
-	fmt.Sscanf(stdout.String(), "%d", &timestamp)
+	n, err := fmt.Sscanf(stdout.String(), "%d", &timestamp)
+	if err != nil || n != 1 {
+		// If timestamp parsing fails, use current time as fallback
+		timestamp = time.Now().Unix()
+	}
 
 	return &CommitInfo{
 		SHA:      sha,
@@ -346,8 +411,12 @@ func (b *Builder) GetStats(ctx context.Context, opts DiffOptions) (*DiffStats, e
 		}
 
 		var additions, deletions int
-		fmt.Sscanf(parts[0], "%d", &additions)
-		fmt.Sscanf(parts[1], "%d", &deletions)
+		if _, err := fmt.Sscanf(parts[0], "%d", &additions); err != nil {
+			continue // Skip malformed line
+		}
+		if _, err := fmt.Sscanf(parts[1], "%d", &deletions); err != nil {
+			continue // Skip malformed line
+		}
 		file := parts[2]
 
 		stats.Files[file] = &FileStats{
