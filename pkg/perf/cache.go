@@ -174,14 +174,20 @@ func (c *Cache[K, V]) Close() {
 	})
 }
 
-// removeElement removes an element from the cache
+// removeElement removes an element from the cache.
+// The caller must hold c.mu.Lock(). The lock will be held on return.
 func (c *Cache[K, V]) removeElement(elem *list.Element) {
 	c.lru.Remove(elem)
 	item := elem.Value.(*CacheItem[K, V])
 	delete(c.items, item.Key)
 
-	if c.onEvicted != nil {
-		c.onEvicted(item.Key, item.Value)
+	// Unlock before calling onEvicted to prevent deadlock if callback
+	// calls back into the cache (reentrancy)
+	onEvicted := c.onEvicted
+	if onEvicted != nil {
+		c.mu.Unlock()
+		onEvicted(item.Key, item.Value)
+		c.mu.Lock()
 	}
 }
 
@@ -202,6 +208,11 @@ func (c *Cache[K, V]) cleanupExpired() {
 		select {
 		case <-ticker.C:
 			c.mu.Lock()
+			// Check if cache is closed before processing
+			if c.closed {
+				c.mu.Unlock()
+				return
+			}
 			for elem := c.lru.Back(); elem != nil; {
 				item := elem.Value.(*CacheItem[K, V])
 				next := elem.Prev()

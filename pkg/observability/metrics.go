@@ -22,6 +22,7 @@ type MetricsCollector struct {
 	enabled            bool
 	flushInterval      time.Duration
 	stopCh             chan struct{}
+	flushDone          chan struct{}
 	closeOnce          sync.Once
 }
 
@@ -59,6 +60,7 @@ func NewMetricsCollector(config MetricConfig) *MetricsCollector {
 		enabled:            config.Enabled,
 		flushInterval:      config.FlushInterval,
 		stopCh:             make(chan struct{}),
+		flushDone:          make(chan struct{}),
 	}
 
 	if m.enabled {
@@ -273,6 +275,7 @@ func (m *MetricsCollector) FlushMetrics() error {
 func (m *MetricsCollector) backgroundFlush() {
 	ticker := time.NewTicker(m.flushInterval)
 	defer ticker.Stop()
+	defer close(m.flushDone)
 
 	for {
 		select {
@@ -292,8 +295,11 @@ func (m *MetricsCollector) Close() error {
 		// Signal background flush to stop
 		close(m.stopCh)
 
+		// Wait for backgroundFlush to complete
+		<-m.flushDone
+
 		// Do a final flush before returning
-		// This happens while backgroundFlush goroutine is exiting
+		// Now safe because backgroundFlush goroutine has exited
 		err = m.FlushMetrics()
 	})
 	return err

@@ -12,9 +12,86 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
+
+// validJobNamePattern matches safe job names: alphanumeric, hyphen, underscore, dot
+// Rejects path traversal attempts (..) and special characters
+var validJobNamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+
+// sanitizeJobPath validates and sanitizes a job path to prevent directory traversal attacks.
+// Returns the sanitized path and an error if the input contains unsafe characters.
+func sanitizeJobPath(input string) (string, error) {
+	// Reject empty input
+	if input == "" {
+		return "", fmt.Errorf("job path cannot be empty")
+	}
+
+	// Reject path traversal attempts explicitly
+	if strings.Contains(input, "..") {
+		return "", fmt.Errorf("job path cannot contain '..'")
+	}
+
+	// Reject URL-encoded traversal attempts
+	if strings.Contains(input, "%2e") || strings.Contains(input, "%2E") {
+		return "", fmt.Errorf("job path cannot contain URL-encoded dots")
+	}
+
+	// Reject absolute paths
+	if strings.HasPrefix(input, "/") || strings.HasPrefix(input, "\\") {
+		return "", fmt.Errorf("job path cannot be absolute")
+	}
+
+	// Validate against safe pattern
+	if !validJobNamePattern.MatchString(input) {
+		return "", fmt.Errorf("job path contains invalid characters")
+	}
+
+	// Use filepath.Base to extract just the filename, preventing any path components
+	safe := filepath.Base(input)
+
+	// Final safety check
+	if safe == "." || safe == ".." || safe == "" {
+		return "", fmt.Errorf("job path is invalid")
+	}
+
+	return safe, nil
+}
+
+// sanitizeFilePath validates a file path within a workspace, allowing subdirectories
+// but preventing directory traversal attacks.
+func sanitizeFilePath(input string) (string, error) {
+	if input == "" {
+		return "", fmt.Errorf("file path cannot be empty")
+	}
+
+	// Reject path traversal attempts explicitly
+	if strings.Contains(input, "..") {
+		return "", fmt.Errorf("file path cannot contain '..'")
+	}
+
+	// Reject URL-encoded traversal attempts
+	if strings.Contains(input, "%2e") || strings.Contains(input, "%2E") {
+		return "", fmt.Errorf("file path cannot contain URL-encoded dots")
+	}
+
+	// Reject absolute paths
+	if strings.HasPrefix(input, "/") || strings.HasPrefix(input, "\\") {
+		return "", fmt.Errorf("file path cannot be absolute")
+	}
+
+	// Clean the path but don't use Base - we want to allow subdirectories
+	clean := filepath.Clean(input)
+
+	// Final safety check
+	if clean == "." || clean == ".." || clean == "" {
+		return "", fmt.Errorf("file path is invalid")
+	}
+
+	return clean, nil
+}
 
 // JenkinsClient provides integration with Jenkins CI/CD server
 // Jenkins is a build automation server that can work with various Git platforms
@@ -76,11 +153,12 @@ type JenkinsJob struct {
 
 // NewJenkinsClient creates a new Jenkins client
 func NewJenkinsClient(baseURL, username, apiToken, jobName string) *JenkinsClient {
-	// Sanitize jobName to prevent path traversal attacks
-	// Remove any directory traversal components and special characters
-	cleanJobName := filepath.Clean(jobName)
-	cleanJobName = strings.TrimPrefix(cleanJobName, ".")
-	cleanJobName = strings.TrimPrefix(cleanJobName, "/")
+	// Validate and sanitize jobName to prevent path traversal attacks
+	cleanJobName, err := sanitizeJobPath(jobName)
+	if err != nil {
+		// Fall back to safe default if validation fails
+		cleanJobName = "unknown"
+	}
 
 	return &JenkinsClient{
 		baseURL:  strings.TrimSuffix(baseURL, "/"),
@@ -194,9 +272,10 @@ func (j *JenkinsClient) GetDiff(ctx context.Context, prID int) (string, error) {
 // GetFile retrieves a file's content from the workspace of a build
 func (j *JenkinsClient) GetFile(ctx context.Context, path, ref string) (string, error) {
 	// Sanitize path to prevent directory traversal attacks
-	cleanPath := filepath.Clean(path)
-	cleanPath = strings.TrimPrefix(cleanPath, ".")
-	cleanPath = strings.TrimPrefix(cleanPath, "/")
+	cleanPath, err := sanitizeFilePath(path)
+	if err != nil {
+		return "", fmt.Errorf("invalid file path: %w", err)
+	}
 
 	// In Jenkins, we get the file from the workspace
 	// The ref parameter is interpreted as a build number

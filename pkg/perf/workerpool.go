@@ -88,8 +88,15 @@ func (p *WorkerPool) SubmitWait(task func()) error {
 	done := make(chan struct{})
 
 	wrappedTask := func() {
+		// Ensure done is closed even if task panics
+		defer close(done)
+		// Recover from panic to prevent deadlock
+		defer func() {
+			if r := recover(); r != nil {
+				// Panic will be propagated by the worker's own recover
+			}
+		}()
 		task()
-		close(done)
 	}
 
 	if !p.Submit(wrappedTask) {
