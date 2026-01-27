@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -118,13 +119,19 @@ func (c *Cache) Clear() error {
 	}
 
 	for _, entry := range entries {
-		_ = os.Remove(filepath.Join(c.dir, entry.Name()))
+		path := filepath.Join(c.dir, entry.Name())
+		if err := os.Remove(path); err != nil {
+			// Log but continue - cache cleanup is not critical
+			log.Printf("Warning: failed to delete cache file %s: %v", path, err)
+		}
 	}
 
 	return nil
 }
 
 // reviewPath returns the cache file path for a PR
+// MD5 is used for filename generation only, not for security.
+// The hash provides consistent short filenames from cache keys.
 func (c *Cache) reviewPath(prID int) string {
 	key := fmt.Sprintf("pr-%d", prID)
 	hash := md5.Sum([]byte(key))
@@ -132,6 +139,7 @@ func (c *Cache) reviewPath(prID int) string {
 }
 
 // GetDiffHash returns a hash of the diff content for caching
+// MD5 is used for cache key generation only, not for security purposes.
 func GetDiffHash(diff string) string {
 	hash := md5.Sum([]byte(diff))
 	return fmt.Sprintf("%x", hash)

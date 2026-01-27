@@ -14,7 +14,6 @@ import (
 var defaultConfigFiles = []string{
 	".cicd-ai-toolkit.yaml",
 	".cicd-ai-toolkit.yml",
-	".cicd-ai-toolkit.yaml",
 	"cicd-ai-toolkit.yaml",
 	"cicd-ai-toolkit.yml",
 }

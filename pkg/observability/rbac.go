@@ -466,11 +466,14 @@ func (g *ResourceGuard) GrantResourcePermission(resourceName, grantorUserID, tar
 	// Authorization check: grantor must be owner or have admin permission
 	if resource.OwnerUserID != grantorUserID {
 		// Check if grantor has admin permission
+		perms, hasPermissions := resource.Permissions[grantorUserID]
 		hasAdmin := false
-		for _, p := range resource.Permissions[grantorUserID] {
-			if p == PermissionAdmin {
-				hasAdmin = true
-				break
+		if hasPermissions {
+			for _, p := range perms {
+				if p == PermissionAdmin {
+					hasAdmin = true
+					break
+				}
 			}
 		}
 		if !hasAdmin {

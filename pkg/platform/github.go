@@ -302,10 +302,6 @@ func (c *GitHubClient) doRequest(ctx context.Context, method, url string, body i
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	req.Header.Set("Content-Type", "application/json")
 
-	if reqBody != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return errors.PlatformError("request failed", err)
@@ -365,6 +361,11 @@ func ParsePRIDFromEnv() (int, error) {
 	var id int
 	if _, err := fmt.Sscanf(prNum, "%d", &id); err != nil {
 		return 0, errors.ConfigError("invalid PR number format", err)
+	}
+
+	// Add bounds validation to prevent unreasonable values
+	if id <= 0 || id > 100000000 {
+		return 0, errors.ConfigError("PR number out of valid range (1-100000000)", nil)
 	}
 
 	return id, nil
