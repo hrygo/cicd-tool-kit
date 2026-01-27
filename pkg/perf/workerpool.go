@@ -20,6 +20,8 @@ type WorkerPool struct {
 	wg         sync.WaitGroup
 	ctx        context.Context
 	cancel     context.CancelFunc
+	cancelOnce sync.Once
+	stopped    atomic.Bool
 	activeJobs atomic.Int32
 }
 
@@ -97,9 +99,16 @@ func (p *WorkerPool) SubmitWait(task func()) error {
 }
 
 // Stop stops the worker pool gracefully
+// Safe to call multiple times - subsequent calls are no-ops
 func (p *WorkerPool) Stop() {
-	p.cancel()
-	close(p.taskQueue)
+	if !p.stopped.CompareAndSwap(false, true) {
+		return // Already stopped
+	}
+
+	p.cancelOnce.Do(func() {
+		p.cancel()
+		close(p.taskQueue)
+	})
 	p.wg.Wait()
 }
 

@@ -453,6 +453,9 @@ func (g *ResourceGuard) CreateResource(name, resourceType, ownerID string) error
 }
 
 // GrantResourcePermission grants a user permission on a resource
+// WARNING: This method does NOT check if the caller has authorization to grant permissions.
+// In production use, pass the grantor's user ID and verify they have admin permission
+// on the resource before granting. This is a simplified implementation for demonstration.
 func (g *ResourceGuard) GrantResourcePermission(resourceName, userID string, permission Permission) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -462,8 +465,8 @@ func (g *ResourceGuard) GrantResourcePermission(resourceName, userID string, per
 		return fmt.Errorf("resource %s does not exist", resourceName)
 	}
 
-	// Check if grantor has admin permission on the resource
-	// (In a real system, you'd pass the grantor's user ID)
+	// SECURITY NOTE: No authorization check performed here.
+	// In production, verify the grantor has PermissionAdmin or is the resource owner.
 
 	perms := resource.Permissions[userID]
 	for _, p := range perms {

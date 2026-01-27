@@ -106,6 +106,9 @@ func (m *MetricsCollector) Counter(name string, value float64, labels map[string
 
 // CounterGet gets the sum of all counter values matching the name
 func (m *MetricsCollector) CounterGet(name string, labelIdx int) float64 {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	prefix := "counter." + name
 	sum := float64(0)
 	for key, val := range m.metrics {
@@ -151,7 +154,11 @@ func (m *MetricsCollector) Histogram(name string, value float64, labels map[stri
 	}
 	var samples []float64
 	if val, ok := m.metrics[key]; ok {
-		samples = val.([]float64)
+		// Type assertion with comma-ok for safety
+		if existingSamples, ok := val.([]float64); ok {
+			samples = existingSamples
+		}
+		// If type assertion fails, samples remains nil and we start fresh
 	}
 
 	m.metrics[key] = append(samples, value)
@@ -350,7 +357,7 @@ type AuditEntry struct {
 func NewAuditLogger(logFile string) (*AuditLogger, error) {
 	var logger *log.Logger
 	if logFile != "" {
-		f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open audit log file: %w", err)
 		}

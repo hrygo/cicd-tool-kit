@@ -272,3 +272,37 @@ func TestRateLimiterConcurrency(t *testing.T) {
 		t.Errorf("Expected at least 140ms, got %v", elapsed)
 	}
 }
+
+func TestWorkerPoolDoubleStop(t *testing.T) {
+	pool := NewWorkerPool(4)
+	pool.Start()
+
+	// Submit some work and wait for completion
+	counter := atomic.Int32{}
+	done := make(chan struct{})
+	for i := 0; i < 5; i++ {
+		pool.Submit(func() {
+			n := counter.Add(1)
+			if n == 5 {
+				close(done)
+			}
+		})
+	}
+
+	// Wait for all work to complete before stopping
+	<-done
+	time.Sleep(10 * time.Millisecond) // Give workers time to finish
+
+	// First stop
+	pool.Stop()
+
+	// Second stop should be safe (no panic)
+	pool.Stop()
+
+	// Third stop should also be safe
+	pool.Stop()
+
+	if counter.Load() != 5 {
+		t.Errorf("Expected counter 5, got %d", counter.Load())
+	}
+}
