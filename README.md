@@ -129,6 +129,7 @@ docker run --rm \
 │  │  - Context Builder (Git/Logs)                           │   │
 │  │  - Platform API Client (GitHub/GitLab)                  │   │
 │  │  - Claude Session Manager                               │   │
+│  │  - Output Parser (JSON/Thinking Blocks)                 │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                           │                                     │
 │                   (Spawns Subprocess)                           │
@@ -143,6 +144,31 @@ docker run --rm \
 │  │   (SKILL.md)    │                     │   (SKILL.md)    │   │
 │  └─────────────────┘                     └─────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
+```
+
+### 项目结构
+
+```
+cicd-tool-kit/
+├── cmd/
+│   └── cicd-runner/          # CLI 入口点
+│       ├── main.go
+│       └── root.go           # Cobra 命令定义
+├── pkg/
+│   ├── buildcontext/         # Git diff 和上下文构建
+│   ├── claude/               # Claude Code 会话管理
+│   ├── config/               # YAML 配置加载和验证
+│   ├── errors/               # 错误类型定义
+│   ├── platform/             # 平台 API 客户端 (GitHub/GitLab)
+│   └── runner/               # 核心编排逻辑
+├── skills/                   # 可插拔 Skills 定义
+│   ├── code-reviewer/
+│   ├── test-generator/
+│   ├── change-analyzer/
+│   └── log-analyzer/
+├── configs/                  # 示例配置
+├── .github/workflows/        # CI/CD workflows
+└── Dockerfile
 ```
 
 ## 开发
