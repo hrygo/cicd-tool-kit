@@ -1,0 +1,64 @@
+# Binaries
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+cicd-runner
+
+# Test files
+*.test
+*.out
+coverage.txt
+coverage.html
+coverage.xml
+
+# Go workspace
+go.work
+go.work.sum
+
+# Dependencies
+vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Loki runtime
+.loki/
+
+# AI cache
+.cicd-ai-cache/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+build/
+*.pb.go
+*.generated.*
+
+# Debug
+debug
+__debug_bin

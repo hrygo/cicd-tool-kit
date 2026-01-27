@@ -1,0 +1,152 @@
+# cicd-ai-toolkit Configuration
+# Version: 1.0
+# Documentation: https://github.com/cicd-ai-toolkit/cicd-runner
+
+version: "1.0"
+
+# ---------------------------------------------------------------------------
+# Claude Code Configuration
+# ---------------------------------------------------------------------------
+claude:
+  # Model selection: sonnet | opus | haiku
+  # Default: sonnet (balance of speed and quality)
+  model: "sonnet"
+
+  # Maximum API cost in USD per run
+  # Prevents runaway costs in CI pipelines
+  max_budget_usd: 5.0
+
+  # Maximum number of reasoning turns
+  # Higher values = deeper analysis, more cost
+  max_turns: 10
+
+  # Timeout for Claude execution
+  timeout: 300s
+
+  # Output format: json | stream-json | text
+  output_format: "json"
+
+  # Skip permission prompts (required for CI)
+  dangerous_skip_permissions: true
+
+# ---------------------------------------------------------------------------
+# Skills Configuration
+# ---------------------------------------------------------------------------
+skills:
+  # Code Reviewer - Analyzes code for security, performance, logic issues
+  - name: code-reviewer
+    path: ./skills/code-reviewer
+    enabled: true
+    config:
+      severity_threshold: "warning"  # critical | high | medium | low | warning
+      include_suggestions: true
+      max_findings: 50
+
+  # Test Generator - Generates test cases from code changes
+  - name: test-generator
+    path: ./skills/test-generator
+    enabled: false  # Enable when you want automatic test generation
+    config:
+      target_framework: "auto"  # auto | jest | pytest | gotest
+      generate_unit_tests: true
+      generate_integration_tests: false
+
+  # Change Analyzer - Summarizes PR impact and risk
+  - name: change-analyzer
+    path: ./skills/change-analyzer
+    enabled: true
+    config:
+      include_changelog: true
+      risk_threshold: 5  # Report risks above this level
+
+  # Log Analyzer - Analyzes logs for errors and patterns
+  - name: log-analyzer
+    path: ./skills/log-analyzer
+    enabled: false  # Enable on log analysis workflows
+    config:
+      error_patterns: []
+      anomaly_detection: true
+
+# ---------------------------------------------------------------------------
+# Platform Configuration
+# ---------------------------------------------------------------------------
+platform:
+  # GitHub / GitHub Actions
+  github:
+    # Post review as PR comment
+    post_comment: true
+
+    # Fail the workflow if review finds critical issues
+    fail_on_error: false
+
+    # Maximum comment length (GitHub API limit: 65536)
+    max_comment_length: 65536
+
+    # Post as a separate review (vs simple comment)
+    post_as_review: true
+
+  # Gitee Enterprise
+  gitee:
+    api_url: "https://gitee.com/api/v5"
+    post_comment: true
+    enterprise_id: ""  # Optional: for Gitee Enterprise
+
+  # GitLab CI/CD
+  gitlab:
+    post_comment: true
+    fail_on_error: false
+    merge_request_discussion: true
+
+# ---------------------------------------------------------------------------
+# Global Settings
+# ---------------------------------------------------------------------------
+global:
+  # Log level: debug | info | warn | error
+  log_level: "info"
+
+  # Cache directory for intermediate results
+  cache_dir: ".cicd-ai-cache"
+
+  # Enable result caching
+  enable_cache: true
+
+  # Number of parallel skills to run
+  parallel_skills: 1
+
+  # Diff context lines
+  diff_context: 3
+
+  # Exclude patterns (gitignore-style)
+  exclude:
+    - "*.lock"
+    - "vendor/**"
+    - "node_modules/**"
+    - "dist/**"
+    - "build/**"
+    - "*.min.js"
+    - "*.min.css"
+    - "*.pb.go"
+    - "*.generated.*"
+
+# ---------------------------------------------------------------------------
+# Advanced Settings
+# ---------------------------------------------------------------------------
+advanced:
+  # MCP servers to connect to
+  mcp_servers:
+    - name: "git-context"
+      command: "npx"
+      args: ["@anthropic-ai/mcp-server-git"]
+
+  # Memory system for review history
+  memory:
+    enabled: false
+    backend: "file"  # file | redis | postgres
+    ttl: 720h  # 30 days
+
+  # Reflective runtime (VIGIL pattern)
+  reflective:
+    enabled: false
+    observer_enabled: true
+    corrector_enabled: true
+    max_corrections: 3
