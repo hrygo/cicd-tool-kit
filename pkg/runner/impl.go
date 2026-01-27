@@ -28,6 +28,16 @@ type DefaultRunner struct {
 
 // NewRunner creates a new runner instance
 func NewRunner(cfg *config.Config, platform platform.Platform, baseDir string) (*DefaultRunner, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("config cannot be nil")
+	}
+	if platform == nil {
+		return nil, fmt.Errorf("platform cannot be nil")
+	}
+	if baseDir == "" {
+		return nil, fmt.Errorf("baseDir cannot be empty")
+	}
+
 	builder := buildcontext.NewBuilder(
 		baseDir,
 		cfg.Global.DiffContext,

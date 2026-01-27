@@ -4,6 +4,7 @@ package platform
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -206,7 +207,14 @@ func (g *GiteeClient) GetFile(ctx context.Context, path, ref string) (string, er
 	}
 
 	// Gitee returns base64 encoded content
-	// For simplicity, return as-is (decoding would be handled by the caller)
+	if result.Encoding == "base64" {
+		decoded, err := base64.StdEncoding.DecodeString(result.Content)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode base64 content: %w", err)
+		}
+		return string(decoded), nil
+	}
+
 	return result.Content, nil
 }
 

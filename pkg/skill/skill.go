@@ -77,6 +77,13 @@ func (l *Loader) Discover() ([]string, error) {
 
 // Load loads a specific skill by name
 func (l *Loader) Load(name string) (*Skill, error) {
+	if name == "" {
+		return nil, fmt.Errorf("skill name cannot be empty")
+	}
+	if l.skillsDir == "" {
+		return nil, fmt.Errorf("skills directory not configured")
+	}
+
 	// Check cache first
 	if skill, ok := l.skills[name]; ok {
 		return skill, nil

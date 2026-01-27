@@ -4,6 +4,7 @@ package platform
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -215,9 +216,11 @@ func (c *GitHubClient) GetFile(ctx context.Context, path, ref string) (string, e
 
 	// GitHub returns base64 encoded content
 	if result.Encoding == "base64" {
-		// For simplicity, we're returning the raw content
-		// In production, you'd decode the base64
-		return result.Content, nil
+		decoded, err := base64.StdEncoding.DecodeString(result.Content)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode base64 content: %w", err)
+		}
+		return string(decoded), nil
 	}
 
 	return result.Content, nil
