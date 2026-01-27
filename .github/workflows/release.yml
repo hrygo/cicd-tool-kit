@@ -49,7 +49,7 @@ jobs:
           " -o bin/cicd-runner-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }} ./cmd/cicd-runner
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: cicd-runner-${{ matrix.goos }}-${{ matrix.goarch }}
           path: bin/cicd-runner-*

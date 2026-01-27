@@ -67,7 +67,7 @@ jobs:
           go build -v -o bin/cicd-runner ./cmd/cicd-runner
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: cicd-runner-linux-amd64
           path: bin/cicd-runner
