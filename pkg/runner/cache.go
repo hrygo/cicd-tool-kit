@@ -1,0 +1,145 @@
+// Package runner provides caching for review results
+package runner
+
+import (
+	"crypto/md5"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+
+	"github.com/cicd-ai-toolkit/cicd-runner/pkg/claude"
+)
+
+// Cache provides caching for review results
+type Cache struct {
+	dir      string
+	enabled  bool
+	mu       sync.RWMutex
+	ttl      time.Duration
+}
+
+// CachedReview represents a cached review result
+type CachedReview struct {
+	Summary  ReviewSummary
+	Issues   []claude.Issue
+	Comment  string
+	CachedAt time.Time
+}
+
+// NewCache creates a new cache instance
+func NewCache(dir string, enabled bool) (*Cache, error) {
+	if enabled {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create cache directory: %w", err)
+		}
+	}
+
+	return &Cache{
+		dir:     dir,
+		enabled: enabled,
+		ttl:     24 * time.Hour,
+	}, nil
+}
+
+// GetReview retrieves a cached review
+func (c *Cache) GetReview(prID int) (CachedReview, bool) {
+	if !c.enabled {
+		return CachedReview{}, false
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	path := c.reviewPath(prID)
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return CachedReview{}, false
+	}
+
+	var cached CachedReview
+	if err := json.Unmarshal(data, &cached); err != nil {
+		return CachedReview{}, false
+	}
+
+	// Check TTL
+	if time.Since(cached.CachedAt) > c.ttl {
+		_ = os.Remove(path)
+		return CachedReview{}, false
+	}
+
+	return cached, true
+}
+
+// SetReview stores a review in cache
+func (c *Cache) SetReview(prID int, review CachedReview) {
+	if !c.enabled {
+		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	review.CachedAt = time.Now()
+
+	data, err := json.Marshal(review)
+	if err != nil {
+		return
+	}
+
+	path := c.reviewPath(prID)
+	_ = os.WriteFile(path, data, 0644)
+}
+
+// Invalidate removes a cached review
+func (c *Cache) Invalidate(prID int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	path := c.reviewPath(prID)
+	_ = os.Remove(path)
+}
+
+// Clear clears all cached reviews
+func (c *Cache) Clear() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if !c.enabled {
+		return nil
+	}
+
+	entries, err := os.ReadDir(c.dir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		_ = os.Remove(filepath.Join(c.dir, entry.Name()))
+	}
+
+	return nil
+}
+
+// reviewPath returns the cache file path for a PR
+func (c *Cache) reviewPath(prID int) string {
+	key := fmt.Sprintf("pr-%d", prID)
+	hash := md5.Sum([]byte(key))
+	return filepath.Join(c.dir, fmt.Sprintf("%x.json", hash))
+}
+
+// GetDiffHash returns a hash of the diff content for caching
+func GetDiffHash(diff string) string {
+	hash := md5.Sum([]byte(diff))
+	return fmt.Sprintf("%x", hash)
+}
+
+// SetTTL sets the cache TTL
+func (c *Cache) SetTTL(ttl time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.ttl = ttl
+}
