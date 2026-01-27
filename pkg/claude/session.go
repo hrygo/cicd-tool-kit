@@ -113,4 +113,10 @@ type OutputParser interface {
 
 	// ExtractIssues extracts issue arrays from review output
 	ExtractIssues(output string) ([]Issue, error)
+
+	// ExtractReviewSummary extracts a summary from review output
+	ExtractReviewSummary(output string) string
+
+	// ExtractCodeChanges extracts code change suggestions from output
+	ExtractCodeChanges(output string) []CodeChange
 }
