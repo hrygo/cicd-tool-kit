@@ -278,7 +278,15 @@ func (m *MetricsCollector) FlushMetrics() error {
 func (m *MetricsCollector) backgroundFlush() {
 	ticker := time.NewTicker(m.flushInterval)
 	defer ticker.Stop()
-	defer close(m.flushDone)
+	defer func() {
+		// Ensure flushDone is closed even if panic occurs
+		if r := recover(); r != nil {
+			log.Printf("[Metrics] panic in backgroundFlush: %v", r)
+			close(m.flushDone)
+		} else {
+			close(m.flushDone)
+		}
+	}()
 
 	for {
 		select {

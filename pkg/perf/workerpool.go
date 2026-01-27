@@ -181,6 +181,10 @@ func Map[T, R any](ctx context.Context, items []T, fn func(T) (R, error), concur
 		concurrency = 1
 	}
 
+	// Create a cancellable context to cancel remaining work on error
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	results := make([]R, len(items))
 	errCh := make(chan error, len(items))
 	sem := make(chan struct{}, concurrency)
@@ -191,12 +195,20 @@ func Map[T, R any](ctx context.Context, items []T, fn func(T) (R, error), concur
 		wg.Add(1)
 		go func(idx int, it T) {
 			defer wg.Done()
-			sem <- struct{}{}        // Acquire
-			defer func() { <-sem }() // Release
+			select {
+			case sem <- struct{}{}: // Acquire
+				defer func() { <-sem }() // Release
+			case <-ctx.Done():
+				return // Context cancelled, exit early
+			}
 
 			result, err := fn(it)
 			if err != nil {
-				errCh <- fmt.Errorf("error at index %d: %w", idx, err)
+				select {
+				case errCh <- fmt.Errorf("error at index %d: %w", idx, err):
+					cancel() // Cancel remaining work
+				case <-ctx.Done():
+				}
 				return
 			}
 
@@ -231,6 +243,10 @@ func Filter[T any](ctx context.Context, items []T, predicate func(T) (bool, erro
 		concurrency = 1
 	}
 
+	// Create a cancellable context to cancel remaining work on error
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	type result struct {
 		idx  int
 		keep bool
@@ -246,11 +262,21 @@ func Filter[T any](ctx context.Context, items []T, predicate func(T) (bool, erro
 		wg.Add(1)
 		go func(idx int, it T) {
 			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				return // Context cancelled, exit early
+			}
 
 			keep, err := predicate(it)
-			resultCh <- result{idx: idx, keep: keep, err: err}
+			select {
+			case resultCh <- result{idx: idx, keep: keep, err: err}:
+				if err != nil {
+					cancel() // Cancel remaining work
+				}
+			case <-ctx.Done():
+			}
 		}(i, item)
 	}
 
@@ -282,6 +308,10 @@ func Each[T any](ctx context.Context, items []T, fn func(T) error, concurrency i
 		concurrency = 1
 	}
 
+	// Create a cancellable context to cancel remaining work on error
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	errCh := make(chan error, len(items))
 	sem := make(chan struct{}, concurrency)
 
@@ -291,11 +321,19 @@ func Each[T any](ctx context.Context, items []T, fn func(T) error, concurrency i
 		wg.Add(1)
 		go func(it T) {
 			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				return // Context cancelled, exit early
+			}
 
 			if err := fn(it); err != nil {
-				errCh <- err
+				select {
+				case errCh <- err:
+					cancel() // Cancel remaining work
+				case <-ctx.Done():
+				}
 			}
 		}(item)
 	}
@@ -319,6 +357,10 @@ func Parallel[R any](ctx context.Context, fns ...func() (R, error)) ([]R, error)
 		return nil, nil
 	}
 
+	// Create a cancellable context to cancel remaining work on error
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	type result struct {
 		idx  int
 		val  R
@@ -330,7 +372,13 @@ func Parallel[R any](ctx context.Context, fns ...func() (R, error)) ([]R, error)
 	for i, fn := range fns {
 		go func(idx int, f func() (R, error)) {
 			val, err := f()
-			resultCh <- result{idx: idx, val: val, err: err}
+			select {
+			case resultCh <- result{idx: idx, val: val, err: err}:
+				if err != nil {
+					cancel() // Cancel remaining work
+				}
+			case <-ctx.Done():
+			}
 		}(i, fn)
 	}
 
