@@ -143,6 +143,8 @@ func (c *Cache[K, V]) Len() int {
 }
 
 // Clear removes all items from the cache
+// Note: This does NOT call the onEvicted callback. If you need eviction
+// notifications, iterate and Delete each item individually.
 func (c *Cache[K, V]) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()

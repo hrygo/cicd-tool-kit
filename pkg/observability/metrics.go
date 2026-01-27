@@ -246,8 +246,12 @@ func (m *MetricsCollector) FlushMetrics() error {
 	// In production, this would send to a metrics backend
 	// For now, we'll log if verbose mode is on
 	if os.Getenv("VERBOSE") == "true" {
-		data, _ := json.MarshalIndent(sample, "", "  ")
-		log.Printf("[Metrics] %s\n", string(data))
+		data, err := json.MarshalIndent(sample, "", "  ")
+		if err != nil {
+			log.Printf("[Metrics] ERROR: failed to marshal sample: %v\n", err)
+		} else {
+			log.Printf("[Metrics] %s\n", string(data))
+		}
 	}
 
 	return nil
@@ -285,8 +289,8 @@ func (m *MetricsCollector) Close() error {
 
 // GetCacheHitRate calculates the cache hit rate
 func (m *MetricsCollector) GetCacheHitRate() float64 {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	// Sum all cache.operations counters with result=hit or result=miss
 	hitSum := float64(0)
@@ -315,8 +319,8 @@ func (m *MetricsCollector) GetCacheHitRate() float64 {
 
 // GetAverageDuration gets average duration for an operation
 func (m *MetricsCollector) GetAverageDuration(operationName string) time.Duration {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	// Search for histogram keys matching the operation name with any labels
 	prefix := "histogram." + operationName + ".duration_ms"
@@ -393,8 +397,12 @@ func (a *AuditLogger) LogEvent(level, event, action string, details map[string]i
 	a.mu.Unlock()
 
 	// Write to log
-	data, _ := json.Marshal(entry)
-	a.logger.Printf("%s\n", string(data))
+	data, err := json.Marshal(entry)
+	if err != nil {
+		a.logger.Printf("ERROR: failed to marshal audit entry: %v | entry: %+v\n", err, entry)
+	} else {
+		a.logger.Printf("%s\n", string(data))
+	}
 }
 
 // LogAuthEvent logs authentication/authorization events
