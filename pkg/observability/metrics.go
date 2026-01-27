@@ -21,6 +21,7 @@ type MetricsCollector struct {
 	enabled       bool
 	flushInterval time.Duration
 	stopCh        chan struct{}
+	closeOnce     sync.Once
 }
 
 // MetricSample represents a single metric sample at a point in time
@@ -261,8 +262,11 @@ func (m *MetricsCollector) backgroundFlush() {
 }
 
 // Close stops the metrics collector
+// Safe to call multiple times - subsequent calls are no-ops
 func (m *MetricsCollector) Close() error {
-	close(m.stopCh)
+	m.closeOnce.Do(func() {
+		close(m.stopCh)
+	})
 	return m.FlushMetrics()
 }
 

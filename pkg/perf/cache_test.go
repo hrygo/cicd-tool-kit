@@ -237,3 +237,21 @@ func TestStatsCacheResetStats(t *testing.T) {
 	}
 }
 
+
+func TestCacheDoubleClose(t *testing.T) {
+	cache := NewCache[string, int](5, 50*time.Millisecond)
+	cache.Set("key1", 100)
+
+	// First close should work
+	cache.Close()
+
+	// Second close should be a no-op (not panic)
+	cache.Close()
+
+	// Third close should also be safe
+	cache.Close()
+
+	if cache.Len() != 0 {
+		t.Errorf("Expected length 0 after close, got %d", cache.Len())
+	}
+}

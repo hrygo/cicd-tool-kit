@@ -25,6 +25,7 @@ type Cache[K comparable, V any] struct {
 	onEvicted  func(K, V)
 	closeCh    chan struct{}
 	closed     bool
+	closeOnce  sync.Once
 }
 
 // NewCache creates a new cache
@@ -159,16 +160,16 @@ func (c *Cache[K, V]) SetOnEvicted(fn func(K, V)) {
 }
 
 // Close closes the cache and stops the cleanup goroutine
+// Safe to call multiple times - subsequent calls are no-ops
 func (c *Cache[K, V]) Close() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if !c.closed {
+	c.closeOnce.Do(func() {
+		c.mu.Lock()
 		c.closed = true
 		close(c.closeCh)
-	}
-	c.items = make(map[K]*list.Element)
-	c.lru.Init()
+		c.items = make(map[K]*list.Element)
+		c.lru.Init()
+		c.mu.Unlock()
+	})
 }
 
 // removeElement removes an element from the cache

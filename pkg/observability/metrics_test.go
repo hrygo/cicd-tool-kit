@@ -265,3 +265,25 @@ func TestTracerCurrentSpan(t *testing.T) {
 		t.Error("Expected no current span after ending")
 	}
 }
+
+func TestMetricsCollectorDoubleClose(t *testing.T) {
+	m := NewMetricsCollector(MetricConfig{
+		Enabled:        true,
+		FlushInterval:  50 * time.Millisecond,
+		MaxSamples:     5,
+	})
+
+	m.Counter("test", 1, nil)
+
+	// First close should work
+	err := m.Close()
+	if err != nil {
+		t.Fatalf("First Close failed: %v", err)
+	}
+
+	// Second close should be safe (not panic)
+	err = m.Close()
+	if err != nil {
+		t.Fatalf("Second Close failed: %v", err)
+	}
+}
