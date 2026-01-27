@@ -647,6 +647,8 @@ func ParseJenkinsWebhook(authToken string, handler func(ctx context.Context, web
 			if receivedToken == "" {
 				receivedToken = r.URL.Query().Get("token")
 			}
+			// Strip "Bearer " prefix if present (common auth header format)
+			receivedToken = strings.TrimPrefix(receivedToken, "Bearer ")
 			// Use subtle.ConstantTimeCompare for constant-time comparison (returns 1 if equal, 0 otherwise)
 			if subtle.ConstantTimeCompare([]byte(receivedToken), []byte(authToken)) != 1 {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)

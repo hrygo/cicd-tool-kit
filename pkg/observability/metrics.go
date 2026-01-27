@@ -597,14 +597,15 @@ func (t *Tracer) EndSpan(span *Span) {
 		return
 	}
 
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	span.EndTime = time.Now()
 	span.Duration = float64(span.EndTime.Sub(span.StartTime).Milliseconds())
 
-	t.mu.Lock()
 	if t.current == span {
 		t.current = nil
 	}
-	t.mu.Unlock()
 }
 
 // AddEvent adds an event to the current span
