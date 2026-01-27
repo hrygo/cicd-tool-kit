@@ -15,6 +15,11 @@ import (
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/errors"
 )
 
+const (
+	// DefaultHTTPTimeout is the default timeout for HTTP requests
+	DefaultHTTPTimeout = 30 * time.Second
+)
+
 // GitHubClient implements Platform for GitHub
 type GitHubClient struct {
 	token   string
@@ -78,7 +83,7 @@ func NewGitHubClient(token, repo string) *GitHubClient {
 		baseURL: "https://api.github.com",
 		repo:    repo,
 		client: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: DefaultHTTPTimeout,
 		},
 	}
 }

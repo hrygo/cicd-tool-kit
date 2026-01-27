@@ -16,6 +16,11 @@ import (
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/skill"
 )
 
+const (
+	// DefaultTimeout is the default timeout for Claude operations
+	DefaultTimeout = 5 * time.Minute
+)
+
 // DefaultRunner implements the Runner interface
 type DefaultRunner struct {
 	cfg       *config.Config
@@ -258,7 +263,7 @@ func (r *DefaultRunner) executeReview(ctx context.Context, diffContext string, s
 
 	timeout, err := r.cfg.Claude.GetTimeout()
 	if err != nil || timeout == 0 {
-		timeout = 5 * time.Minute
+		timeout = DefaultTimeout
 	}
 
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -294,7 +299,7 @@ func (r *DefaultRunner) executeAnalysis(ctx context.Context, analysisContext str
 
 	timeout, err := r.cfg.Claude.GetTimeout()
 	if err != nil || timeout == 0 {
-		timeout = 5 * time.Minute
+		timeout = DefaultTimeout
 	}
 
 	execCtx, cancel := context.WithTimeout(ctx, timeout)

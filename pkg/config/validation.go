@@ -7,6 +7,15 @@ import (
 	"time"
 )
 
+const (
+	// MaxMaxTurns is the maximum allowed value for MaxTurns
+	MaxMaxTurns = 1000
+	// MaxParallelSkills is the maximum allowed value for ParallelSkills
+	MaxParallelSkills = 10
+	// MaxDiffContext is the maximum allowed value for DiffContext (lines of context)
+	MaxDiffContext = 20
+)
+
 // Validate validates the configuration
 func (c *Config) Validate() error {
 	if c == nil {
@@ -66,8 +75,8 @@ func (c *ClaudeConfig) Validate() error {
 	if c.MaxTurns < 1 {
 		return fmt.Errorf("max_turns must be at least 1")
 	}
-	if c.MaxTurns > 1000 {
-		return fmt.Errorf("max_turns must not exceed 1000")
+	if c.MaxTurns > MaxMaxTurns {
+		return fmt.Errorf("max_turns must not exceed %d", MaxMaxTurns)
 	}
 
 	// Validate timeout format
@@ -119,16 +128,16 @@ func (g *GlobalConfig) Validate() error {
 	if g.ParallelSkills < 1 {
 		return fmt.Errorf("parallel_skills must be at least 1")
 	}
-	if g.ParallelSkills > 10 {
-		return fmt.Errorf("parallel_skills must not exceed 10")
+	if g.ParallelSkills > MaxParallelSkills {
+		return fmt.Errorf("parallel_skills must not exceed %d", MaxParallelSkills)
 	}
 
-	// Validate diff context
+	// Validate diff context (lines of context around changes)
 	if g.DiffContext < 0 {
 		return fmt.Errorf("diff_context must be non-negative")
 	}
-	if g.DiffContext > 20 {
-		return fmt.Errorf("diff_context must not exceed 20")
+	if g.DiffContext > MaxDiffContext {
+		return fmt.Errorf("diff_context must not exceed %d lines", MaxDiffContext)
 	}
 
 	return nil
