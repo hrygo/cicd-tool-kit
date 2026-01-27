@@ -271,10 +271,16 @@ func (m *MetricsCollector) backgroundFlush() {
 // Close stops the metrics collector
 // Safe to call multiple times - subsequent calls are no-ops
 func (m *MetricsCollector) Close() error {
+	var err error
 	m.closeOnce.Do(func() {
+		// Signal background flush to stop
 		close(m.stopCh)
+
+		// Do a final flush before returning
+		// This happens while backgroundFlush goroutine is exiting
+		err = m.FlushMetrics()
 	})
-	return m.FlushMetrics()
+	return err
 }
 
 // GetCacheHitRate calculates the cache hit rate

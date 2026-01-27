@@ -58,8 +58,11 @@ func (p *WorkerPool) worker(_ int) {
 				return
 			}
 			p.activeJobs.Add(1)
-			task()
-			p.activeJobs.Add(-1)
+			func() {
+				// Ensure counter decrements even if task panics
+				defer p.activeJobs.Add(-1)
+				task()
+			}()
 		}
 	}
 }

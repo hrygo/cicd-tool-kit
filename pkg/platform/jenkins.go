@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 )
@@ -75,11 +76,17 @@ type JenkinsJob struct {
 
 // NewJenkinsClient creates a new Jenkins client
 func NewJenkinsClient(baseURL, username, apiToken, jobName string) *JenkinsClient {
+	// Sanitize jobName to prevent path traversal attacks
+	// Remove any directory traversal components and special characters
+	cleanJobName := path.Clean(jobName)
+	cleanJobName = strings.TrimPrefix(cleanJobName, ".")
+	cleanJobName = strings.TrimPrefix(cleanJobName, "/")
+
 	return &JenkinsClient{
 		baseURL:  strings.TrimSuffix(baseURL, "/"),
 		username: username,
 		apiToken: apiToken,
-		jobName:  jobName,
+		jobName:  cleanJobName,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
