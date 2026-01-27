@@ -1,0 +1,463 @@
+// Package buildcontext handles diff and context building for Claude analysis
+package buildcontext
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/cicd-ai-toolkit/cicd-runner/pkg/errors"
+)
+
+// Builder builds context for Claude Code analysis
+type Builder struct {
+	baseDir     string
+	diffContext int
+	exclude     []string
+}
+
+// NewBuilder creates a new context builder
+func NewBuilder(baseDir string, diffContext int, exclude []string) *Builder {
+	return &Builder{
+		baseDir:     baseDir,
+		diffContext: diffContext,
+		exclude:     exclude,
+	}
+}
+
+// BuildDiff builds the git diff for the current changes
+func (b *Builder) BuildDiff(ctx context.Context, opts DiffOptions) (string, error) {
+	args := b.buildDiffArgs(opts)
+
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = b.baseDir
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", errors.ClaudeError(fmt.Sprintf("git diff failed: %s", stderr.String()), err)
+	}
+
+	return stdout.String(), nil
+}
+
+// buildDiffArgs constructs git diff arguments
+func (b *Builder) buildDiffArgs(opts DiffOptions) []string {
+	args := []string{"diff", "--no-color"}
+
+	// Add context lines
+	if b.diffContext > 0 {
+		args = append(args, fmt.Sprintf("-U%d", b.diffContext))
+	}
+
+	// Add source and target refs
+	if opts.TargetRef != "" {
+		args = append(args, opts.TargetRef)
+	}
+	if opts.SourceRef != "" {
+		args = append(args, opts.SourceRef)
+	}
+
+	// Add path filter
+	if opts.Path != "" {
+		args = append(args, "--", opts.Path)
+	}
+
+	// Exclude patterns
+	for _, excl := range b.exclude {
+		args = append(args, ":(exclude)"+excl)
+	}
+
+	return args
+}
+
+// BuildFileTree builds a tree view of the repository
+func (b *Builder) BuildFileTree(ctx context.Context, maxDepth int) (string, error) {
+	// Use git ls-tree to get the file structure
+	cmd := exec.CommandContext(ctx, "git", "ls-tree", "-r", "--name-only", "HEAD")
+	cmd.Dir = b.baseDir
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", errors.ClaudeError(fmt.Sprintf("git ls-tree failed: %s", stderr.String()), err)
+	}
+
+	// Process the output into a tree structure
+	lines := strings.Split(stdout.String(), "\n")
+	tree := b.buildTreeStructure(lines, maxDepth)
+
+	return tree, nil
+}
+
+// buildTreeStructure builds a visual tree from file paths
+func (b *Builder) buildTreeStructure(files []string, maxDepth int) string {
+	if len(files) == 0 {
+		return ""
+	}
+
+	root := &treeNode{name: "."}
+
+	for _, file := range files {
+		if file == "" {
+			continue
+		}
+		parts := strings.Split(file, "/")
+		current := root
+
+		for i, part := range parts {
+			if maxDepth > 0 && i >= maxDepth {
+				break
+			}
+
+			found := false
+			for _, child := range current.children {
+				if child.name == part {
+					current = child
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				newNode := &treeNode{name: part}
+				current.children = append(current.children, newNode)
+				current = newNode
+			}
+		}
+	}
+
+	return root.String()
+}
+
+// treeNode represents a node in the file tree
+type treeNode struct {
+	name     string
+	children []*treeNode
+}
+
+// String returns the tree as a formatted string
+func (n *treeNode) String() string {
+	var buf strings.Builder
+	n.writeTo(&buf, "", true)
+	return buf.String()
+}
+
+func (n *treeNode) writeTo(buf *strings.Builder, prefix string, isLast bool) {
+	connector := "├── "
+	if prefix == "" {
+		connector = ""
+	} else if isLast {
+		connector = "└── "
+	}
+
+	buf.WriteString(prefix + connector + n.name + "\n")
+
+	for i, child := range n.children {
+		newPrefix := prefix
+		if prefix != "" {
+			if isLast {
+				newPrefix += "    "
+			} else {
+				newPrefix += "│   "
+			}
+		}
+
+		child.writeTo(buf, newPrefix, i == len(n.children)-1)
+	}
+}
+
+// GetChangedFiles returns a list of changed files
+func (b *Builder) GetChangedFiles(ctx context.Context, opts DiffOptions) ([]string, error) {
+	args := []string{"diff", "--name-only", "--no-color"}
+
+	if opts.TargetRef != "" && opts.SourceRef != "" {
+		args = append(args, opts.TargetRef, opts.SourceRef)
+	}
+
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = b.baseDir
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, errors.ClaudeError(fmt.Sprintf("git diff --name-only failed: %s", stderr.String()), err)
+	}
+
+	lines := strings.Split(stdout.String(), "\n")
+	var files []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && !b.shouldExclude(line) {
+			files = append(files, line)
+		}
+	}
+
+	return files, nil
+}
+
+// GetFileContent returns the content of a file at a specific ref
+func (b *Builder) GetFileContent(ctx context.Context, path, ref string) (string, error) {
+	args := []string{"show", fmt.Sprintf("%s:%s", ref, path)}
+
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = b.baseDir
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", errors.ClaudeError(fmt.Sprintf("git show failed: %s", stderr.String()), err)
+	}
+
+	return stdout.String(), nil
+}
+
+// shouldExclude checks if a path should be excluded
+func (b *Builder) shouldExclude(path string) bool {
+	for _, pattern := range b.exclude {
+		if strings.Contains(path, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// GetCommitInfo returns information about the current commit
+func (b *Builder) GetCommitInfo(ctx context.Context) (*CommitInfo, error) {
+	// Get current branch
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd.Dir = b.baseDir
+
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+
+	if err := cmd.Run(); err != nil {
+		return nil, errors.ClaudeError("failed to get branch", err)
+	}
+
+	branch := strings.TrimSpace(stdout.String())
+
+	// Get current SHA
+	cmd = exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
+	cmd.Dir = b.baseDir
+	cmd.Stdout = &stdout
+
+	if err := cmd.Run(); err != nil {
+		return nil, errors.ClaudeError("failed to get SHA", err)
+	}
+
+	sha := strings.TrimSpace(stdout.String())
+
+	// Get commit message
+	cmd = exec.CommandContext(ctx, "git", "log", "-1", "--pretty=%B")
+	cmd.Dir = b.baseDir
+	cmd.Stdout = &stdout
+
+	if err := cmd.Run(); err != nil {
+		return nil, errors.ClaudeError("failed to get commit message", err)
+	}
+
+	message := strings.TrimSpace(stdout.String())
+
+	// Get author
+	cmd = exec.CommandContext(ctx, "git", "log", "-1", "--pretty=%an <%ae>")
+	cmd.Dir = b.baseDir
+	cmd.Stdout = &stdout
+
+	if err := cmd.Run(); err != nil {
+		return nil, errors.ClaudeError("failed to get author", err)
+	}
+
+	author := strings.TrimSpace(stdout.String())
+
+	// Get timestamp
+	cmd = exec.CommandContext(ctx, "git", "log", "-1", "--pretty=%ct")
+	cmd.Dir = b.baseDir
+	cmd.Stdout = &stdout
+
+	if err := cmd.Run(); err != nil {
+		return nil, errors.ClaudeError("failed to get timestamp", err)
+	}
+
+	var timestamp int64
+	fmt.Sscanf(stdout.String(), "%d", &timestamp)
+
+	return &CommitInfo{
+		SHA:      sha,
+		Branch:   branch,
+		Message:  message,
+		Author:   author,
+		Time:     time.Unix(timestamp, 0),
+		ChangedFiles: []string{},
+	}, nil
+}
+
+// GetStats returns diff statistics
+func (b *Builder) GetStats(ctx context.Context, opts DiffOptions) (*DiffStats, error) {
+	args := []string{"diff", "--numstat", "--no-color"}
+
+	if opts.TargetRef != "" && opts.SourceRef != "" {
+		args = append(args, opts.TargetRef, opts.SourceRef)
+	}
+
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = b.baseDir
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		// Diff with no changes is not an error
+		if stderr.String() == "" {
+			return &DiffStats{}, nil
+		}
+		return nil, errors.ClaudeError(fmt.Sprintf("git diff --numstat failed: %s", stderr.String()), err)
+	}
+
+	lines := strings.Split(stdout.String(), "\n")
+	stats := &DiffStats{
+		Files:    make(map[string]*FileStats),
+		Additions: 0,
+		Deletions: 0,
+	}
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) < 3 {
+			continue
+		}
+
+		var additions, deletions int
+		fmt.Sscanf(parts[0], "%d", &additions)
+		fmt.Sscanf(parts[1], "%d", &deletions)
+		file := parts[2]
+
+		stats.Files[file] = &FileStats{
+			Additions: additions,
+			Deletions: deletions,
+		}
+		stats.Additions += additions
+		stats.Deletions += deletions
+	}
+
+	return stats, nil
+}
+
+// IsGitRepo checks if the base directory is a git repository
+func (b *Builder) IsGitRepo() bool {
+	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	cmd.Dir = b.baseDir
+	return cmd.Run() == nil
+}
+
+// DiffOptions contains options for diff generation
+type DiffOptions struct {
+	TargetRef string // Base ref (e.g., "main", "HEAD~1")
+	SourceRef string // Source ref (e.g., "HEAD", "feature-branch")
+	Path      string // Optional path filter
+}
+
+// CommitInfo contains information about a commit
+type CommitInfo struct {
+	SHA          string
+	Branch       string
+	Message      string
+	Author       string
+	Time         time.Time
+	ChangedFiles []string
+}
+
+// DiffStats contains diff statistics
+type DiffStats struct {
+	Files      map[string]*FileStats
+	Additions  int
+	Deletions  int
+}
+
+// FileStats contains stats for a single file
+type FileStats struct {
+	Additions int
+	Deletions int
+}
+
+// Chunks breaks a large diff into smaller chunks for processing
+func (b *Builder) Chunks(diff string, maxChunkSize int) []string {
+	lines := strings.Split(diff, "\n")
+
+	var chunks []string
+	var currentChunk strings.Builder
+	currentSize := 0
+
+	for _, line := range lines {
+		lineSize := len(line) + 1 // +1 for newline
+
+		if currentSize+lineSize > maxChunkSize && currentChunk.Len() > 0 {
+			chunks = append(chunks, currentChunk.String())
+			currentChunk.Reset()
+			currentSize = 0
+		}
+
+		currentChunk.WriteString(line)
+		currentChunk.WriteString("\n")
+		currentSize += lineSize
+	}
+
+	if currentChunk.Len() > 0 {
+		chunks = append(chunks, currentChunk.String())
+	}
+
+	return chunks
+}
+
+// FilterFilesByExtension filters files by their extensions
+func FilterFilesByExtension(files []string, extensions map[string]bool) []string {
+	var filtered []string
+	for _, file := range files {
+		ext := strings.TrimPrefix(filepath.Ext(file), ".")
+		if extensions[ext] {
+			filtered = append(filtered, file)
+		}
+	}
+	return filtered
+}
+
+// GetLanguageFromPath determines the primary language from file paths
+func GetLanguageFromPath(files []string) string {
+	langCounts := make(map[string]int)
+
+	for _, file := range files {
+		ext := strings.TrimPrefix(filepath.Ext(file), ".")
+		if ext != "" {
+			langCounts[ext]++
+		}
+	}
+
+	maxCount := 0
+	lang := ""
+	for l, count := range langCounts {
+		if count > maxCount {
+			maxCount = count
+			lang = l
+		}
+	}
+
+	return lang
+}
