@@ -366,6 +366,7 @@ func (b *Builder) GetCommitInfo(ctx context.Context) (*CommitInfo, error) {
 	branch := strings.TrimSpace(stdout.String())
 
 	// Get current SHA
+	stdout.Reset()
 	cmd = exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
 	cmd.Dir = b.baseDir
 	cmd.Stdout = &stdout
@@ -377,6 +378,7 @@ func (b *Builder) GetCommitInfo(ctx context.Context) (*CommitInfo, error) {
 	sha := strings.TrimSpace(stdout.String())
 
 	// Get commit message
+	stdout.Reset()
 	cmd = exec.CommandContext(ctx, "git", "log", "-1", "--pretty=%B")
 	cmd.Dir = b.baseDir
 	cmd.Stdout = &stdout
@@ -388,6 +390,7 @@ func (b *Builder) GetCommitInfo(ctx context.Context) (*CommitInfo, error) {
 	message := strings.TrimSpace(stdout.String())
 
 	// Get author
+	stdout.Reset()
 	cmd = exec.CommandContext(ctx, "git", "log", "-1", "--pretty=%an <%ae>")
 	cmd.Dir = b.baseDir
 	cmd.Stdout = &stdout
@@ -399,6 +402,7 @@ func (b *Builder) GetCommitInfo(ctx context.Context) (*CommitInfo, error) {
 	author := strings.TrimSpace(stdout.String())
 
 	// Get timestamp
+	stdout.Reset()
 	cmd = exec.CommandContext(ctx, "git", "log", "-1", "--pretty=%ct")
 	cmd.Dir = b.baseDir
 	cmd.Stdout = &stdout
