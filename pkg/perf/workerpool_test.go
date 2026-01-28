@@ -225,6 +225,7 @@ func TestParallelError(t *testing.T) {
 }
 
 func TestRateLimiter(t *testing.T) {
+	ctx := context.Background()
 	limiter := NewRateLimiter(2)
 	defer limiter.Close()
 
@@ -234,7 +235,7 @@ func TestRateLimiter(t *testing.T) {
 	// Start 4 goroutines
 	for i := 0; i < 4; i++ {
 		go func() {
-			limiter.Do(func() error {
+			limiter.Do(ctx, func() error {
 				counter.Add(1)
 				time.Sleep(50 * time.Millisecond)
 				return nil
@@ -254,6 +255,7 @@ func TestRateLimiter(t *testing.T) {
 }
 
 func TestRateLimiterConcurrency(t *testing.T) {
+	ctx := context.Background()
 	limiter := NewRateLimiter(1)
 	defer limiter.Close()
 
@@ -263,7 +265,7 @@ func TestRateLimiterConcurrency(t *testing.T) {
 	done := make(chan struct{})
 	for i := 0; i < concurrent; i++ {
 		go func() {
-			limiter.Do(func() error {
+			limiter.Do(ctx, func() error {
 				time.Sleep(50 * time.Millisecond)
 				return nil
 			})
@@ -351,4 +353,34 @@ func TestWorkerPoolSubmitAfterStop(t *testing.T) {
 	if pool.Submit(func() {}) {
 		t.Error("Submit after Stop should return false")
 	}
+}
+
+func TestRateLimiterTimeout(t *testing.T) {
+	limiter := NewRateLimiter(1)
+	defer limiter.Close()
+
+	// First call takes the slot
+	done := make(chan struct{})
+	go func() {
+		limiter.Do(context.Background(), func() error {
+			time.Sleep(100 * time.Millisecond)
+			return nil
+		})
+		close(done)
+	}()
+
+	time.Sleep(10 * time.Millisecond) // Ensure first call has acquired the semaphore
+
+	// Second call with timeout should be cancelled
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	err := limiter.Do(ctx, func() error {
+		return nil
+	})
+
+	if err == nil {
+		t.Error("Expected timeout error, got nil")
+	}
+	<-done // Wait for first goroutine to complete
 }

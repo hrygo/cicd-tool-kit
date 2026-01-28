@@ -148,13 +148,18 @@ func (c *Cache) Clear() error {
 	return nil
 }
 
-// reviewPath returns the cache file path for a PR
+// reviewPath returns the cache file path for a PR.
+// The filename includes both the PR ID and a hash suffix to:
+// 1. Prevent key collisions (the PR ID prefix ensures uniqueness)
+// 2. Provide human-readable filenames for debugging
+// 3. Maintain a fixed, predictable filename structure
 // MD5 is used for filename generation only, not for security.
-// The hash provides consistent short filenames from cache keys.
 func (c *Cache) reviewPath(prID int) string {
 	key := fmt.Sprintf("pr-%d", prID)
 	hash := md5.Sum([]byte(key))
-	return filepath.Join(c.dir, fmt.Sprintf("%x.json", hash))
+	// Use "pr-{id}-{hash}.json" format to prevent collisions
+	// The PR ID prefix makes each filename unique per PR
+	return filepath.Join(c.dir, fmt.Sprintf("pr-%d-%x.json", prID, hash))
 }
 
 // GetDiffHash returns a hash of the diff content for caching

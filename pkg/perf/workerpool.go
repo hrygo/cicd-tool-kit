@@ -195,13 +195,32 @@ func (p *WorkerPool) Batch(tasks []func()) error {
 		close(errCh)
 	}()
 
+	// Collect all errors from the batch
+	var errs []error
 	for err := range errCh {
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
 
+	// Return combined error if any tasks failed
+	if len(errs) > 0 {
+		return fmt.Errorf("batch completed with %d error(s): %w", len(errs), joinErrors(errs))
+	}
+
 	return nil
+}
+
+// joinErrors combines multiple errors into a single error
+func joinErrors(errs []error) error {
+	var msg string
+	for i, e := range errs {
+		if i > 0 {
+			msg += "; "
+		}
+		msg += e.Error()
+	}
+	return fmt.Errorf("%s", msg)
 }
 
 // Map applies a function to each element of a slice concurrently
@@ -447,13 +466,16 @@ func NewRateLimiter(maxConcurrent int) *RateLimiter {
 }
 
 // Do executes a function with rate limiting
-func (r *RateLimiter) Do(fn func() error) error {
+// The context can be used to cancel the operation or implement timeout
+func (r *RateLimiter) Do(ctx context.Context, fn func() error) error {
 	select {
 	case r.sem <- struct{}{}:
 		defer func() { <-r.sem }()
 		return fn()
 	case <-r.close:
 		return fmt.Errorf("rate limiter is closed")
+	case <-ctx.Done():
+		return fmt.Errorf("rate limiter: %w", ctx.Err())
 	}
 }
 

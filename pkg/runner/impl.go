@@ -224,12 +224,14 @@ func (r *DefaultRunner) buildAnalysisContext(ctx context.Context, opts AnalyzeOp
 		// Truncate large diffs safely using rune-aware slicing
 		// to avoid cutting multi-byte UTF-8 characters
 		diff := opts.Diff
+		wasTruncated := false
 		if len(diff) > MaxDiffLength {
 			// Truncate at rune boundary to prevent corrupting multi-byte characters
 			// Check rune count separately since multi-byte chars mean byte length != rune count
 			runes := []rune(diff)
 			if len(runes) > MaxDiffRunes {
 				diff = string(runes[:MaxDiffRunes]) + "\n... (truncated)"
+				wasTruncated = true
 			} else {
 				// Rune count is within limit but byte count exceeds limit
 				// Truncate at byte boundary that won't cut a UTF-8 sequence
@@ -239,7 +241,12 @@ func (r *DefaultRunner) buildAnalysisContext(ctx context.Context, opts AnalyzeOp
 					truncAt--
 				}
 				diff = diff[:truncAt] + "\n... (truncated)"
+				wasTruncated = true
 			}
+		}
+		if wasTruncated {
+			// Log truncation warning for observability
+			sb.WriteString(fmt.Sprintf("[WARNING] Diff truncated from %d to %d bytes for context limits\n", len(opts.Diff), len(diff)))
 		}
 		sb.WriteString(diff)
 		sb.WriteString("\n```\n")
@@ -333,6 +340,11 @@ func (r *DefaultRunner) executeAnalysis(ctx context.Context, analysisContext str
 
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+
+	// Check for context cancellation before executing
+	if ctx.Err() != nil {
+		return ChangeSummary{}, ImpactAnalysis{}, RiskAssessment{}, ChangelogEntry{}, fmt.Errorf("analysis cancelled before execution: %w", ctx.Err())
+	}
 
 	_, err = session.Execute(execCtx, claude.ExecuteOptions{
 		Prompt:          prompt,
