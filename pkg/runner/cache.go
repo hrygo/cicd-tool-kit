@@ -68,7 +68,10 @@ func (c *Cache) GetReview(prID int) (CachedReview, bool) {
 
 	// Check TTL
 	if time.Since(cached.CachedAt) > c.ttl {
-		_ = os.Remove(path)
+		if err := os.Remove(path); err != nil {
+			// Log but don't fail - cache cleanup is not critical
+			log.Printf("Warning: failed to delete expired cache file %s: %v", path, err)
+		}
 		return CachedReview{}, false
 	}
 
