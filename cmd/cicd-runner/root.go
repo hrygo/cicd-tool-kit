@@ -290,24 +290,59 @@ func loadConfig() (*config.Config, error) {
 	return config.LoadFromEnv()
 }
 
-// createPlatform creates the appropriate platform client
+// createPlatform creates the appropriate platform client based on environment detection
 func createPlatform(cfg *config.Config) (platform.Platform, error) {
-	token := os.Getenv("GITHUB_TOKEN")
-	if token == "" {
-		token = cfg.Platform.GitHub.Token
-	}
+	platformName := platform.DetectPlatform()
 
-	repo, err := platform.ParseRepoFromEnv()
-	if err != nil {
-		return nil, fmt.Errorf("failed to determine repository: %w", err)
-	}
+	switch platformName {
+	case "github":
+		token := os.Getenv("GITHUB_TOKEN")
+		if token == "" {
+			token = cfg.Platform.GitHub.Token
+		}
+		repo, err := platform.ParseRepoFromEnv()
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine repository: %w", err)
+		}
+		client := platform.NewGitHubClient(token, repo)
+		if cfg.Platform.GitHub.APIURL != "" {
+			client.SetBaseURL(cfg.Platform.GitHub.APIURL)
+		}
+		return client, nil
 
-	client := platform.NewGitHubClient(token, repo)
-	if cfg.Platform.GitHub.APIURL != "" {
-		client.SetBaseURL(cfg.Platform.GitHub.APIURL)
-	}
+	case "gitlab":
+		token := os.Getenv("GITLAB_TOKEN")
+		if token == "" {
+			token = cfg.Platform.GitLab.Token
+		}
+		repo, err := platform.ParseRepoFromGitLabEnv()
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine repository: %w", err)
+		}
+		client := platform.NewGitLabClient(token, repo)
+		if cfg.Platform.GitLab.APIURL != "" {
+			client.SetBaseURL(cfg.Platform.GitLab.APIURL)
+		}
+		return client, nil
 
-	return client, nil
+	case "gitee":
+		token := os.Getenv("GITEE_TOKEN")
+		if token == "" {
+			token = cfg.Platform.Gitee.Token
+		}
+		repo, err := platform.ParseRepoFromGiteeEnv()
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine repository: %w", err)
+		}
+		client := platform.NewGiteeClient(token, repo)
+		if cfg.Platform.Gitee.APIURL != "" {
+			client.SetBaseURL(cfg.Platform.Gitee.APIURL)
+		}
+		return client, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported platform: %s (supported: github, gitlab, gitee)", platformName)
+	}
 }
 
 // signalContext creates a context that cancels on SIGINT/SIGTERM

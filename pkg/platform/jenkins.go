@@ -189,6 +189,13 @@ func (j *JenkinsClient) PostComment(ctx context.Context, opts CommentOptions) er
 	// For now, we'll update the build description
 	endpoint := fmt.Sprintf("%s/job/%s/%d/submitDescription", j.baseURL, j.jobName, opts.PRID)
 
+	// SECURITY: Validate opts.Body for CRLF sequences before URL encoding
+	// to prevent HTTP Response Splitting attacks
+	if strings.Contains(opts.Body, "\r\n") || strings.Contains(opts.Body, "\n\r") ||
+		strings.Contains(opts.Body, "\r") || strings.Contains(opts.Body, "\n") {
+		return fmt.Errorf("comment body contains CRLF sequences which are not allowed")
+	}
+
 	// Properly URL-encode the form data to prevent injection
 	data := fmt.Sprintf("description=%s", url.QueryEscape(opts.Body))
 	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, strings.NewReader(data))
@@ -293,8 +300,11 @@ func (j *JenkinsClient) GetFile(ctx context.Context, path, ref string) (string, 
 			// Check if it's a valid positive integer
 			num := 0
 			_, err := fmt.Sscanf(ref, "%d", &num)
-			if err != nil || num <= 0 {
-				return "", fmt.Errorf("invalid build reference: %s", ref)
+			// SECURITY: Add upper bound check to prevent DoS via extremely large build numbers
+			// Max int32 is a reasonable upper limit for Jenkins build numbers
+			const maxBuildNumber = 2147483647 // max int32
+			if err != nil || num <= 0 || num > maxBuildNumber {
+				return "", fmt.Errorf("invalid build reference: %s (must be between 1 and %d)", ref, maxBuildNumber)
 			}
 		}
 		buildNumber = ref

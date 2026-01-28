@@ -97,6 +97,11 @@ func NewGitLabClient(token, repo string) *GitLabClient {
 	}
 }
 
+// Name returns the platform name
+func (g *GitLabClient) Name() string {
+	return "gitlab"
+}
+
 // SetBaseURL sets a custom base URL for GitLab self-hosted
 func (g *GitLabClient) SetBaseURL(url string) {
 	g.baseURL = url
@@ -118,7 +123,11 @@ func (g *GitLabClient) PostComment(ctx context.Context, opts CommentOptions) err
 	}
 
 	// GitLab uses IID (user-facing MR number) in the URL
-	url := fmt.Sprintf("%s/projects/%s/merge_requests/%d/notes", g.baseURL, urlPathEncode(g.repo), opts.PRID)
+	encodedRepo, err := urlPathEncode(g.repo)
+	if err != nil {
+		return fmt.Errorf("invalid repo path: %w", err)
+	}
+	url := fmt.Sprintf("%s/projects/%s/merge_requests/%d/notes", g.baseURL, encodedRepo, opts.PRID)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
@@ -143,7 +152,11 @@ func (g *GitLabClient) PostComment(ctx context.Context, opts CommentOptions) err
 
 // GetDiff retrieves the diff for a GitLab merge request
 func (g *GitLabClient) GetDiff(ctx context.Context, mrID int) (string, error) {
-	url := fmt.Sprintf("%s/projects/%s/merge_requests/%d/changes", g.baseURL, urlPathEncode(g.repo), mrID)
+	encodedRepo, err := urlPathEncode(g.repo)
+	if err != nil {
+		return "", fmt.Errorf("invalid repo path: %w", err)
+	}
+	url := fmt.Sprintf("%s/projects/%s/merge_requests/%d/changes", g.baseURL, encodedRepo, mrID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -178,8 +191,15 @@ func (g *GitLabClient) GetDiff(ctx context.Context, mrID int) (string, error) {
 
 // GetFile retrieves a file from the GitLab repository
 func (g *GitLabClient) GetFile(ctx context.Context, path, ref string) (string, error) {
-	encodedPath := urlPathEncode(path)
-	url := fmt.Sprintf("%s/projects/%s/repository/files/%s?ref=%s", g.baseURL, urlPathEncode(g.repo), encodedPath, ref)
+	encodedPath, err := urlPathEncode(path)
+	if err != nil {
+		return "", fmt.Errorf("invalid file path: %w", err)
+	}
+	encodedRepo, err := urlPathEncode(g.repo)
+	if err != nil {
+		return "", fmt.Errorf("invalid repo path: %w", err)
+	}
+	url := fmt.Sprintf("%s/projects/%s/repository/files/%s?ref=%s", g.baseURL, encodedRepo, encodedPath, ref)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -221,7 +241,11 @@ func (g *GitLabClient) GetFile(ctx context.Context, path, ref string) (string, e
 
 // GetPRInfo retrieves merge request information from GitLab
 func (g *GitLabClient) GetPRInfo(ctx context.Context, mrID int) (*PRInfo, error) {
-	url := fmt.Sprintf("%s/projects/%s/merge_requests/%d", g.baseURL, urlPathEncode(g.repo), mrID)
+	encodedRepo, err := urlPathEncode(g.repo)
+	if err != nil {
+		return nil, fmt.Errorf("invalid repo path: %w", err)
+	}
+	url := fmt.Sprintf("%s/projects/%s/merge_requests/%d", g.baseURL, encodedRepo, mrID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -248,7 +272,11 @@ func (g *GitLabClient) GetPRInfo(ctx context.Context, mrID int) (*PRInfo, error)
 	// Get latest SHA for source branch
 	sha := ""
 	if gitlabMR.SourceProject.ID > 0 {
-		shaURL := fmt.Sprintf("%s/projects/%s/repository/commits?ref_name=%s", g.baseURL, urlPathEncode(g.repo), string(gitlabMR.Head))
+		encodedRepo, err := urlPathEncode(g.repo)
+		if err != nil {
+			return nil, fmt.Errorf("invalid repo path: %w", err)
+		}
+		shaURL := fmt.Sprintf("%s/projects/%s/repository/commits?ref_name=%s", g.baseURL, encodedRepo, string(gitlabMR.Head))
 		shaReq, err := http.NewRequestWithContext(ctx, "GET", shaURL, nil)
 		if err == nil {
 			shaReq.Header.Set("PRIVATE-TOKEN", g.token)
@@ -281,7 +309,11 @@ func (g *GitLabClient) GetPRInfo(ctx context.Context, mrID int) (*PRInfo, error)
 
 // Health checks if the GitLab API is accessible
 func (g *GitLabClient) Health(ctx context.Context) error {
-	url := fmt.Sprintf("%s/projects/%s", g.baseURL, urlPathEncode(g.repo))
+	encodedRepo, err := urlPathEncode(g.repo)
+	if err != nil {
+		return fmt.Errorf("invalid repo path: %w", err)
+	}
+	url := fmt.Sprintf("%s/projects/%s", g.baseURL, encodedRepo)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -334,18 +366,18 @@ func ParsePRIDFromGitLabEnv() (int, error) {
 // urlPathEncode encodes a path for URL in GitLab format
 // Uses url.PathEscape (not QueryEscape) for proper path encoding
 // and adds additional validation to prevent path traversal
-func urlPathEncode(path string) string {
+func urlPathEncode(path string) (string, error) {
 	// First, validate the path doesn't contain dangerous patterns
 	// This prevents encoded path traversal bypasses
 	if strings.Contains(path, "..") {
 		// Reject any path with parent directory references
-		return ""
+		return "", fmt.Errorf("path contains parent directory reference: %s", path)
 	}
 	if strings.Contains(path, "\\") {
 		// Reject Windows path separators
-		return ""
+		return "", fmt.Errorf("path contains backslash: %s", path)
 	}
 	// Use url.PathEscape for paths (not QueryEscape)
 	// PathEscape is designed for URL path segments
-	return url.PathEscape(path)
+	return url.PathEscape(path), nil
 }

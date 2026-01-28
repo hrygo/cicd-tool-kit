@@ -20,8 +20,11 @@ const (
 	// DefaultTimeout is the default timeout for Claude operations
 	DefaultTimeout = 5 * time.Minute
 
-	// MaxDiffLength is the maximum length for diff truncation
+	// MaxDiffLength is the maximum length (in bytes) for diff truncation
 	MaxDiffLength = 10000
+
+	// MaxDiffRunes is the maximum length (in runes) for safe UTF-8 diff truncation
+	MaxDiffRunes = 10000
 
 	// CoverageEstimatePercent is the estimated test coverage percentage
 	CoverageEstimatePercent = 10
@@ -87,7 +90,7 @@ func (r *DefaultRunner) Review(ctx context.Context, opts ReviewOptions) (*Review
 			result.Summary = cached.Summary
 			result.Issues = cached.Issues
 			result.PlatformComment = cached.Comment
-			result.Duration = time.Since(start)
+			result.Duration = cached.Duration // Use cached duration instead of recalculating
 			return result, nil
 		}
 	}
@@ -111,9 +114,10 @@ func (r *DefaultRunner) Review(ctx context.Context, opts ReviewOptions) (*Review
 
 	// Cache the result
 	r.cache.SetReview(opts.PRID, CachedReview{
-		Summary: result.Summary,
-		Issues:  result.Issues,
-		Comment: result.PlatformComment,
+		Summary:  result.Summary,
+		Issues:   result.Issues,
+		Comment:  result.PlatformComment,
+		Duration: result.Duration, // Store the actual execution duration
 	})
 
 	return result, nil
@@ -222,9 +226,19 @@ func (r *DefaultRunner) buildAnalysisContext(ctx context.Context, opts AnalyzeOp
 		diff := opts.Diff
 		if len(diff) > MaxDiffLength {
 			// Truncate at rune boundary to prevent corrupting multi-byte characters
+			// Check rune count separately since multi-byte chars mean byte length != rune count
 			runes := []rune(diff)
-			if len(runes) > MaxDiffLength {
-				diff = string(runes[:MaxDiffLength]) + "\n... (truncated)"
+			if len(runes) > MaxDiffRunes {
+				diff = string(runes[:MaxDiffRunes]) + "\n... (truncated)"
+			} else {
+				// Rune count is within limit but byte count exceeds limit
+				// Truncate at byte boundary that won't cut a UTF-8 sequence
+				// Find the last complete UTF-8 character before MaxDiffLength
+				truncAt := MaxDiffLength
+				for truncAt > 0 && (diff[truncAt]&0xC0) == 0x80 {
+					truncAt--
+				}
+				diff = diff[:truncAt] + "\n... (truncated)"
 			}
 		}
 		sb.WriteString(diff)
@@ -355,7 +369,7 @@ func (r *DefaultRunner) executeTestGen(ctx context.Context, testGenContext strin
 
 	prompt := r.buildTestGenPrompt(testGenContext, opts)
 
-	timeout := CoverageEstimatePercent * time.Minute // Default timeout
+	timeout := DefaultTimeout
 	if r.cfg != nil {
 		t, err := r.cfg.Claude.GetTimeout()
 		if err == nil && t > 0 {

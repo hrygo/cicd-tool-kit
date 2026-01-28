@@ -35,11 +35,8 @@ func validatePrompt(prompt string) error {
 
 // processSession implements Session using a subprocess
 type processSession struct {
-	cmd      *exec.Cmd
-	stdin    io.WriteCloser
-	stdout   io.ReadCloser
-	stderr   io.ReadCloser
-	closed   bool
+	cmd    *exec.Cmd
+	closed bool
 	closeMux sync.Mutex
 }
 
@@ -137,14 +134,12 @@ func (s *processSession) ExecuteWithStreams(ctx context.Context, opts ExecuteOpt
 		}
 	}()
 
-	s.stdin = cmdStdin
-	s.stdout = cmdStdout
-	s.stderr = cmdStderr
-
-	// Set environment
+	// Set environment using local variable to avoid data race
+	env := os.Environ()
 	if len(opts.Env) > 0 {
-		s.cmd.Env = append(s.cmd.Env, opts.Env...)
+		env = append(env, opts.Env...)
 	}
+	s.cmd.Env = env
 
 	// Start the command
 	if err := s.cmd.Start(); err != nil {
@@ -218,7 +213,10 @@ func (s *processSession) Close() error {
 
 	s.closed = true
 
-	if s.cmd != nil && s.cmd.Process != nil && s.cmd.ProcessState == nil {
+	if s.cmd == nil {
+		return nil
+	}
+	if s.cmd.Process != nil && s.cmd.ProcessState == nil {
 		// Process exists and is still running (not yet waited on)
 		if err := s.cmd.Process.Kill(); err != nil {
 			return fmt.Errorf("failed to kill claude process: %w", err)

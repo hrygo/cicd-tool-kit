@@ -55,6 +55,7 @@ type GitHubConfig struct {
 
 // GiteeConfig contains Gitee-specific settings
 type GiteeConfig struct {
+	Token        string `yaml:"token,omitempty"`        // Gitee token (usually from env)
 	APIURL       string `yaml:"api_url"`
 	PostComment  bool   `yaml:"post_comment"`
 	EnterpriseID string `yaml:"enterprise_id,omitempty"`
@@ -62,10 +63,11 @@ type GiteeConfig struct {
 
 // GitLabConfig contains GitLab-specific settings
 type GitLabConfig struct {
-	PostComment           bool   `yaml:"post_comment"`
-	FailOnError           bool   `yaml:"fail_on_error"`
-	MergeRequestDiscussion bool  `yaml:"merge_request_discussion"`
-	APIURL                string `yaml:"api_url,omitempty"` // For GitLab self-hosted
+	Token                 string `yaml:"token,omitempty"`  // GitLab token (usually from env)
+	PostComment           bool    `yaml:"post_comment"`
+	FailOnError           bool    `yaml:"fail_on_error"`
+	MergeRequestDiscussion bool   `yaml:"merge_request_discussion"`
+	APIURL                string  `yaml:"api_url,omitempty"` // For GitLab self-hosted
 }
 
 // GlobalConfig contains global settings

@@ -191,6 +191,7 @@ func (s *Sandbox) Execute(ctx context.Context, code string) (string, error) {
 	// SECURITY: Reject shell metacharacters to prevent command injection
 	// This function only supports simple command execution, not arbitrary shell code
 	// Include all control characters and shell metacharacters that could enable injection
+	// IMPORTANT: strings.Fields does not handle quoted arguments, so quotes are explicitly rejected
 	dangerousChars := []string{
 		"|", "&", ";", "$", "(", ")", "`", "\\", ">", "<",
 		"\n", "\r", "\t", "\f", "\v", // whitespace and form feed, vertical tab
@@ -204,6 +205,7 @@ func (s *Sandbox) Execute(ctx context.Context, code string) (string, error) {
 		"~", // home directory expansion
 		"#", // comment character
 		"%", // job control
+		"'", "\"", // quotes - strings.Fields cannot parse quoted arguments correctly
 	}
 	for _, ch := range dangerousChars {
 		if strings.Contains(code, ch) {

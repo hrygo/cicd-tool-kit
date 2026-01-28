@@ -36,6 +36,7 @@ type CachedReview struct {
 	Issues   []claude.Issue
 	Comment  string
 	CachedAt time.Time
+	Duration time.Duration // Original execution duration
 }
 
 // NewCache creates a new cache instance
@@ -71,15 +72,23 @@ func (c *Cache) GetReview(prID int) (CachedReview, bool) {
 		return CachedReview{}, false
 	}
 
-	// Check TTL and remove expired - hold write lock for entire check-and-remove
-	// to prevent race where multiple goroutines return expired cache
-	c.mu.Lock()
+	// Check TTL first to avoid holding lock for unmarshal of invalid data
 	if time.Since(cached.CachedAt) > c.ttl {
+		// Expired - remove atomically with write lock
+		c.mu.Lock()
 		_ = os.Remove(path)
 		c.mu.Unlock()
 		return CachedReview{}, false
 	}
-	c.mu.Unlock()
+
+	// Cache is valid - verify it still exists (wasn't deleted by another goroutine)
+	c.mu.RLock()
+	_, statErr := os.Stat(path)
+	c.mu.RUnlock()
+
+	if os.IsNotExist(statErr) {
+		return CachedReview{}, false
+	}
 
 	return cached, true
 }
