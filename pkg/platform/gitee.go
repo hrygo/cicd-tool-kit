@@ -116,8 +116,13 @@ func NewGiteeClient(token, repo string) *GiteeClient {
 }
 
 // SetBaseURL sets a custom base URL for Gitee Enterprise
-func (g *GiteeClient) SetBaseURL(url string) {
-	g.baseURL = url
+func (g *GiteeClient) SetBaseURL(url string) error {
+	// SECURITY: Validate baseURL to prevent SSRF attacks
+	if err := validateBaseURL(url); err != nil {
+		return err
+	}
+	g.baseURL = strings.TrimSuffix(url, "/")
+	return nil
 }
 
 // doRequest performs an HTTP request with common headers and error handling
@@ -146,13 +151,18 @@ func validatePath(path string) error {
 	if path == "" {
 		return fmt.Errorf("path cannot be empty")
 	}
+	// Check for null byte
+	if strings.Contains(path, "\x00") {
+		return fmt.Errorf("path cannot contain null byte")
+	}
 	// Check for path traversal attempts
 	if strings.Contains(path, "..") {
 		return fmt.Errorf("path contains traversal sequence: %s", path)
 	}
-	// Check for URL-encoded path traversal
-	if strings.Contains(strings.ToLower(path), "%2e%2e") {
-		return fmt.Errorf("path contains encoded traversal sequence: %s", path)
+	// Check for URL-encoded path traversal (case-insensitive for %2e, %5c)
+	lowerPath := strings.ToLower(path)
+	if strings.Contains(lowerPath, "%2e") || strings.Contains(lowerPath, "%5c") {
+		return fmt.Errorf("path contains URL-encoded dots or backslashes")
 	}
 	if strings.Contains(path, "\\") {
 		return fmt.Errorf("path contains backslash: %s", path)

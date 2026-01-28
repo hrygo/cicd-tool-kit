@@ -158,7 +158,7 @@ func TestValidatePath(t *testing.T) {
 			name:        "path traversal with encoded",
 			path:        "%2e%2e%2fpasswd",
 			wantErr:     true,
-			errContains: "traversal sequence",
+			errContains: "URL-encoded dots",
 		},
 		{
 			name:        "backslash in path",
