@@ -235,6 +235,16 @@ func (m *MetricsCollector) GetSnapshot() map[string]interface{} {
 	return snapshot
 }
 
+// GetSamples returns a copy of collected samples
+func (m *MetricsCollector) GetSamples() []*MetricSample {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	samples := make([]*MetricSample, len(m.samples))
+	copy(samples, m.samples)
+	return samples
+}
+
 // FlushMetrics flushes current metrics to storage/output
 func (m *MetricsCollector) FlushMetrics() error {
 	if !m.enabled {
@@ -282,10 +292,8 @@ func (m *MetricsCollector) backgroundFlush() {
 		// Ensure flushDone is closed even if panic occurs
 		if r := recover(); r != nil {
 			log.Printf("[Metrics] panic in backgroundFlush: %v", r)
-			close(m.flushDone)
-		} else {
-			close(m.flushDone)
 		}
+		close(m.flushDone)
 	}()
 
 	for {
@@ -376,11 +384,12 @@ func (m *MetricsCollector) GetAverageDuration(operationName string) time.Duratio
 
 // AuditLogger logs security-relevant events for audit trails
 type AuditLogger struct {
-	mu       sync.Mutex
-	entries  []AuditEntry
-	logger   *log.Logger
-	file     *os.File
-	closeOnce sync.Once
+	mu         sync.Mutex
+	entries    []AuditEntry
+	maxEntries int
+	logger     *log.Logger
+	file       *os.File
+	closeOnce  sync.Once
 }
 
 // AuditEntry represents a single audit log entry
@@ -396,6 +405,7 @@ type AuditEntry struct {
 
 // NewAuditLogger creates a new audit logger
 func NewAuditLogger(logFile string) (*AuditLogger, error) {
+	const maxEntries = 10000
 	var logger *log.Logger
 	var file *os.File
 	if logFile != "" {
@@ -410,9 +420,10 @@ func NewAuditLogger(logFile string) (*AuditLogger, error) {
 	}
 
 	return &AuditLogger{
-		entries: make([]AuditEntry, 0, 1000),
-		logger:  logger,
-		file:    file,
+		entries:    make([]AuditEntry, 0, 1000),
+		maxEntries: maxEntries,
+		logger:     logger,
+		file:       file,
 	}, nil
 }
 
@@ -428,6 +439,11 @@ func (a *AuditLogger) LogEvent(level, event, action string, details map[string]i
 
 	a.mu.Lock()
 	a.entries = append(a.entries, entry)
+	// Limit in-memory entries to prevent unbounded growth
+	if len(a.entries) > a.maxEntries {
+		// Keep the most recent entries by discarding the oldest
+		a.entries = a.entries[len(a.entries)-a.maxEntries:]
+	}
 	a.mu.Unlock()
 
 	// Write to log

@@ -150,9 +150,10 @@ func TestFlushMetrics(t *testing.T) {
 		t.Errorf("FlushMetrics failed: %v", err)
 	}
 
-	// Should have samples
-	if len(m.samples) != 1 {
-		t.Errorf("Expected 1 sample, got %d", len(m.samples))
+	// Should have samples - use GetSamples() for safe concurrent access
+	samples := m.GetSamples()
+	if len(samples) != 1 {
+		t.Errorf("Expected 1 sample, got %d", len(samples))
 	}
 }
 

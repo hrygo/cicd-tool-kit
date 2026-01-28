@@ -61,6 +61,11 @@ func (p *WorkerPool) worker(_ int) {
 			func() {
 				// Ensure counter decrements even if task panics
 				defer p.activeJobs.Add(-1)
+				defer func() {
+					if r := recover(); r != nil {
+						// Log panic but don't crash the worker
+					}
+				}()
 				task()
 			}()
 		}
@@ -147,9 +152,14 @@ func (p *WorkerPool) QueueSize() int {
 
 // Batch processes a batch of tasks concurrently
 func (p *WorkerPool) Batch(tasks []func()) error {
+	if len(tasks) == 0 {
+		return nil
+	}
+
 	errCh := make(chan error, len(tasks))
 	var wg sync.WaitGroup
 
+	submittedCount := 0
 	for _, task := range tasks {
 		wg.Add(1)
 		t := task
@@ -157,14 +167,24 @@ func (p *WorkerPool) Batch(tasks []func()) error {
 			defer wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
-					errCh <- fmt.Errorf("task panic: %v", r)
+					// Use select to avoid blocking if errCh is closed
+					select {
+					case errCh <- fmt.Errorf("task panic: %v", r):
+					default:
+					}
 				}
 			}()
 			t()
 		}) {
 			wg.Done()
+			// Wait for already submitted tasks to complete
+			go func() {
+				wg.Wait()
+				close(errCh)
+			}()
 			return fmt.Errorf("failed to submit task to worker pool")
 		}
+		submittedCount++
 	}
 
 	go func() {
