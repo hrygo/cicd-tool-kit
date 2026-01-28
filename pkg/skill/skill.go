@@ -28,11 +28,24 @@ func isValidSkillName(name string) bool {
 // Skill represents a loaded skill definition
 type Skill struct {
 	Name        string            `json:"name"`
+	Version     string            `json:"version,omitempty"`
 	Description string            `json:"description"`
+	Author      string            `json:"author,omitempty"`
+	License     string            `json:"license,omitempty"`
 	Path        string            `json:"path"`
 	Options     SkillOptions      `json:"options"`
+	Inputs      []SkillInput      `json:"inputs,omitempty"`
 	Content     string            `json:"content"`
 	Metadata    map[string]string `json:"metadata"`
+}
+
+// SkillInput represents an input parameter for a skill
+type SkillInput struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+	Required    bool   `json:"required"`
+	Default     string `json:"default,omitempty"`
 }
 
 // SkillOptions contains optional skill configuration
@@ -153,6 +166,15 @@ func (l *Loader) Get(name string) (*Skill, bool) {
 	return skill, ok
 }
 
+// isInputProperty checks if a key is a known input property name
+func isInputProperty(key string) bool {
+	switch strings.ToLower(key) {
+	case "name", "type", "description", "required", "default":
+		return true
+	}
+	return false
+}
+
 // parseSkill parses a skill definition from SKILL.md content
 func (l *Loader) parseSkill(name, path, content string) (*Skill, error) {
 	skill := &Skill{
@@ -177,6 +199,8 @@ func (l *Loader) parseSkill(name, path, content string) (*Skill, error) {
 	// Simple key-value parsing
 	lines := strings.Split(frontmatter, "\n")
 	inTools := false
+	inInputs := false
+	var currentInput *SkillInput
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -187,6 +211,16 @@ func (l *Loader) parseSkill(name, path, content string) (*Skill, error) {
 		// Check for tools list
 		if strings.HasPrefix(trimmed, "tools:") {
 			inTools = true
+			inInputs = false
+			currentInput = nil
+			continue
+		}
+
+		// Check for inputs list
+		if strings.HasPrefix(trimmed, "inputs:") {
+			inInputs = true
+			inTools = false
+			currentInput = nil
 			continue
 		}
 
@@ -203,8 +237,66 @@ func (l *Loader) parseSkill(name, path, content string) (*Skill, error) {
 			}
 		}
 
-		// Parse key: value pairs
-		if strings.Contains(trimmed, ":") && !strings.HasPrefix(trimmed, "-") {
+		// Parse input list item
+		if inInputs {
+			// Check if this is a new list item (starts with - after trimming leading whitespace)
+			if strings.HasPrefix(trimmed, "- ") {
+				// Save previous input if exists
+				if currentInput != nil && currentInput.Name != "" {
+					skill.Inputs = append(skill.Inputs, *currentInput)
+				}
+				// Start new input
+				inputContent := strings.TrimPrefix(trimmed, "- ")
+				currentInput = &SkillInput{}
+
+				// Check if this is inline format "- name: type (required): description"
+				// or nested format "- name:" or "- key: value"
+				if strings.Contains(inputContent, ":") {
+					idx := strings.Index(inputContent, ":")
+					firstKey := strings.TrimSpace(inputContent[:idx])
+					firstValue := strings.TrimSpace(inputContent[idx+1:])
+
+					// If first key is a known property name, it's nested format
+					if isInputProperty(firstKey) {
+						l.parseInputProperty(currentInput, firstKey, firstValue)
+					} else {
+						// It's inline format: "name: type (required): description"
+						l.parseInputInline(inputContent, currentInput)
+					}
+				}
+				continue
+			}
+			// Parse nested input properties (indented lines that aren't list items)
+			// If we're in inputs section, not starting a new item, and has a colon, it's a nested property
+			if currentInput != nil && !strings.HasPrefix(trimmed, "-") && strings.Contains(trimmed, ":") {
+				idx := strings.Index(trimmed, ":")
+				key := strings.TrimSpace(trimmed[:idx])
+				value := strings.TrimSpace(trimmed[idx+1:])
+				// Only process if it's a known property (not a new section)
+				if isInputProperty(key) {
+					l.parseInputProperty(currentInput, key, value)
+				} else {
+					// Not a property, might be a new section - exit inputs
+					if currentInput.Name != "" {
+						skill.Inputs = append(skill.Inputs, *currentInput)
+						currentInput = nil
+					}
+					inInputs = false
+				}
+				continue
+			}
+			// Exit inputs section on non-list item at base indentation (no leading whitespace)
+			if len(line) > 0 && line[0] != ' ' && line[0] != '\t' && !strings.HasPrefix(trimmed, "-") {
+				if currentInput != nil && currentInput.Name != "" {
+					skill.Inputs = append(skill.Inputs, *currentInput)
+					currentInput = nil
+				}
+				inInputs = false
+			}
+		}
+
+		// Parse key: value pairs (only if not in a list section)
+		if !inTools && !inInputs && strings.Contains(trimmed, ":") && !strings.HasPrefix(trimmed, "-") {
 			idx := strings.Index(trimmed, ":")
 			key := strings.TrimSpace(trimmed[:idx])
 			value := strings.TrimSpace(trimmed[idx+1:])
@@ -214,15 +306,40 @@ func (l *Loader) parseSkill(name, path, content string) (*Skill, error) {
 				// Already set from directory name
 			case "description":
 				skill.Description = value
+			case "version":
+				skill.Version = value
+			case "author":
+				skill.Author = value
+			case "license":
+				skill.License = value
 			case "budget_tokens":
 				var num int
 				if _, err := fmt.Sscanf(value, "%d", &num); err == nil {
 					skill.Options.Thinking.BudgetTokens = num
 				}
+			case "thinking_enabled":
+				skill.Options.Thinking.Enabled = strings.ToLower(value) == "true"
+			case "max_turns":
+				var num int
+				if _, err := fmt.Sscanf(value, "%d", &num); err == nil {
+					skill.Options.MaxTurns = num
+				}
+			case "output_format":
+				skill.Options.OutputFormat = value
+			case "budget_usd":
+				var num float64
+				if _, err := fmt.Sscanf(value, "%f", &num); err == nil {
+					skill.Options.BudgetUSD = num
+				}
 			default:
 				skill.Metadata[key] = value
 			}
 		}
+	}
+
+	// Save last input if exists
+	if currentInput != nil && currentInput.Name != "" {
+		skill.Inputs = append(skill.Inputs, *currentInput)
 	}
 
 	// Set default description if not found
@@ -231,6 +348,79 @@ func (l *Loader) parseSkill(name, path, content string) (*Skill, error) {
 	}
 
 	return skill, nil
+}
+
+// parseInputInline parses inline input format like "param: string (required?): description"
+func (l *Loader) parseInputInline(content string, input *SkillInput) {
+	// Format: "name: type (required?): description"
+	// First, try to split by ":"
+	parts := strings.SplitN(content, ":", 2)
+	if len(parts) < 2 {
+		return
+	}
+
+	input.Name = strings.TrimSpace(parts[0])
+	rest := strings.TrimSpace(parts[1])
+
+	// Extract metadata from parentheses - support multiple paren groups
+	// Process all parentheses to extract required/default flags
+	for strings.Contains(rest, "(") && strings.Contains(rest, ")") {
+		openIdx := strings.Index(rest, "(")
+		closeIdx := strings.Index(rest[openIdx:], ")") + openIdx
+		if closeIdx <= openIdx {
+			break
+		}
+		parenContent := strings.ToLower(strings.TrimSpace(rest[openIdx+1 : closeIdx]))
+
+		// Check if this paren contains "required"
+		if strings.Contains(parenContent, "required") {
+			input.Required = true
+		}
+
+		// Check if this paren contains "default:"
+		if strings.Contains(parenContent, "default:") {
+			defaultVal := strings.TrimSpace(rest[openIdx+9 : closeIdx])
+			input.Default = defaultVal
+		}
+
+		// Remove the paren and its content
+		rest = rest[:openIdx] + strings.TrimSpace(rest[closeIdx+1:])
+		rest = strings.TrimSpace(rest)
+	}
+
+	// Extract type - it should be the first word
+	words := strings.Fields(rest)
+	if len(words) > 0 {
+		// Clean type of trailing characters
+		typeStr := strings.TrimSuffix(words[0], ":")
+		typeStr = strings.TrimSuffix(typeStr, ",")
+		input.Type = strings.TrimSpace(typeStr)
+	}
+
+	// Extract description (rest after type)
+	if len(words) > 1 {
+		// Skip first word (type), join rest as description
+		description := strings.Join(words[1:], " ")
+		description = strings.TrimPrefix(description, ":")
+		description = strings.TrimPrefix(description, "-")
+		input.Description = strings.TrimSpace(description)
+	}
+}
+
+// parseInputProperty parses a single input property
+func (l *Loader) parseInputProperty(input *SkillInput, key, value string) {
+	switch strings.ToLower(key) {
+	case "name":
+		input.Name = value
+	case "type":
+		input.Type = value
+	case "description":
+		input.Description = value
+	case "required":
+		input.Required = strings.ToLower(value) == "true" || value == "1"
+	case "default":
+		input.Default = value
+	}
 }
 
 // GetPromptForSkill returns the full prompt content for a skill
