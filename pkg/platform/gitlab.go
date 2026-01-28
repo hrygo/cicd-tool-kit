@@ -114,8 +114,13 @@ func (g *GitLabClient) Name() string {
 }
 
 // SetBaseURL sets a custom base URL for GitLab self-hosted
-func (g *GitLabClient) SetBaseURL(url string) {
-	g.baseURL = url
+func (g *GitLabClient) SetBaseURL(url string) error {
+	// SECURITY: Validate baseURL to prevent SSRF attacks
+	if err := validateBaseURL(url); err != nil {
+		return err
+	}
+	g.baseURL = strings.TrimSuffix(url, "/")
+	return nil
 }
 
 // PostComment posts a comment to a GitLab merge request

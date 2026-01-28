@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/errors"
@@ -89,8 +90,13 @@ func NewGitHubClient(token, repo string) *GitHubClient {
 }
 
 // SetBaseURL sets a custom base URL for GitHub Enterprise
-func (c *GitHubClient) SetBaseURL(url string) {
-	c.baseURL = url
+func (c *GitHubClient) SetBaseURL(url string) error {
+	// SECURITY: Validate baseURL to prevent SSRF attacks
+	if err := validateBaseURL(url); err != nil {
+		return err
+	}
+	c.baseURL = strings.TrimSuffix(url, "/")
+	return nil
 }
 
 // Name returns the platform name
@@ -181,6 +187,11 @@ func (c *GitHubClient) GetDiff(ctx context.Context, prID int) (string, error) {
 
 // GetFile retrieves a file's content at a specific ref
 func (c *GitHubClient) GetFile(ctx context.Context, path, ref string) (string, error) {
+	// SECURITY: Validate path to prevent directory traversal
+	if err := validateFilePath(path); err != nil {
+		return "", fmt.Errorf("invalid file path: %w", err)
+	}
+
 	url := fmt.Sprintf("%s/repos/%s/contents/%s?ref=%s", c.baseURL, c.repo, path, ref)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -377,6 +388,30 @@ func ParsePRIDFromEnv() (int, error) {
 // IsGitHubEnv returns true if running in GitHub Actions
 func IsGitHubEnv() bool {
 	return osGetenv("GITHUB_ACTIONS") == "true"
+}
+
+// validateFilePath validates a file path to prevent directory traversal
+func validateFilePath(path string) error {
+	if path == "" {
+		return fmt.Errorf("file path cannot be empty")
+	}
+	// Check for null byte
+	if strings.Contains(path, "\x00") {
+		return fmt.Errorf("file path cannot contain null byte")
+	}
+	// Reject path traversal attempts
+	if strings.Contains(path, "..") {
+		return fmt.Errorf("file path cannot contain '..'")
+	}
+	// Reject URL-encoded traversal attempts (case-insensitive)
+	if strings.Contains(strings.ToLower(path), "%2e") {
+		return fmt.Errorf("file path cannot contain URL-encoded dots")
+	}
+	// Reject absolute paths
+	if strings.HasPrefix(path, "/") || strings.HasPrefix(path, "\\") {
+		return fmt.Errorf("absolute paths not allowed")
+	}
+	return nil
 }
 
 // osGetenv is a wrapper for os.Getenv to allow testing
