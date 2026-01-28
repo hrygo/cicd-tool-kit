@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -326,9 +327,20 @@ func ParsePRIDFromGitLabEnv() (int, error) {
 }
 
 // urlPathEncode encodes a path for URL in GitLab format
-// Uses url.QueryEscape for proper encoding to prevent path traversal attacks
+// Uses url.PathEscape (not QueryEscape) for proper path encoding
+// and adds additional validation to prevent path traversal
 func urlPathEncode(path string) string {
-	// Use url.QueryEscape to properly encode the path
-	// This prevents path traversal and injection attacks
-	return url.QueryEscape(path)
+	// First, validate the path doesn't contain dangerous patterns
+	// This prevents encoded path traversal bypasses
+	if strings.Contains(path, "..") {
+		// Reject any path with parent directory references
+		return ""
+	}
+	if strings.Contains(path, "\\") {
+		// Reject Windows path separators
+		return ""
+	}
+	// Use url.PathEscape for paths (not QueryEscape)
+	// PathEscape is designed for URL path segments
+	return url.PathEscape(path)
 }

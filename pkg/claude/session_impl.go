@@ -7,12 +7,31 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
 
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/errors"
 )
+
+// validatePrompt checks if prompt contains potentially dangerous content
+// While exec.Command with separate args prevents shell injection, we validate
+// to catch obvious issues early and provide clear error messages
+func validatePrompt(prompt string) error {
+	if prompt == "" {
+		return fmt.Errorf("prompt cannot be empty")
+	}
+	// Check for null bytes which can cause issues
+	if strings.Contains(prompt, "\x00") {
+		return fmt.Errorf("prompt contains null bytes")
+	}
+	// Check for extremely long prompts that might cause issues
+	if len(prompt) > 1000000 { // 1MB limit
+		return fmt.Errorf("prompt too large: %d bytes (max 1MB)", len(prompt))
+	}
+	return nil
+}
 
 // processSession implements Session using a subprocess
 type processSession struct {
@@ -216,7 +235,12 @@ func (s *processSession) buildArgs(opts ExecuteOptions) []string {
 	// Print mode (headless/non-interactive)
 	args = append(args, "-p")
 
-	// Add prompt
+	// Validate and add prompt
+	if err := validatePrompt(opts.Prompt); err != nil {
+		// Log warning but continue - let the claude CLI handle invalid prompts
+		// This prevents crashing on potentially valid prompts that our validator doesn't understand
+		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+	}
 	args = append(args, opts.Prompt)
 
 	// Skip permissions

@@ -96,7 +96,8 @@ func (c *Cache) SetReview(prID int, review CachedReview) {
 	}
 
 	path := c.reviewPath(prID)
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	// Use 0600 permissions - cache files may contain sensitive code snippets
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		log.Printf("Warning: failed to write cache file %s: %v", path, err)
 	}
 }

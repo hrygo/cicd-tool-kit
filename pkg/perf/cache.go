@@ -30,6 +30,11 @@ type Cache[K comparable, V any] struct {
 
 // NewCache creates a new cache
 func NewCache[K comparable, V any](maxSize int, ttl time.Duration) *Cache[K, V] {
+	// Validate maxSize to prevent unbounded cache growth
+	if maxSize <= 0 {
+		maxSize = 1000 // Default to 1000 items if invalid
+	}
+
 	c := &Cache[K, V]{
 		items:   make(map[K]*list.Element),
 		lru:     list.New(),

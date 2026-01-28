@@ -500,6 +500,21 @@ func (j *JenkinsClient) GetJob(ctx context.Context) (*JenkinsJob, error) {
 func (j *JenkinsClient) TriggerBuild(ctx context.Context, parameters map[string]string) (int, error) {
 	endpoint := fmt.Sprintf("%s/job/%s/buildWithParameters", j.baseURL, j.jobName)
 
+	// Validate parameters to prevent injection
+	for key, value := range parameters {
+		// Check for dangerous characters in parameter keys and values
+		dangerousChars := []string{"\n", "\r", "\t", "\x00"}
+		for _, ch := range dangerousChars {
+			if strings.Contains(key, ch) || strings.Contains(value, ch) {
+				return 0, fmt.Errorf("parameter contains dangerous character")
+			}
+		}
+		// Limit parameter length to prevent DoS
+		if len(key) > 256 || len(value) > 4096 {
+			return 0, fmt.Errorf("parameter too large")
+		}
+	}
+
 	// Create form data with parameters, properly URL-encoded to prevent injection
 	var formData bytes.Buffer
 	for key, value := range parameters {

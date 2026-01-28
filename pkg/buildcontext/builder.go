@@ -269,7 +269,16 @@ func (b *Builder) GetChangedFiles(ctx context.Context, opts DiffOptions) ([]stri
 
 // GetFileContent returns the content of a file at a specific ref
 func (b *Builder) GetFileContent(ctx context.Context, path, ref string) (string, error) {
-	args := []string{"show", fmt.Sprintf("%s:%s", ref, path)}
+	// Validate inputs to prevent command injection
+	if err := sanitizeGitRef(ref); err != nil {
+		return "", fmt.Errorf("invalid ref: %w", err)
+	}
+	if err := sanitizePath(path); err != nil {
+		return "", fmt.Errorf("invalid path: %w", err)
+	}
+
+	// Use separate arguments to prevent injection
+	args := []string{"show", ref + ":" + path}
 
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = b.baseDir
