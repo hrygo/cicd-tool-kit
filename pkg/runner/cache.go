@@ -14,6 +14,14 @@ import (
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/claude"
 )
 
+const (
+	// DefaultCacheTTLHours is the default cache TTL in hours
+	DefaultCacheTTLHours = 24
+
+	// CacheFilePermissions is the file permissions for cache files
+	CacheFilePermissions = 0600
+)
+
 // Cache provides caching for review results
 type Cache struct {
 	dir      string
@@ -41,7 +49,7 @@ func NewCache(dir string, enabled bool) (*Cache, error) {
 	return &Cache{
 		dir:     dir,
 		enabled: enabled,
-		ttl:     24 * time.Hour,
+		ttl:     time.Duration(DefaultCacheTTLHours) * time.Hour,
 	}, nil
 }
 
@@ -97,8 +105,8 @@ func (c *Cache) SetReview(prID int, review CachedReview) {
 	}
 
 	path := c.reviewPath(prID)
-	// Use 0600 permissions - cache files may contain sensitive code snippets
-	if err := os.WriteFile(path, data, 0600); err != nil {
+	// Use CacheFilePermissions - cache files may contain sensitive code snippets
+	if err := os.WriteFile(path, data, CacheFilePermissions); err != nil {
 		log.Printf("Warning: failed to write cache file %s: %v", path, err)
 	}
 }

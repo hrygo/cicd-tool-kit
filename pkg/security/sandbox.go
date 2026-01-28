@@ -18,6 +18,23 @@ import (
 	"time"
 )
 
+const (
+	// MaxNameLength is the maximum length for sandbox names
+	MaxNameLength = 5
+
+	// MaxMemoryBytes is the default maximum memory in bytes
+	MaxMemoryBytes = 2 * 1024 * 1024 * 1024
+
+	// DefaultTimeout is the default execution timeout
+	DefaultTimeout = 10 * time.Minute
+
+	// MaxProcesses is the default maximum number of processes
+	MaxProcesses = 100
+
+	// MaxFiles is the default maximum number of open files
+	MaxFiles = 1024
+)
+
 // Sandbox provides a secure execution environment for AI tools.
 type Sandbox struct {
 	mu             sync.RWMutex
@@ -106,7 +123,7 @@ func DefaultConfig() *Config {
 		WorkDir:        wd,
 		ReadOnlyPaths:  []string{wd},
 		AllowNetwork:   false,
-		Timeout:        5 * time.Minute,
+		Timeout:        MaxNameLength * time.Minute,
 		EnableSeccomp:  true,
 		EnableLandlock: false, // Requires Linux 5.13+
 	}
@@ -115,11 +132,11 @@ func DefaultConfig() *Config {
 // DefaultResourceLimits returns safe default resource limits.
 func DefaultResourceLimits() *ResourceLimits {
 	return &ResourceLimits{
-		MaxMemory:    2 * 1024 * 1024 * 1024, // 2GB
-		MaxCPU:       1.0,                      // 1 CPU core
-		MaxWallTime:  10 * time.Minute,
-		MaxProcesses: 100,
-		MaxFiles:     1024,
+		MaxMemory:    MaxMemoryBytes,
+		MaxCPU:       1.0,
+		MaxWallTime:  DefaultTimeout,
+		MaxProcesses: MaxProcesses,
+		MaxFiles:     MaxFiles,
 	}
 }
 

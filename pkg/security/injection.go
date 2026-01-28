@@ -12,6 +12,20 @@ import (
 	"unicode"
 )
 
+const (
+	// MaxPromptLength is the maximum allowed prompt length in characters
+	MaxPromptLength = 50000
+
+	// RepetitionThreshold is the max repetition count before flagging as suspicious
+	RepetitionThreshold = 10
+
+	// WordCountLimit is the minimum unique word count to avoid repetition flag
+	WordCountLimit = 20
+
+	// SpecialCharRatioThreshold is the max ratio of special characters allowed
+	SpecialCharRatioThreshold = 0.3
+)
+
 // PromptInjectionDetector detects and protects against malicious prompts.
 type PromptInjectionDetector struct {
 	patterns        []*injectionPattern
@@ -41,7 +55,7 @@ const (
 func NewPromptInjectionDetector() *PromptInjectionDetector {
 	d := &PromptInjectionDetector{
 		strictMode:      true,
-		maxPromptLength: 50000, // 50k characters
+		maxPromptLength: MaxPromptLength,
 		allowedPrefixes: []string{
 			"Please analyze",
 			"Please review",
@@ -286,7 +300,7 @@ func (d *PromptInjectionDetector) hasExcessiveRepetition(text string) bool {
 	}
 
 	for _, count := range wordCount {
-		if count > 10 && len(wordCount) < 20 {
+		if count > RepetitionThreshold && len(wordCount) < WordCountLimit {
 			return true
 		}
 	}
@@ -304,7 +318,7 @@ func (d *PromptInjectionDetector) hasUnusualCharacters(text string) bool {
 		}
 	}
 
-	return float64(specialCount)/float64(len(text)) > 0.3
+	return float64(specialCount)/float64(len(text)) > SpecialCharRatioThreshold
 }
 
 // InjectionError represents an injection detection error.

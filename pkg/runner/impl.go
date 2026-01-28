@@ -19,6 +19,12 @@ import (
 const (
 	// DefaultTimeout is the default timeout for Claude operations
 	DefaultTimeout = 5 * time.Minute
+
+	// MaxDiffLength is the maximum length for diff truncation
+	MaxDiffLength = 10000
+
+	// CoverageEstimatePercent is the estimated test coverage percentage
+	CoverageEstimatePercent = 10
 )
 
 // DefaultRunner implements the Runner interface
@@ -214,11 +220,11 @@ func (r *DefaultRunner) buildAnalysisContext(ctx context.Context, opts AnalyzeOp
 		// Truncate large diffs safely using rune-aware slicing
 		// to avoid cutting multi-byte UTF-8 characters
 		diff := opts.Diff
-		if len(diff) > 10000 {
+		if len(diff) > MaxDiffLength {
 			// Truncate at rune boundary to prevent corrupting multi-byte characters
 			runes := []rune(diff)
-			if len(runes) > 10000 {
-				diff = string(runes[:10000]) + "\n... (truncated)"
+			if len(runes) > MaxDiffLength {
+				diff = string(runes[:MaxDiffLength]) + "\n... (truncated)"
 			}
 		}
 		sb.WriteString(diff)
@@ -346,7 +352,7 @@ func (r *DefaultRunner) executeTestGen(ctx context.Context, testGenContext strin
 		return nil, fmt.Errorf("invalid timeout configuration: %w", err)
 	}
 	if timeout == 0 {
-		timeout = 10 * time.Minute // Default timeout
+		timeout = CoverageEstimatePercent * time.Minute // Default timeout
 	}
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
