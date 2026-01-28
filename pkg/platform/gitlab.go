@@ -249,15 +249,18 @@ func (g *GitLabClient) GetPRInfo(ctx context.Context, mrID int) (*PRInfo, error)
 	sha := ""
 	if gitlabMR.SourceProject.ID > 0 {
 		shaURL := fmt.Sprintf("%s/projects/%s/repository/commits?ref_name=%s", g.baseURL, urlPathEncode(g.repo), string(gitlabMR.Head))
-		shaReq, _ := http.NewRequestWithContext(ctx, "GET", shaURL, nil)
-		shaReq.Header.Set("PRIVATE-TOKEN", g.token)
-		if shaResp, err := g.client.Do(shaReq); err == nil {
-			defer shaResp.Body.Close()
-			var commits []struct {
-				ID string `json:"id"`
-			}
-			if json.NewDecoder(shaResp.Body).Decode(&commits) == nil && len(commits) > 0 {
-				sha = commits[0].ID
+		shaReq, err := http.NewRequestWithContext(ctx, "GET", shaURL, nil)
+		if err == nil {
+			shaReq.Header.Set("PRIVATE-TOKEN", g.token)
+			shaResp, err := g.client.Do(shaReq)
+			if err == nil {
+				defer shaResp.Body.Close()
+				var commits []struct {
+					ID string `json:"id"`
+				}
+				if json.NewDecoder(shaResp.Body).Decode(&commits) == nil && len(commits) > 0 {
+					sha = commits[0].ID
+				}
 			}
 		}
 	}

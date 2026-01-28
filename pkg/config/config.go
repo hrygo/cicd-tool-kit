@@ -45,6 +45,7 @@ type PlatformConfig struct {
 // GitHubConfig contains GitHub-specific settings
 type GitHubConfig struct {
 	Token            string `yaml:"token,omitempty"`           // GitHub token (usually from env)
+	TokenFromEnv     bool   `yaml:"-"`                         // Internal: whether token was loaded from env
 	PostComment      bool   `yaml:"post_comment"`
 	FailOnError      bool   `yaml:"fail_on_error"`
 	MaxCommentLength int    `yaml:"max_comment_length"`

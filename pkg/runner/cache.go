@@ -51,9 +51,6 @@ func (c *Cache) GetReview(prID int) (CachedReview, bool) {
 		return CachedReview{}, false
 	}
 
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	path := c.reviewPath(prID)
 
 	data, err := os.ReadFile(path)
@@ -66,12 +63,16 @@ func (c *Cache) GetReview(prID int) (CachedReview, bool) {
 		return CachedReview{}, false
 	}
 
-	// Check TTL
-	if time.Since(cached.CachedAt) > c.ttl {
-		if err := os.Remove(path); err != nil {
-			// Log but don't fail - cache cleanup is not critical
-			log.Printf("Warning: failed to delete expired cache file %s: %v", path, err)
-		}
+	// Check TTL - must hold lock for consistent ttl read
+	c.mu.RLock()
+	ttl := c.ttl
+	c.mu.RUnlock()
+
+	if time.Since(cached.CachedAt) > ttl {
+		// Remove expired file - use write lock for mutation
+		c.mu.Lock()
+		_ = os.Remove(path)
+		c.mu.Unlock()
 		return CachedReview{}, false
 	}
 

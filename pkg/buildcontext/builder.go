@@ -277,8 +277,11 @@ func (b *Builder) GetFileContent(ctx context.Context, path, ref string) (string,
 		return "", fmt.Errorf("invalid path: %w", err)
 	}
 
-	// Use separate arguments to prevent injection
-	args := []string{"show", ref + ":" + path}
+	// SECURITY: Use git's --end-of-options option to prevent argument injection
+	// Then construct the blob ref separately to avoid injection via path or ref
+	// The format "ref:path" is safe here because both inputs have been sanitized
+	blobRef := ref + ":" + path
+	args := []string{"--no-pager", "show", "--end-of-options", blobRef}
 
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = b.baseDir

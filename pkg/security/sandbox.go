@@ -169,8 +169,28 @@ func (s *Sandbox) Run(ctx context.Context, cmd *exec.Cmd) (*Result, error) {
 
 // Execute executes code within the sandbox.
 func (s *Sandbox) Execute(ctx context.Context, code string) (string, error) {
-	// For code execution, use a shell command
-	cmd := exec.Command("sh", "-c", code)
+	// SECURITY: Reject shell metacharacters to prevent command injection
+	// This function only supports simple command execution, not arbitrary shell code
+	dangerousChars := []string{"|", "&", ";", "$", "(", ")", "`", "\\", ">", "<", "\n", "\r", "\t"}
+	for _, ch := range dangerousChars {
+		if strings.Contains(code, ch) {
+			return "", fmt.Errorf("arbitrary shell execution is not allowed: code contains dangerous character '%s'", ch)
+		}
+	}
+
+	// Use direct command execution with separate args instead of shell -c
+	// Parse code into command and arguments
+	parts := strings.Fields(code)
+	if len(parts) == 0 {
+		return "", fmt.Errorf("empty command")
+	}
+
+	// Validate the tool is allowed before execution
+	if !s.ValidateTool(parts[0]) {
+		return "", fmt.Errorf("tool not allowed: %s", parts[0])
+	}
+
+	cmd := exec.Command(parts[0], parts[1:]...)
 	result, err := s.Run(ctx, cmd)
 	if err != nil {
 		return "", err

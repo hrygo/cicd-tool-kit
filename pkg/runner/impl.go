@@ -211,10 +211,15 @@ func (r *DefaultRunner) buildAnalysisContext(ctx context.Context, opts AnalyzeOp
 	if opts.Diff != "" {
 		sb.WriteString("\n## Diff\n\n")
 		sb.WriteString("```diff\n")
-		// Truncate large diffs
+		// Truncate large diffs safely using rune-aware slicing
+		// to avoid cutting multi-byte UTF-8 characters
 		diff := opts.Diff
 		if len(diff) > 10000 {
-			diff = diff[:10000] + "\n... (truncated)"
+			// Truncate at rune boundary to prevent corrupting multi-byte characters
+			runes := []rune(diff)
+			if len(runes) > 10000 {
+				diff = string(runes[:10000]) + "\n... (truncated)"
+			}
 		}
 		sb.WriteString(diff)
 		sb.WriteString("\n```\n")
@@ -518,7 +523,12 @@ func (r *DefaultRunner) getReviewSkills(requested []string) []string {
 	}
 
 	// Use skill loader to discover review skills
-	return r.skillLoader.GetSkillNamesForOperation("review")
+	skills := r.skillLoader.GetSkillNamesForOperation("review")
+	if skills == nil {
+		// Return empty slice to prevent nil pointer dereference
+		return []string{}
+	}
+	return skills
 }
 
 // getAnalysisSkills returns enabled analysis skills
@@ -528,7 +538,12 @@ func (r *DefaultRunner) getAnalysisSkills(requested []string) []string {
 	}
 
 	// Use skill loader to discover analysis skills
-	return r.skillLoader.GetSkillNamesForOperation("analyze")
+	skills := r.skillLoader.GetSkillNamesForOperation("analyze")
+	if skills == nil {
+		// Return empty slice to prevent nil pointer dereference
+		return []string{}
+	}
+	return skills
 }
 
 // detectLanguage detects the programming language from file path
@@ -573,7 +588,12 @@ func severityIcon(severity string) string {
 // RunParallel runs multiple skills in parallel
 // If any task fails, all other tasks are cancelled via context
 func (r *DefaultRunner) RunParallel(ctx context.Context, tasks []func(context.Context) error) error {
+	if len(tasks) == 0 {
+		return nil
+	}
+
 	var wg sync.WaitGroup
+	// Buffered channel prevents goroutine leak - buffer size equals number of tasks
 	errChan := make(chan error, len(tasks))
 	cancelCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -593,14 +613,16 @@ func (r *DefaultRunner) RunParallel(ctx context.Context, tasks []func(context.Co
 		}(task)
 	}
 
+	// Wait for all goroutines to complete before draining error channel
+	// This ensures no goroutine can send after we close the channel
 	wg.Wait()
+
+	// Close channel before draining - safe because all goroutines have finished
 	close(errChan)
 
 	// Return first error if any
 	for err := range errChan {
-		if err != nil {
-			return err
-		}
+		return err // Return first error, ignore rest
 	}
 
 	return nil

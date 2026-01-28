@@ -210,8 +210,11 @@ func LoadWithOverrides(path string) (*Config, error) {
 	if val := os.Getenv("CICD_CACHE_DIR"); val != "" {
 		cfg.Global.CacheDir = val
 	}
+	// Only apply GITHUB_TOKEN from environment if not already set
+	// Mark as environment-sourced for secure logging/redaction
 	if val := os.Getenv("GITHUB_TOKEN"); val != "" && cfg.Platform.GitHub.Token == "" {
 		cfg.Platform.GitHub.Token = val
+		cfg.Platform.GitHub.TokenFromEnv = true
 	}
 
 	return cfg, nil
