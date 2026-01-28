@@ -335,14 +335,14 @@ func (b *Builder) shouldExclude(path string) bool {
 		// because we only match against path components, not arbitrary substrings
 		pathParts := strings.Split(path, "/")
 		for _, part := range pathParts {
+			// Exact match or extension match
 			if part == pattern || part == pattern+".json" || part == pattern+".lock" {
 				return true
 			}
-			// Check if pattern is contained in the filename part only
-			// This is safer than full path substring matching
+			// Substring match for simple patterns without path separators
+			// NOTE: This allows patterns like "lock" to match "package-lock.json"
+			// Users should be aware that short patterns may have broad matches
 			if strings.Contains(part, pattern) && !strings.Contains(pattern, "/") && !strings.Contains(pattern, "\\") {
-				// Only allow substring match for simple patterns without path separators
-				// This maintains backward compatibility while preventing path traversal bypasses
 				return true
 			}
 		}

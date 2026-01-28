@@ -142,9 +142,6 @@ func DefaultResourceLimits() *ResourceLimits {
 
 // Run executes a command inside the sandbox.
 func (s *Sandbox) Run(ctx context.Context, cmd *exec.Cmd) (*Result, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	// Create context with timeout
 	if s.config.Timeout > 0 {
 		var cancel context.CancelFunc
@@ -152,7 +149,10 @@ func (s *Sandbox) Run(ctx context.Context, cmd *exec.Cmd) (*Result, error) {
 		defer cancel()
 	}
 
+	// Lock only during command preparation to allow concurrent command execution
+	s.mu.Lock()
 	cmd = s.prepareCommand(ctx, cmd)
+	s.mu.Unlock()
 
 	// Start the command
 	if err := cmd.Start(); err != nil {
@@ -179,7 +179,9 @@ func (s *Sandbox) Run(ctx context.Context, cmd *exec.Cmd) (*Result, error) {
 	}
 
 	// Clean up resources
+	s.mu.Lock()
 	s.cleanup()
+	s.mu.Unlock()
 
 	return result, nil
 }
