@@ -61,6 +61,9 @@ func WithSignal(parent context.Context, sigs ...os.Signal) (context.Context, con
 
 	// Start a goroutine to watch for signals
 	go func() {
+		defer signal.Stop(ch)
+		defer close(ch)
+
 		select {
 		case <-ch:
 			// Signal received - cancel the context
@@ -100,6 +103,9 @@ func WithSignalTimeout(parent context.Context, timeout time.Duration, sigs ...os
 
 	// Start a goroutine to watch for signals
 	go func() {
+		defer signal.Stop(ch)
+		defer close(ch)
+
 		select {
 		case <-ch:
 			// Signal received - cancel the context

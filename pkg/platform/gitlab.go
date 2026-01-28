@@ -87,12 +87,23 @@ func NewGitLabClient(token, repo string) *GitLabClient {
 		baseURL = "https://gitlab.com/api/v4"
 	}
 
+	// SECURITY: Validate baseURL to prevent SSRF attacks
+	if err := validateBaseURL(baseURL); err != nil {
+		// If validation fails, use the default URL
+		baseURL = "https://gitlab.com/api/v4"
+	}
+
 	return &GitLabClient{
 		token:   token,
 		baseURL: baseURL,
 		repo:    repo,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				MaxIdleConns:        100,
+				MaxIdleConnsPerHost: 10,
+				IdleConnTimeout:     90 * time.Second,
+			},
 		},
 	}
 }
@@ -144,6 +155,7 @@ func (g *GitLabClient) PostComment(ctx context.Context, opts CommentOptions) err
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
 		return fmt.Errorf("failed to post comment (status %d): %s", resp.StatusCode, string(respBody))
 	}
 
@@ -282,15 +294,13 @@ func (g *GitLabClient) GetPRInfo(ctx context.Context, mrID int) (*PRInfo, error)
 			shaReq.Header.Set("PRIVATE-TOKEN", g.token)
 			shaResp, err := g.client.Do(shaReq)
 			if err == nil {
-				func() {
-					defer shaResp.Body.Close()
-					var commits []struct {
-						ID string `json:"id"`
-					}
-					if json.NewDecoder(shaResp.Body).Decode(&commits) == nil && len(commits) > 0 {
-						sha = commits[0].ID
-					}
-				}()
+				var commits []struct {
+					ID string `json:"id"`
+				}
+				if json.NewDecoder(shaResp.Body).Decode(&commits) == nil && len(commits) > 0 {
+					sha = commits[0].ID
+				}
+				shaResp.Body.Close()
 			}
 		}
 	}

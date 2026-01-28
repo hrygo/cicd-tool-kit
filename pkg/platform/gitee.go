@@ -94,12 +94,23 @@ func NewGiteeClient(token, repo string) *GiteeClient {
 		baseURL = "https://gitee.com/api/v5"
 	}
 
+	// SECURITY: Validate baseURL to prevent SSRF attacks
+	if err := validateBaseURL(baseURL); err != nil {
+		// If validation fails, use the default URL
+		baseURL = "https://gitee.com/api/v5"
+	}
+
 	return &GiteeClient{
 		token:   token,
 		baseURL: baseURL,
 		repo:    repo,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				MaxIdleConns:        100,
+				MaxIdleConnsPerHost: 10,
+				IdleConnTimeout:     90 * time.Second,
+			},
 		},
 	}
 }

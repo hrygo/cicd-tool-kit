@@ -40,6 +40,10 @@ type WebhookServer struct {
 	mu       sync.RWMutex
 	// logger is an optional logging function
 	logger func(format string, args ...interface{})
+	// sem controls concurrent webhook handler executions
+	sem chan struct{}
+	// handlerTimeout is the maximum time allowed for handler execution
+	handlerTimeout time.Duration
 }
 
 // GiteeWebhookEvent represents a parsed Gitee webhook event
@@ -95,16 +99,22 @@ type WebhookConfig struct {
 	ReadTimeout time.Duration
 	// WriteTimeout is the maximum duration for writing the response
 	WriteTimeout time.Duration
+	// MaxConcurrentHandlers is the maximum number of concurrent webhook handlers
+	MaxConcurrentHandlers int
+	// HandlerTimeout is the maximum time allowed for handler execution
+	HandlerTimeout time.Duration
 }
 
 // DefaultWebhookConfig returns default webhook configuration
 func DefaultWebhookConfig() WebhookConfig {
 	return WebhookConfig{
-		Address:      ":8080",
-		Secret:       "",
-		Path:         "/webhook",
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Address:               ":8080",
+		Secret:                "",
+		Path:                  "/webhook",
+		ReadTimeout:           10 * time.Second,
+		WriteTimeout:          10 * time.Second,
+		MaxConcurrentHandlers: 10,
+		HandlerTimeout:        5 * time.Minute,
 	}
 }
 
@@ -113,11 +123,19 @@ func NewWebhookServer(config WebhookConfig) *WebhookServer {
 	if config.Path == "" {
 		config.Path = "/webhook"
 	}
+	if config.MaxConcurrentHandlers <= 0 {
+		config.MaxConcurrentHandlers = 10
+	}
+	if config.HandlerTimeout <= 0 {
+		config.HandlerTimeout = 5 * time.Minute
+	}
 
 	return &WebhookServer{
-		secret:   config.Secret,
-		handlers: make(map[GiteeEventType]GiteeEventHandler),
-		logger:   func(format string, args ...interface{}) {},
+		secret:         config.Secret,
+		handlers:       make(map[GiteeEventType]GiteeEventHandler),
+		logger:         func(format string, args ...interface{}) {},
+		sem:            make(chan struct{}, config.MaxConcurrentHandlers),
+		handlerTimeout: config.HandlerTimeout,
 	}
 }
 
@@ -258,8 +276,27 @@ func (s *WebhookServer) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	eventCopy := event
 	handlerCopy := handler
 	ctx := r.Context()
+
+	// Acquire semaphore slot to limit concurrent handlers
+	select {
+	case s.sem <- struct{}{}:
+		// Got slot, proceed
+	default:
+		// No slot available, drop event to prevent unbounded goroutine growth
+		s.logger("handler concurrency limit reached, dropping event %s", eventCopy.Type)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprintf(w, `{"status":"dropped","reason":"concurrency limit"}`)
+		return
+	}
+
 	go func() {
-		if err := handlerCopy(ctx, &eventCopy); err != nil {
+		defer func() { <-s.sem }() // Release semaphore slot
+
+		// Apply handler timeout
+		handlerCtx, cancel := context.WithTimeout(ctx, s.handlerTimeout)
+		defer cancel()
+
+		if err := handlerCopy(handlerCtx, &eventCopy); err != nil {
 			s.logger("handler error for event %s: %v", eventCopy.Type, err)
 		}
 	}()

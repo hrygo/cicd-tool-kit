@@ -156,6 +156,10 @@ func (s *Sandbox) Run(ctx context.Context, cmd *exec.Cmd) (*Result, error) {
 
 	// Start the command
 	if err := cmd.Start(); err != nil {
+		// Clean up on start failure
+		s.mu.Lock()
+		s.cleanup()
+		s.mu.Unlock()
 		return nil, fmt.Errorf("failed to start command: %w", err)
 	}
 

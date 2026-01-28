@@ -271,6 +271,14 @@ func Map[T, R any](ctx context.Context, items []T, fn func(T) (R, error), concur
 				return
 			}
 
+			// Check context again before writing results to prevent race
+			// when context was cancelled during fn execution
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			results[idx] = result
 		}(i, item)
 	}
