@@ -45,7 +45,8 @@ func NewMetricsCollector(config MetricConfig) *MetricsCollector {
 	if config.MaxSamples == 0 {
 		config.MaxSamples = 1000
 	}
-	if config.MaxHistogramSamples == 0 {
+	// Validate MaxHistogramSamples is positive
+	if config.MaxHistogramSamples <= 0 {
 		config.MaxHistogramSamples = 10000
 	}
 	if config.FlushInterval == 0 {

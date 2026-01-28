@@ -171,6 +171,10 @@ func validatePath(path string) error {
 	if strings.HasPrefix(path, "/") {
 		return fmt.Errorf("absolute paths not allowed: %s", path)
 	}
+	// SECURITY: Reject wildcard characters that could cause glob-based attacks
+	if strings.ContainsAny(path, "*?[") {
+		return fmt.Errorf("path contains wildcard characters: %s", path)
+	}
 	return nil
 }
 
