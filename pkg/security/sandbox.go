@@ -20,7 +20,7 @@ import (
 
 const (
 	// MaxNameLength is the maximum length for sandbox names
-	MaxNameLength = 5
+	MaxNameLength = 64
 
 	// MaxMemoryBytes is the default maximum memory in bytes
 	MaxMemoryBytes = 2 * 1024 * 1024 * 1024
@@ -123,7 +123,7 @@ func DefaultConfig() *Config {
 		WorkDir:        wd,
 		ReadOnlyPaths:  []string{wd},
 		AllowNetwork:   false,
-		Timeout:        MaxNameLength * time.Minute,
+		Timeout:        DefaultTimeout,
 		EnableSeccomp:  true,
 		EnableLandlock: false, // Requires Linux 5.13+
 	}

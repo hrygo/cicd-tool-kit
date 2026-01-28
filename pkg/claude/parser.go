@@ -269,24 +269,36 @@ func (p *parser) ExtractTokenUsage(output string) *TokenUsage {
 	// Claude may report this in stderr or special comments
 	lines := strings.Split(output, "\n")
 
-	usageRe := regexp.MustCompile(`(?i)(tokens?|cost):\s*(\d+)`)
+	// Match patterns like "Tokens: 1234" or "Input tokens: 1000, Output tokens: 234"
+	inputRe := regexp.MustCompile(`(?i)input.*tokens?:\s*(\d+)`)
+	outputRe := regexp.MustCompile(`(?i)output.*tokens?:\s*(\d+)`)
+	totalRe := regexp.MustCompile(`(?i)(total.*tokens?|tokens?):\s*(\d+)`)
 	costRe := regexp.MustCompile(`(?i)cost:\s*\$?([\d.]+)`)
 
 	usage := &TokenUsage{}
 
 	for _, line := range lines {
-	 if matches := usageRe.FindStringSubmatch(line); matches != nil {
-	 // This is a simplified extraction
-	 // Real implementation would parse actual Claude output format
-	 }
+		if matches := inputRe.FindStringSubmatch(line); len(matches) >= 2 {
+			fmt.Sscanf(matches[1], "%d", &usage.InputTokens)
+		}
+		if matches := outputRe.FindStringSubmatch(line); len(matches) >= 2 {
+			fmt.Sscanf(matches[1], "%d", &usage.OutputTokens)
+		}
+		if matches := totalRe.FindStringSubmatch(line); len(matches) >= 2 {
+			fmt.Sscanf(matches[1], "%d", &usage.TotalTokens)
+		}
+		if matches := costRe.FindStringSubmatch(line); len(matches) >= 2 {
+			fmt.Sscanf(matches[1], "%f", &usage.CostUSD)
+		}
+	}
 
-	 if matches := costRe.FindStringSubmatch(line); matches != nil && len(matches) >= 2 {
-	 fmt.Sscanf(matches[1], "%f", &usage.CostUSD)
-	 }
+	// If TotalTokens not set but input/output are, calculate it
+	if usage.TotalTokens == 0 && (usage.InputTokens > 0 || usage.OutputTokens > 0) {
+		usage.TotalTokens = usage.InputTokens + usage.OutputTokens
 	}
 
 	if usage.TotalTokens == 0 && usage.CostUSD == 0 {
-	 return nil
+		return nil
 	}
 
 	return usage

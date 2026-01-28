@@ -17,6 +17,9 @@ import (
 // validGitRefPattern matches safe git refs (branch names, tags, commits)
 var validGitRefPattern = regexp.MustCompile(`^[a-zA-Z0-9/_\-\.]+$`)
 
+// dangerousShellChars contains characters that must be rejected to prevent shell injection
+var dangerousShellChars = []string{"|", "&", ";", "$", "(", ")", "`", "{", "}", ">", "<", "\n", "\t"}
+
 // sanitizeGitRef validates that a git ref is safe to use in commands
 func sanitizeGitRef(ref string) error {
 	if ref == "" {
@@ -27,8 +30,7 @@ func sanitizeGitRef(ref string) error {
 		return fmt.Errorf("invalid git ref: contains path traversal sequence")
 	}
 	// Check for shell metacharacters
-	dangerousChars := []string{"|", "&", ";", "$", "(", ")", "`", "{", "}", ">", "<", "\n", "\t"}
-	for _, ch := range dangerousChars {
+	for _, ch := range dangerousShellChars {
 		if strings.Contains(ref, ch) {
 			return fmt.Errorf("invalid git ref: contains dangerous character '%s'", ch)
 		}
@@ -54,8 +56,7 @@ func sanitizePath(path string) error {
 		return fmt.Errorf("invalid path: absolute paths not allowed")
 	}
 	// Check for shell metacharacters
-	dangerousChars := []string{"|", "&", ";", "$", "(", ")", "`", "{", "}", ">", "<", "\n", "\t"}
-	for _, ch := range dangerousChars {
+	for _, ch := range dangerousShellChars {
 		if strings.Contains(path, ch) {
 			return fmt.Errorf("invalid path: contains dangerous character '%s'", ch)
 		}
@@ -290,8 +291,7 @@ func (b *Builder) GetFileContent(ctx context.Context, path, ref string) (string,
 		return "", fmt.Errorf("invalid blob ref: contains path traversal")
 	}
 	// Check for shell metacharacters in the combined ref
-	dangerousChars := []string{"|", "&", ";", "$", "(", ")", "`", "{", "}", ">", "<", "\n", "\t"}
-	for _, ch := range dangerousChars {
+	for _, ch := range dangerousShellChars {
 		if strings.Contains(blobRef, ch) {
 			return "", fmt.Errorf("invalid blob ref: contains dangerous character '%s'", ch)
 		}
