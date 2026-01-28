@@ -164,8 +164,9 @@ func (m *MetricsCollector) Histogram(name string, value float64, labels map[stri
 	if val, ok := m.metrics[key]; ok {
 		// Type assertion with comma-ok for safety
 		if existingSamples, ok := val.([]float64); ok {
-			// Make a copy to avoid aliasing the slice in m.metrics
-			samples = append(samples[:0:0], existingSamples...)
+			// Make a proper copy using make() + copy() to avoid aliasing
+			samples = make([]float64, len(existingSamples))
+			copy(samples, existingSamples)
 		}
 		// If type assertion fails, samples remains nil and we start fresh
 	}

@@ -168,8 +168,7 @@ func (c *GitHubClient) GetDiff(ctx context.Context, prID int) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("failed to get diff: %s", string(body))
+		return "", fmt.Errorf("failed to get diff: HTTP %d", resp.StatusCode)
 	}
 
 	diff, err := io.ReadAll(resp.Body)

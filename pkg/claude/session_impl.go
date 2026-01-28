@@ -101,7 +101,7 @@ func (s *processSession) ExecuteWithStreams(ctx context.Context, opts ExecuteOpt
 	// Create command
 	s.cmd = exec.CommandContext(ctx, "claude", args...)
 
-	// Setup pipes
+	// Setup pipes with cleanup on failure
 	cmdStdin, err := s.cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("failed to create stdin pipe: %w", err)
@@ -115,6 +115,8 @@ func (s *processSession) ExecuteWithStreams(ctx context.Context, opts ExecuteOpt
 
 	cmdStdout, err := s.cmd.StdoutPipe()
 	if err != nil {
+		// Clean up stdin pipe before returning
+		cmdStdin.Close()
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 	defer func() {
@@ -127,6 +129,10 @@ func (s *processSession) ExecuteWithStreams(ctx context.Context, opts ExecuteOpt
 
 	cmdStderr, err := s.cmd.StderrPipe()
 	if err != nil {
+		// Clean up previously created pipes before returning
+		cmdStdin.Close()
+		io.Copy(io.Discard, cmdStdout)
+		cmdStdout.Close()
 		return fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
 	defer func() {

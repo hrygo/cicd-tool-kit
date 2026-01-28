@@ -247,24 +247,19 @@ func (s *Sandbox) Execute(ctx context.Context, code string) (string, error) {
 
 // ValidateTool checks if a tool is allowed.
 func (s *Sandbox) ValidateTool(tool string) bool {
-	// List of allowed tools
+	// SECURITY: Only safe command-line tools allowed.
+	// Arbitrary code execution tools (python, node, npm) are explicitly blocked.
 	allowedTools := map[string]bool{
-		"git":      true,
-		"grep":     true,
-		"sed":      true,
-		"awk":      true,
-		"cat":      true,
-		"head":     true,
-		"tail":     true,
-		"wc":       true,
-		"ls":       true,
-		"find":     true,
-		"jq":       true,
-		"go":       true,
-		"python":   true,
-		"python3":  true,
-		"node":     true,
-		"npm":      true,
+		"git":  true,
+		"grep": true,
+		"sed":  true,
+		"awk":  true,
+		"cat":  true,
+		"head": true,
+		"tail": true,
+		"wc":   true,
+		"ls":   true,
+		"jq":   true,
 	}
 
 	// Check exact match first

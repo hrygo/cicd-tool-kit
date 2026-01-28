@@ -65,6 +65,12 @@ func (c *Cache) GetReview(prID int) (CachedReview, bool) {
 
 	path := c.reviewPath(prID)
 
+	// Stat first to avoid reading deleted files
+	// This check is kept under lock to prevent race with cache invalidation
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return CachedReview{}, false
+	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return CachedReview{}, false
@@ -79,11 +85,6 @@ func (c *Cache) GetReview(prID int) (CachedReview, bool) {
 	if time.Since(cached.CachedAt) > c.ttl {
 		// Expired - remove atomically
 		_ = os.Remove(path)
-		return CachedReview{}, false
-	}
-
-	// Cache is valid - verify it still exists (wasn't deleted by another goroutine)
-	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
 		return CachedReview{}, false
 	}
 

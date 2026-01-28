@@ -81,14 +81,21 @@ func (p *WorkerPool) Submit(task func()) bool {
 	if task == nil {
 		return false
 	}
-	// Check stopped flag first to avoid submitting to closed channel
+	// Check stopped flag first
 	if p.stopped.Load() {
 		return false
 	}
+	// Use select with context check to handle race condition
+	// If Stop() is called, ctx.Done() will be selected before channel send
 	select {
 	case <-p.ctx.Done():
 		return false
 	case p.taskQueue <- task:
+		// Double-check stopped after successful send
+		// Task might have been submitted just as Stop() was called
+		if p.stopped.Load() {
+			return false
+		}
 		return true
 	default:
 		return false // Queue is full
@@ -455,6 +462,7 @@ type RateLimiter struct {
 	sem   chan struct{}
 	close chan struct{}
 	once  sync.Once
+	wg    sync.WaitGroup // Tracks active operations
 }
 
 // NewRateLimiter creates a new rate limiter
@@ -470,7 +478,11 @@ func NewRateLimiter(maxConcurrent int) *RateLimiter {
 func (r *RateLimiter) Do(ctx context.Context, fn func() error) error {
 	select {
 	case r.sem <- struct{}{}:
-		defer func() { <-r.sem }()
+		r.wg.Add(1)
+		defer func() {
+			<-r.sem
+			r.wg.Done()
+		}()
 		return fn()
 	case <-r.close:
 		return fmt.Errorf("rate limiter is closed")
@@ -479,10 +491,12 @@ func (r *RateLimiter) Do(ctx context.Context, fn func() error) error {
 	}
 }
 
-// Close closes the rate limiter
+// Close closes the rate limiter and waits for all active operations to complete
 func (r *RateLimiter) Close() error {
 	r.once.Do(func() {
 		close(r.close)
 	})
+	// Wait for all active operations to complete
+	r.wg.Wait()
 	return nil
 }

@@ -4,6 +4,7 @@ package runner
 import (
 	"context"
 	"fmt"
+	"log"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -562,6 +563,12 @@ func (r *DefaultRunner) getReviewSkills(requested []string) []string {
 		return requested
 	}
 
+	// Check if skillLoader is initialized
+	if r.skillLoader == nil {
+		log.Printf("[WARNING] skillLoader is not initialized, no skills will be loaded")
+		return []string{}
+	}
+
 	// Use skill loader to discover review skills
 	skills := r.skillLoader.GetSkillNamesForOperation("review")
 	if skills == nil {
@@ -575,6 +582,12 @@ func (r *DefaultRunner) getReviewSkills(requested []string) []string {
 func (r *DefaultRunner) getAnalysisSkills(requested []string) []string {
 	if len(requested) > 0 {
 		return requested
+	}
+
+	// Check if skillLoader is initialized
+	if r.skillLoader == nil {
+		log.Printf("[WARNING] skillLoader is not initialized, no skills will be loaded")
+		return []string{}
 	}
 
 	// Use skill loader to discover analysis skills

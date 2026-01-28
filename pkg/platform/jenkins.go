@@ -28,14 +28,14 @@ var validURLPattern = regexp.MustCompile(`^https?://`)
 // Focused on blocking cloud metadata endpoints and internal network ranges
 // Note: localhost is explicitly allowed for local development/testing
 var privateIPPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(^|\.)10\.`),                        // 10.0.0.0/8 (private network)
+	regexp.MustCompile(`(^|\.)10\.`),                          // 10.0.0.0/8 (private network)
 	regexp.MustCompile(`(^|\.)172\.(1[6-9]|2[0-9]|3[0-1])\.`), // 172.16.0.0/12 (private network)
-	regexp.MustCompile(`(^|\.)192\.168\.`),                  // 192.168.0.0/16 (private network)
+	regexp.MustCompile(`(^|\.)192\.168\.`),                    // 192.168.0.0/16 (private network)
 	// Block cloud metadata endpoints specifically
-	regexp.MustCompile(`(^|\.)169\.254\.169\.254$`),         // AWS/GCP/Azure metadata endpoint
-	regexp.MustCompile(`(^|\.)fc00:`),                       // fc00::/7 (IPv6 private)
-	regexp.MustCompile(`(^|\.)fe80:`),                       // fe80::/10 (IPv6 link-local)
-	regexp.MustCompile(`^::1$`),                             // IPv6 loopback (but not localhost hostname)
+	regexp.MustCompile(`(^|\.)169\.254\.169\.254$`),           // AWS/GCP/Azure metadata endpoint
+	regexp.MustCompile(`(^|\.)fc00:`),                         // fc00::/7 (IPv6 private)
+	regexp.MustCompile(`^fe80:`),                              // fe80::/10 (IPv6 link-local) - prefix match to prevent bypass
+	regexp.MustCompile(`^::1`),                                // IPv6 loopback - prefix match to catch ::1, ::1%1, etc.
 }
 
 // sanitizeJobPath validates and sanitizes a job path to prevent directory traversal attacks.
@@ -84,14 +84,20 @@ func sanitizeFilePath(input string) (string, error) {
 		return "", fmt.Errorf("file path cannot be empty")
 	}
 
+	// Check for null byte
+	if strings.Contains(input, "\x00") {
+		return "", fmt.Errorf("file path cannot contain null byte")
+	}
+
 	// Reject path traversal attempts explicitly
 	if strings.Contains(input, "..") {
 		return "", fmt.Errorf("file path cannot contain '..'")
 	}
 
-	// Reject URL-encoded traversal attempts
-	if strings.Contains(input, "%2e") || strings.Contains(input, "%2E") {
-		return "", fmt.Errorf("file path cannot contain URL-encoded dots")
+	// Reject URL-encoded traversal attempts (case-insensitive for %2e, %2E, %5c, %5C)
+	lowerInput := strings.ToLower(input)
+	if strings.Contains(lowerInput, "%2e") || strings.Contains(lowerInput, "%5c") {
+		return "", fmt.Errorf("file path cannot contain URL-encoded dots or backslashes")
 	}
 
 	// Reject absolute paths
@@ -561,8 +567,28 @@ func (j *JenkinsClient) GetJob(ctx context.Context) (*JenkinsJob, error) {
 func (j *JenkinsClient) TriggerBuild(ctx context.Context, parameters map[string]string) (int, error) {
 	endpoint := fmt.Sprintf("%s/job/%s/buildWithParameters", j.baseURL, j.jobName)
 
+	// Block CI system reserved prefixes to prevent environment variable injection
+	blockedPrefixes := []string{
+		"GITHUB_", "GITLAB_", "BITBUCKET_", "JENKINS_",
+		"CI_", "BUILD_", "JOB_", "EXECUTOR_", "NODE_",
+		"WORKSPACE_", "SVN_", "CVS_",
+	}
+
+	// Limit maximum number of parameters to prevent DoS
+	const maxParams = 50
+	if len(parameters) > maxParams {
+		return 0, fmt.Errorf("too many parameters: maximum %d allowed", maxParams)
+	}
+
 	// Validate parameters to prevent injection
 	for key, value := range parameters {
+		// Check for blocked prefixes
+		for _, prefix := range blockedPrefixes {
+			if strings.HasPrefix(key, prefix) {
+				return 0, fmt.Errorf("parameter key '%s' has blocked prefix '%s'", key, prefix)
+			}
+		}
+
 		// Check for dangerous characters in parameter keys and values
 		dangerousChars := []string{"\n", "\r", "\t", "\x00"}
 		for _, ch := range dangerousChars {
@@ -620,9 +646,10 @@ func (j *JenkinsClient) TriggerBuild(ctx context.Context, parameters map[string]
 
 	// Extract build number from location URL
 	// Location is typically: /job/{jobName}/{buildNumber}/
+	// Search from the end to handle cases where jobName appears multiple times
 	parts := strings.Split(location, "/")
-	for i, part := range parts {
-		if part == j.jobName && i+1 < len(parts) {
+	for i := len(parts) - 1; i >= 0; i-- {
+		if parts[i] == j.jobName && i+1 < len(parts) {
 			var buildNum int
 			n, err := fmt.Sscanf(parts[i+1], "%d", &buildNum)
 			if n != 1 || err != nil || buildNum <= 0 {
