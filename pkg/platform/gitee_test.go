@@ -119,3 +119,145 @@ func TestGiteeHealthCheck(t *testing.T) {
 		t.Log("Health check passed (unexpected in test environment)")
 	}
 }
+
+// TestGiteeClientName tests the Name() method
+func TestGiteeClientName(t *testing.T) {
+	client := NewGiteeClient("test-token", "owner/repo")
+
+	name := client.Name()
+	if name != "gitee" {
+		t.Errorf("Expected Name() to return 'gitee', got '%s'", name)
+	}
+}
+
+// TestValidatePath tests path validation
+func TestValidatePath(t *testing.T) {
+	tests := []struct {
+		name      string
+		path      string
+		wantErr   bool
+		errContains string
+	}{
+		{
+			name:      "valid relative path",
+			path:      "pkg/main.go",
+			wantErr:   false,
+		},
+		{
+			name:      "valid nested path",
+			path:      "pkg/platform/client.go",
+			wantErr:   false,
+		},
+		{
+			name:        "path traversal with ..",
+			path:        "../etc/passwd",
+			wantErr:     true,
+			errContains: "traversal sequence",
+		},
+		{
+			name:        "path traversal with encoded",
+			path:        "%2e%2e%2fpasswd",
+			wantErr:     true,
+			errContains: "traversal sequence",
+		},
+		{
+			name:        "backslash in path",
+			path:        "pkg\\main.go",
+			wantErr:     true,
+			errContains: "backslash",
+		},
+		{
+			name:        "absolute path",
+			path:        "/etc/passwd",
+			wantErr:     true,
+			errContains: "absolute paths not allowed",
+		},
+		{
+			name:      "empty path",
+			path:      "",
+			wantErr:   true,
+			errContains: "cannot be empty",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePath(tt.path)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validatePath() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.errContains != "" {
+				if !contains(err.Error(), tt.errContains) {
+					t.Errorf("Expected error to contain '%s', got '%s'", tt.errContains, err.Error())
+				}
+			}
+		})
+	}
+}
+
+// TestGetFileValidation tests GetFile with path validation
+func TestGetFileValidation(t *testing.T) {
+	client := NewGiteeClient("test-token", "owner/repo")
+
+	tests := []struct {
+		name        string
+		path        string
+		ref         string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:        "path with ..",
+			path:        "../../../etc/passwd",
+			ref:         "main",
+			wantErr:     true,
+			errContains: "traversal sequence",
+		},
+		{
+			name:        "absolute path",
+			path:        "/etc/passwd",
+			ref:         "main",
+			wantErr:     true,
+			errContains: "absolute paths not allowed",
+		},
+		{
+			name:    "valid path (will fail on network)",
+			path:    "README.md",
+			ref:     "main",
+			wantErr: true, // Network error in test
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := client.GetFile(context.Background(), tt.path, tt.ref)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetFile() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.errContains != "" {
+				if !contains(err.Error(), tt.errContains) {
+					t.Errorf("Expected error to contain '%s', got '%s'", tt.errContains, err.Error())
+				}
+			}
+		})
+	}
+}
+
+// TestPostCommentMissingPRID tests PostComment validation
+func TestPostCommentMissingPRID(t *testing.T) {
+	client := NewGiteeClient("test-token", "owner/repo")
+
+	err := client.PostComment(context.Background(), CommentOptions{
+		Body: "Test comment",
+	})
+
+	if err == nil {
+		t.Error("Expected error when PR ID is missing")
+	}
+
+	if !contains(err.Error(), "PR ID is required") {
+		t.Errorf("Expected error message to contain 'PR ID is required', got '%s'", err.Error())
+	}
+}

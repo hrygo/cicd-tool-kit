@@ -11,7 +11,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
+)
+
+const (
+	// userAgent is the default User-Agent header for Gitee API requests
+	userAgent = "cicd-ai-toolkit/1.0"
 )
 
 // GiteeClient implements Platform for Gitee Enterprise
@@ -76,6 +82,11 @@ type GiteeDiffResponse struct {
 	} `json:"files"`
 }
 
+// Name returns the platform name
+func (g *GiteeClient) Name() string {
+	return "gitee"
+}
+
 // NewGiteeClient creates a new Gitee platform client
 func NewGiteeClient(token, repo string) *GiteeClient {
 	baseURL := os.Getenv("GITEE_API_URL")
@@ -98,6 +109,50 @@ func (g *GiteeClient) SetBaseURL(url string) {
 	g.baseURL = url
 }
 
+// doRequest performs an HTTP request with common headers and error handling
+func (g *GiteeClient) doRequest(ctx context.Context, method, url string, body []byte) (*http.Response, error) {
+	var req *http.Request
+	var err error
+
+	if body != nil {
+		req, err = http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
+	} else {
+		req, err = http.NewRequestWithContext(ctx, method, url, nil)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("token %s", g.token))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", userAgent)
+
+	return g.client.Do(req)
+}
+
+// validatePath validates a file path to prevent path traversal attacks
+func validatePath(path string) error {
+	if path == "" {
+		return fmt.Errorf("path cannot be empty")
+	}
+	// Check for path traversal attempts
+	if strings.Contains(path, "..") {
+		return fmt.Errorf("path contains traversal sequence: %s", path)
+	}
+	// Check for URL-encoded path traversal
+	if strings.Contains(strings.ToLower(path), "%2e%2e") {
+		return fmt.Errorf("path contains encoded traversal sequence: %s", path)
+	}
+	if strings.Contains(path, "\\") {
+		return fmt.Errorf("path contains backslash: %s", path)
+	}
+	// Check for absolute paths (only relative paths allowed for API calls)
+	if strings.HasPrefix(path, "/") {
+		return fmt.Errorf("absolute paths not allowed: %s", path)
+	}
+	return nil
+}
+
 // PostComment posts a comment to a Gitee pull request
 func (g *GiteeClient) PostComment(ctx context.Context, opts CommentOptions) error {
 	if opts.PRID == 0 {
@@ -114,16 +169,8 @@ func (g *GiteeClient) PostComment(ctx context.Context, opts CommentOptions) erro
 	}
 
 	url := fmt.Sprintf("%s/repos/%s/pulls/%d/comments", g.baseURL, url.QueryEscape(g.repo), opts.PRID)
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", g.token))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "cicd-ai-toolkit/1.0")
-
-	resp, err := g.client.Do(req)
+	resp, err := g.doRequest(ctx, "POST", url, body)
 	if err != nil {
 		return fmt.Errorf("failed to post comment: %w", err)
 	}
@@ -141,15 +188,7 @@ func (g *GiteeClient) PostComment(ctx context.Context, opts CommentOptions) erro
 func (g *GiteeClient) GetDiff(ctx context.Context, prID int) (string, error) {
 	url := fmt.Sprintf("%s/repos/%s/pulls/%d/files", g.baseURL, url.QueryEscape(g.repo), prID)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", g.token))
-	req.Header.Set("User-Agent", "cicd-ai-toolkit/1.0")
-
-	resp, err := g.client.Do(req)
+	resp, err := g.doRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to get diff: %w", err)
 	}
@@ -167,9 +206,7 @@ func (g *GiteeClient) GetDiff(ctx context.Context, prID int) (string, error) {
 	var diffBuilder bytes.Buffer
 	for _, file := range result.Files {
 		if file.Patch != "" {
-			diffBuilder.WriteString(fmt.Sprintf("diff --git a/%s b/%s\n", file.Filename, file.Filename))
-			diffBuilder.WriteString(file.Patch)
-			diffBuilder.WriteString("\n")
+			fmt.Fprintf(&diffBuilder, "diff --git a/%s b/%s\n%s\n\n", file.Filename, file.Filename, file.Patch)
 		}
 	}
 
@@ -178,17 +215,13 @@ func (g *GiteeClient) GetDiff(ctx context.Context, prID int) (string, error) {
 
 // GetFile retrieves a file from the Gitee repository
 func (g *GiteeClient) GetFile(ctx context.Context, path, ref string) (string, error) {
-	url := fmt.Sprintf("%s/repos/%s/contents/%s?ref=%s", g.baseURL, url.QueryEscape(g.repo), url.QueryEscape(path), ref)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
+	if err := validatePath(path); err != nil {
+		return "", fmt.Errorf("invalid path: %w", err)
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", g.token))
-	req.Header.Set("User-Agent", "cicd-ai-toolkit/1.0")
+	url := fmt.Sprintf("%s/repos/%s/contents/%s?ref=%s", g.baseURL, url.QueryEscape(g.repo), url.QueryEscape(path), ref)
 
-	resp, err := g.client.Do(req)
+	resp, err := g.doRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to get file: %w", err)
 	}
@@ -223,15 +256,7 @@ func (g *GiteeClient) GetFile(ctx context.Context, path, ref string) (string, er
 func (g *GiteeClient) GetPRInfo(ctx context.Context, prID int) (*PRInfo, error) {
 	url := fmt.Sprintf("%s/repos/%s/pulls/%d", g.baseURL, url.QueryEscape(g.repo), prID)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", g.token))
-	req.Header.Set("User-Agent", "cicd-ai-toolkit/1.0")
-
-	resp, err := g.client.Do(req)
+	resp, err := g.doRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PR info: %w", err)
 	}
@@ -262,22 +287,14 @@ func (g *GiteeClient) GetPRInfo(ctx context.Context, prID int) (*PRInfo, error) 
 func (g *GiteeClient) Health(ctx context.Context) error {
 	url := fmt.Sprintf("%s/repos/%s", g.baseURL, url.QueryEscape(g.repo))
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", g.token))
-	req.Header.Set("User-Agent", "cicd-ai-toolkit/1.0")
-
-	resp, err := g.client.Do(req)
+	resp, err := g.doRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Gitee API returned status %d", resp.StatusCode)
+		return fmt.Errorf("gitee: health check failed (status %d)", resp.StatusCode)
 	}
 
 	return nil
