@@ -288,8 +288,35 @@ func (b *Builder) GetFileContent(ctx context.Context, path, ref string) (string,
 // shouldExclude checks if a path should be excluded
 func (b *Builder) shouldExclude(path string) bool {
 	for _, pattern := range b.exclude {
-		if strings.Contains(path, pattern) {
+		// First, check for safe exact path or prefix matches
+		// Use filepath.Match for proper glob pattern matching
+		matched, err := filepath.Match(pattern, path)
+		if err == nil && matched {
 			return true
+		}
+		// Also check if path starts with pattern (for directory prefixes)
+		if strings.HasPrefix(path, pattern+"/") {
+			return true
+		}
+		// Check exact match
+		if path == pattern {
+			return true
+		}
+		// For backward compatibility, also check if any path component matches
+		// This allows "lock" to match "package-lock.json" but is still safe
+		// because we only match against path components, not arbitrary substrings
+		pathParts := strings.Split(path, "/")
+		for _, part := range pathParts {
+			if part == pattern || part == pattern+".json" || part == pattern+".lock" {
+				return true
+			}
+			// Check if pattern is contained in the filename part only
+			// This is safer than full path substring matching
+			if strings.Contains(part, pattern) && !strings.Contains(pattern, "/") && !strings.Contains(pattern, "\\") {
+				// Only allow substring match for simple patterns without path separators
+				// This maintains backward compatibility while preventing path traversal bypasses
+				return true
+			}
 		}
 	}
 	return false

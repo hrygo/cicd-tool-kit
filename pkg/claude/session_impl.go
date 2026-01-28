@@ -199,7 +199,8 @@ func (s *processSession) Close() error {
 
 	s.closed = true
 
-	if s.cmd != nil && s.cmd.Process != nil {
+	if s.cmd != nil && s.cmd.Process != nil && s.cmd.ProcessState == nil {
+		// Process exists and is still running (not yet waited on)
 		if err := s.cmd.Process.Kill(); err != nil {
 			return fmt.Errorf("failed to kill claude process: %w", err)
 		}

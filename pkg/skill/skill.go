@@ -5,8 +5,25 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+// validSkillNamePattern matches safe skill names (alphanumeric, hyphens, underscores)
+var validSkillNamePattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
+// isValidSkillName validates that a skill name is safe to use in file paths
+func isValidSkillName(name string) bool {
+	if name == "" {
+		return false
+	}
+	// Check for path traversal attempts
+	if strings.Contains(name, "..") || strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return false
+	}
+	// Check against safe pattern
+	return validSkillNamePattern.MatchString(name)
+}
 
 // Skill represents a loaded skill definition
 type Skill struct {
@@ -87,6 +104,11 @@ func (l *Loader) Load(name string) (*Skill, error) {
 	// Check cache first
 	if skill, ok := l.skills[name]; ok {
 		return skill, nil
+	}
+
+	// Validate skill name to prevent path traversal
+	if !isValidSkillName(name) {
+		return nil, fmt.Errorf("invalid skill name: %s", name)
 	}
 
 	skillPath := filepath.Join(l.skillsDir, name, "SKILL.md")
