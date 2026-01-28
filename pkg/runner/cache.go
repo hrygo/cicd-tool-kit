@@ -88,11 +88,14 @@ func (c *Cache) SetReview(prID int, review CachedReview) {
 
 	data, err := json.Marshal(review)
 	if err != nil {
+		log.Printf("Warning: failed to marshal review data for PR %d: %v", prID, err)
 		return
 	}
 
 	path := c.reviewPath(prID)
-	_ = os.WriteFile(path, data, 0644)
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		log.Printf("Warning: failed to write cache file %s: %v", path, err)
+	}
 }
 
 // Invalidate removes a cached review

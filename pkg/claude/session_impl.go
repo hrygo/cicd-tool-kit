@@ -87,14 +87,36 @@ func (s *processSession) ExecuteWithStreams(ctx context.Context, opts ExecuteOpt
 	if err != nil {
 		return fmt.Errorf("failed to create stdin pipe: %w", err)
 	}
+	defer func() {
+		// Close stdin if Start fails (will be no-op if successfully started and copied)
+		if cmdStdin != nil {
+			cmdStdin.Close()
+		}
+	}()
+
 	cmdStdout, err := s.cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
+	defer func() {
+		// Close stdout if Start fails
+		if cmdStdout != nil {
+			io.Copy(io.Discard, cmdStdout) // Drain any pending data
+			cmdStdout.Close()
+		}
+	}()
+
 	cmdStderr, err := s.cmd.StderrPipe()
 	if err != nil {
 		return fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
+	defer func() {
+		// Close stderr if Start fails
+		if cmdStderr != nil {
+			io.Copy(io.Discard, cmdStderr) // Drain any pending data
+			cmdStderr.Close()
+		}
+	}()
 
 	s.stdin = cmdStdin
 	s.stdout = cmdStdout
@@ -109,6 +131,12 @@ func (s *processSession) ExecuteWithStreams(ctx context.Context, opts ExecuteOpt
 	if err := s.cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start claude: %w", err)
 	}
+
+	// Command started successfully - cancel defer cleanup of pipes
+	// They will be handled by the normal flow below
+	cmdStdin = nil
+	cmdStdout = nil
+	cmdStderr = nil
 
 	// Use a WaitGroup for streaming
 	var wg sync.WaitGroup

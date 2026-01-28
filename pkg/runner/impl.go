@@ -336,7 +336,13 @@ func (r *DefaultRunner) executeTestGen(ctx context.Context, testGenContext strin
 
 	prompt := r.buildTestGenPrompt(testGenContext, opts)
 
-	timeout, _ := r.cfg.Claude.GetTimeout()
+	timeout, err := r.cfg.Claude.GetTimeout()
+	if err != nil {
+		return nil, fmt.Errorf("invalid timeout configuration: %w", err)
+	}
+	if timeout == 0 {
+		timeout = 10 * time.Minute // Default timeout
+	}
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
