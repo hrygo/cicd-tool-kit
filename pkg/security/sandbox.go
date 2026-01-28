@@ -188,17 +188,21 @@ func (s *Sandbox) Run(ctx context.Context, cmd *exec.Cmd) (*Result, error) {
 
 // Execute executes code within the sandbox.
 func (s *Sandbox) Execute(ctx context.Context, code string) (string, error) {
-	// SECURITY: Reject shell metacharacters to prevent command injection
+	// SECURITY: Validate input first before any processing
 	// This function only supports simple command execution, not arbitrary shell code
-	// Include all control characters and shell metacharacters that could enable injection
-	// IMPORTANT: strings.Fields does not handle quoted arguments, so quotes are explicitly rejected
+
+	// Use direct command execution with separate args instead of shell -c
+	// Parse code into command and arguments
+	parts := strings.Fields(code)
+	if len(parts) == 0 {
+		return "", fmt.Errorf("empty command")
+	}
+
+	// SECURITY: Validate EACH field individually to prevent command injection bypass
+	// We validate after splitting because strings.Fields uses unicode.IsSpace
+	// which includes more whitespace characters than our explicit check
 	dangerousChars := []string{
 		"|", "&", ";", "$", "(", ")", "`", "\\", ">", "<",
-		"\n", "\r", "\t", "\f", "\v", // whitespace and form feed, vertical tab
-		"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07",
-		"\x08", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14",
-		"\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x1b", "\x1c",
-		"\x1d", "\x1e", "\x1f", // additional control characters
 		"!", // history expansion in bash
 		"*", "?", "[", "]", // glob characters that could expand unexpectedly
 		"{", "}", // brace expansion
@@ -206,18 +210,26 @@ func (s *Sandbox) Execute(ctx context.Context, code string) (string, error) {
 		"#", // comment character
 		"%", // job control
 		"'", "\"", // quotes - strings.Fields cannot parse quoted arguments correctly
-	}
-	for _, ch := range dangerousChars {
-		if strings.Contains(code, ch) {
-			return "", fmt.Errorf("arbitrary shell execution is not allowed: code contains dangerous character '%s'", ch)
-		}
+		"\n", "\r", "\t", "\f", "\v", // explicit whitespace checks
+		"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07",
+		"\x08", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14",
+		"\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x1b", "\x1c",
+		"\x1d", "\x1e", "\x1f", // additional control characters
 	}
 
-	// Use direct command execution with separate args instead of shell -c
-	// Parse code into command and arguments
-	parts := strings.Fields(code)
-	if len(parts) == 0 {
-		return "", fmt.Errorf("empty command")
+	// Check each part for dangerous characters
+	for i, part := range parts {
+		for _, ch := range dangerousChars {
+			if strings.Contains(part, ch) {
+				return "", fmt.Errorf("arbitrary shell execution is not allowed: argument %d contains dangerous character '%s'", i, ch)
+			}
+		}
+		// Also check for non-printable characters in each part
+		for _, r := range part {
+			if r < 32 && r != '\t' && r != '\n' && r != '\r' {
+				return "", fmt.Errorf("arbitrary shell execution is not allowed: argument %d contains non-printable character", i)
+			}
+		}
 	}
 
 	// Validate the tool is allowed before execution (whitelist approach)

@@ -26,7 +26,10 @@ type WorkerPool struct {
 }
 
 // NewWorkerPool creates a new worker pool with the specified maximum number of workers
-func NewWorkerPool(maxWorkers int) *WorkerPool {
+func NewWorkerPool(maxWorkers int) (*WorkerPool, error) {
+	if maxWorkers <= 0 {
+		return nil, fmt.Errorf("maxWorkers must be positive, got %d", maxWorkers)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &WorkerPool{
@@ -34,7 +37,7 @@ func NewWorkerPool(maxWorkers int) *WorkerPool {
 		taskQueue:  make(chan func(), maxWorkers*defaultQueueMultiplier),
 		ctx:        ctx,
 		cancel:     cancel,
-	}
+	}, nil
 }
 
 // Start starts the worker pool
@@ -132,12 +135,12 @@ func (p *WorkerPool) Stop() {
 		p.cancel()
 	})
 
-	// Step 2: Wait for all workers to finish their current tasks
-	p.wg.Wait()
-
-	// Step 3: Close the task queue (no longer needed after workers are done)
-	// This must be after wg.Wait() to avoid sending to closed channel
+	// Step 2: Close task queue to prevent new submissions
+	// This must happen before wg.Wait() so in-flight submits drain first
 	close(p.taskQueue)
+
+	// Step 3: Wait for all workers to finish their current tasks
+	p.wg.Wait()
 }
 
 // ActiveJobs returns the number of currently active jobs

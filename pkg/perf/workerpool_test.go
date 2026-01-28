@@ -10,7 +10,10 @@ import (
 )
 
 func TestWorkerPool(t *testing.T) {
-	pool := NewWorkerPool(4)
+	pool, err := NewWorkerPool(4)
+	if err != nil {
+		t.Fatalf("NewWorkerPool failed: %v", err)
+	}
 	pool.Start()
 	defer pool.Stop()
 
@@ -33,17 +36,20 @@ func TestWorkerPool(t *testing.T) {
 }
 
 func TestWorkerPoolSubmitWait(t *testing.T) {
-	pool := NewWorkerPool(2)
+	pool, err := NewWorkerPool(2)
+	if err != nil {
+		t.Fatalf("NewWorkerPool failed: %v", err)
+	}
 	pool.Start()
 	defer pool.Stop()
 
 	result := ""
-	err := pool.SubmitWait(func() {
+	submitErr := pool.SubmitWait(func() {
 		result = "done"
 	})
 
-	if err != nil {
-		t.Fatalf("SubmitWait failed: %v", err)
+	if submitErr != nil {
+		t.Fatalf("SubmitWait failed: %v", submitErr)
 	}
 
 	if result != "done" {
@@ -52,7 +58,10 @@ func TestWorkerPoolSubmitWait(t *testing.T) {
 }
 
 func TestWorkerPoolBatch(t *testing.T) {
-	pool := NewWorkerPool(8)
+	pool, err := NewWorkerPool(8)
+	if err != nil {
+		t.Fatalf("NewWorkerPool failed: %v", err)
+	}
 	pool.Start()
 	defer pool.Stop()
 
@@ -65,9 +74,9 @@ func TestWorkerPoolBatch(t *testing.T) {
 		}
 	}
 
-	err := pool.Batch(tasks)
-	if err != nil {
-		t.Fatalf("Batch failed: %v", err)
+	batchErr := pool.Batch(tasks)
+	if batchErr != nil {
+		t.Fatalf("Batch failed: %v", batchErr)
 	}
 
 	if counter.Load() != 10 {
@@ -146,13 +155,13 @@ func TestEach(t *testing.T) {
 
 	counter := atomic.Int32{}
 
-	err := Each(ctx, items, func(n int) error {
+	eachErr := Each(ctx, items, func(n int) error {
 		counter.Add(int32(n))
 		return nil
 	}, 2)
 
-	if err != nil {
-		t.Fatalf("Each failed: %v", err)
+	if eachErr != nil {
+		t.Fatalf("Each failed: %v", eachErr)
 	}
 
 	if counter.Load() != 15 {
@@ -274,7 +283,10 @@ func TestRateLimiterConcurrency(t *testing.T) {
 }
 
 func TestWorkerPoolDoubleStop(t *testing.T) {
-	pool := NewWorkerPool(4)
+	pool, err := NewWorkerPool(4)
+	if err != nil {
+		t.Fatalf("NewWorkerPool failed: %v", err)
+	}
 	pool.Start()
 
 	// Submit some work and wait for completion
@@ -304,5 +316,39 @@ func TestWorkerPoolDoubleStop(t *testing.T) {
 
 	if counter.Load() != 5 {
 		t.Errorf("Expected counter 5, got %d", counter.Load())
+	}
+}
+
+func TestWorkerPoolInvalidMaxWorkers(t *testing.T) {
+	tests := []struct {
+		name       string
+		maxWorkers int
+	}{
+		{"zero workers", 0},
+		{"negative workers", -1},
+		{"negative workers large", -100},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewWorkerPool(tt.maxWorkers)
+			if err == nil {
+				t.Errorf("NewWorkerPool(%d) expected error, got nil", tt.maxWorkers)
+			}
+		})
+	}
+}
+
+func TestWorkerPoolSubmitAfterStop(t *testing.T) {
+	pool, err := NewWorkerPool(2)
+	if err != nil {
+		t.Fatalf("NewWorkerPool failed: %v", err)
+	}
+	pool.Start()
+	pool.Stop()
+
+	// Submit after stop should return false
+	if pool.Submit(func() {}) {
+		t.Error("Submit after Stop should return false")
 	}
 }

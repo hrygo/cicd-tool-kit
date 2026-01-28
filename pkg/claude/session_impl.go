@@ -93,7 +93,10 @@ func (s *processSession) Execute(ctx context.Context, opts ExecuteOptions) (*Out
 // ExecuteWithStreams runs Claude with custom stdin/stdout
 func (s *processSession) ExecuteWithStreams(ctx context.Context, opts ExecuteOptions, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	// Build command arguments
-	args := s.buildArgs(opts)
+	args, err := s.buildArgs(opts)
+	if err != nil {
+		return fmt.Errorf("invalid prompt: %w", err)
+	}
 
 	// Create command
 	s.cmd = exec.CommandContext(ctx, "claude", args...)
@@ -189,6 +192,10 @@ func (s *processSession) ExecuteWithStreams(ctx context.Context, opts ExecuteOpt
 	// Wait for streaming to complete
 	wg.Wait()
 
+	// Close pipes after goroutines complete to prevent resource leaks
+	_ = cmdStdout.Close()
+	_ = cmdStderr.Close()
+
 	// Wait for command to finish
 	if err := s.cmd.Wait(); err != nil {
 		select {
@@ -227,17 +234,16 @@ func (s *processSession) Close() error {
 }
 
 // buildArgs constructs command line arguments from options
-func (s *processSession) buildArgs(opts ExecuteOptions) []string {
+// Returns error if validation fails to prevent execution with invalid input
+func (s *processSession) buildArgs(opts ExecuteOptions) ([]string, error) {
 	args := []string{}
 
 	// Print mode (headless/non-interactive)
 	args = append(args, "-p")
 
-	// Validate and add prompt
+	// Validate and add prompt - SECURITY: fail fast on invalid prompts
 	if err := validatePrompt(opts.Prompt); err != nil {
-		// Log warning but continue - let the claude CLI handle invalid prompts
-		// This prevents crashing on potentially valid prompts that our validator doesn't understand
-		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+		return nil, err
 	}
 	args = append(args, opts.Prompt)
 
@@ -276,7 +282,7 @@ func (s *processSession) buildArgs(opts ExecuteOptions) []string {
 		args = append(args, "--skill", skill)
 	}
 
-	return args
+	return args, nil
 }
 
 // extractJSONBlock extracts JSON from markdown code blocks

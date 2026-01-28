@@ -60,6 +60,9 @@ func (c *Cache) GetReview(prID int) (CachedReview, bool) {
 		return CachedReview{}, false
 	}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	path := c.reviewPath(prID)
 
 	data, err := os.ReadFile(path)
@@ -72,21 +75,15 @@ func (c *Cache) GetReview(prID int) (CachedReview, bool) {
 		return CachedReview{}, false
 	}
 
-	// Check TTL first to avoid holding lock for unmarshal of invalid data
+	// Check TTL under lock to prevent race with cache invalidation
 	if time.Since(cached.CachedAt) > c.ttl {
-		// Expired - remove atomically with write lock
-		c.mu.Lock()
+		// Expired - remove atomically
 		_ = os.Remove(path)
-		c.mu.Unlock()
 		return CachedReview{}, false
 	}
 
 	// Cache is valid - verify it still exists (wasn't deleted by another goroutine)
-	c.mu.RLock()
-	_, statErr := os.Stat(path)
-	c.mu.RUnlock()
-
-	if os.IsNotExist(statErr) {
+	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
 		return CachedReview{}, false
 	}
 

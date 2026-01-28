@@ -367,8 +367,8 @@ func ParsePRIDFromGitLabEnv() (int, error) {
 // Uses url.PathEscape (not QueryEscape) for proper path encoding
 // and adds additional validation to prevent path traversal
 func urlPathEncode(path string) (string, error) {
-	// First, validate the path doesn't contain dangerous patterns
-	// This prevents encoded path traversal bypasses
+	// SECURITY: Validate path before AND after encoding to prevent bypass
+	// First check for direct dangerous patterns
 	if strings.Contains(path, "..") {
 		// Reject any path with parent directory references
 		return "", fmt.Errorf("path contains parent directory reference: %s", path)
@@ -377,7 +377,29 @@ func urlPathEncode(path string) (string, error) {
 		// Reject Windows path separators
 		return "", fmt.Errorf("path contains backslash: %s", path)
 	}
+
+	// Check for URL-encoded traversal attempts (case-insensitive)
+	// An attacker could provide "%2e%2e" or "%2E%2E" which PathEscape
+	// would double-encode to "%252e%252e", potentially bypassing filters
+	lowerPath := strings.ToLower(path)
+	if strings.Contains(lowerPath, "%2e") || strings.Contains(lowerPath, "%2e%2e") {
+		return "", fmt.Errorf("path contains URL-encoded parent directory reference: %s", path)
+	}
+
 	// Use url.PathEscape for paths (not QueryEscape)
 	// PathEscape is designed for URL path segments
-	return url.PathEscape(path), nil
+	encoded := url.PathEscape(path)
+
+	// Validate the encoded result doesn't contain dangerous patterns
+	// This catches any edge cases where encoding could introduce issues
+	if strings.Contains(encoded, "..") {
+		return "", fmt.Errorf("encoded path contains parent directory reference")
+	}
+	// Also check that the original path wasn't already URL-encoded
+	// (which would result in %25 patterns in the output)
+	if strings.Contains(encoded, "%25") {
+		return "", fmt.Errorf("path appears to be pre-encoded: %s", path)
+	}
+
+	return encoded, nil
 }

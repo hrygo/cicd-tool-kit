@@ -164,7 +164,8 @@ func (m *MetricsCollector) Histogram(name string, value float64, labels map[stri
 	if val, ok := m.metrics[key]; ok {
 		// Type assertion with comma-ok for safety
 		if existingSamples, ok := val.([]float64); ok {
-			samples = existingSamples
+			// Make a copy to avoid aliasing the slice in m.metrics
+			samples = append(samples[:0:0], existingSamples...)
 		}
 		// If type assertion fails, samples remains nil and we start fresh
 	}
@@ -638,10 +639,15 @@ func (t *Tracer) AddEvent(name, payload string) {
 	}
 }
 
-// GetCurrentSpan returns the active span
+// GetCurrentSpan returns the active span.
+// Returns nil if no span is currently active. The returned span
+// should not be modified as it points to the internal span structure.
 func (t *Tracer) GetCurrentSpan() *Span {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if t.current == nil {
+		return nil
+	}
 	return t.current
 }
 
