@@ -188,7 +188,21 @@ func (s *Sandbox) Run(ctx context.Context, cmd *exec.Cmd) (*Result, error) {
 func (s *Sandbox) Execute(ctx context.Context, code string) (string, error) {
 	// SECURITY: Reject shell metacharacters to prevent command injection
 	// This function only supports simple command execution, not arbitrary shell code
-	dangerousChars := []string{"|", "&", ";", "$", "(", ")", "`", "\\", ">", "<", "\n", "\r", "\t"}
+	// Include all control characters and shell metacharacters that could enable injection
+	dangerousChars := []string{
+		"|", "&", ";", "$", "(", ")", "`", "\\", ">", "<",
+		"\n", "\r", "\t", "\f", "\v", // whitespace and form feed, vertical tab
+		"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07",
+		"\x08", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14",
+		"\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x1b", "\x1c",
+		"\x1d", "\x1e", "\x1f", // additional control characters
+		"!", // history expansion in bash
+		"*", "?", "[", "]", // glob characters that could expand unexpectedly
+		"{", "}", // brace expansion
+		"~", // home directory expansion
+		"#", // comment character
+		"%", // job control
+	}
 	for _, ch := range dangerousChars {
 		if strings.Contains(code, ch) {
 			return "", fmt.Errorf("arbitrary shell execution is not allowed: code contains dangerous character '%s'", ch)
@@ -202,7 +216,7 @@ func (s *Sandbox) Execute(ctx context.Context, code string) (string, error) {
 		return "", fmt.Errorf("empty command")
 	}
 
-	// Validate the tool is allowed before execution
+	// Validate the tool is allowed before execution (whitelist approach)
 	if !s.ValidateTool(parts[0]) {
 		return "", fmt.Errorf("tool not allowed: %s", parts[0])
 	}

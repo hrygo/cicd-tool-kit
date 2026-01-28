@@ -71,18 +71,15 @@ func (c *Cache) GetReview(prID int) (CachedReview, bool) {
 		return CachedReview{}, false
 	}
 
-	// Check TTL - must hold lock for consistent ttl read
-	c.mu.RLock()
-	ttl := c.ttl
-	c.mu.RUnlock()
-
-	if time.Since(cached.CachedAt) > ttl {
-		// Remove expired file - use write lock for mutation
-		c.mu.Lock()
+	// Check TTL and remove expired - hold write lock for entire check-and-remove
+	// to prevent race where multiple goroutines return expired cache
+	c.mu.Lock()
+	if time.Since(cached.CachedAt) > c.ttl {
 		_ = os.Remove(path)
 		c.mu.Unlock()
 		return CachedReview{}, false
 	}
+	c.mu.Unlock()
 
 	return cached, true
 }

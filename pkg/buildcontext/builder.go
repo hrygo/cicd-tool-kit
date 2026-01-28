@@ -102,6 +102,10 @@ func (b *Builder) BuildDiff(ctx context.Context, opts DiffOptions) (string, erro
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
+		// Check if context was cancelled
+		if ctx.Err() != nil {
+			return "", fmt.Errorf("git diff cancelled: %w", ctx.Err())
+		}
 		return "", errors.ClaudeError(fmt.Sprintf("git diff failed: %s", stderr.String()), err)
 	}
 
@@ -277,10 +281,22 @@ func (b *Builder) GetFileContent(ctx context.Context, path, ref string) (string,
 		return "", fmt.Errorf("invalid path: %w", err)
 	}
 
-	// SECURITY: Use git's --end-of-options option to prevent argument injection
-	// Then construct the blob ref separately to avoid injection via path or ref
-	// The format "ref:path" is safe here because both inputs have been sanitized
+	// SECURITY: Construct blob ref with explicit validation
+	// The blob ref format "ref:path" must be validated as a whole to prevent
+	// injection attempts that might bypass individual sanitization
 	blobRef := ref + ":" + path
+	// Validate the constructed blob ref doesn't contain injection patterns
+	if strings.Contains(blobRef, "..") || strings.Contains(blobRef, "\\") {
+		return "", fmt.Errorf("invalid blob ref: contains path traversal")
+	}
+	// Check for shell metacharacters in the combined ref
+	dangerousChars := []string{"|", "&", ";", "$", "(", ")", "`", "{", "}", ">", "<", "\n", "\t"}
+	for _, ch := range dangerousChars {
+		if strings.Contains(blobRef, ch) {
+			return "", fmt.Errorf("invalid blob ref: contains dangerous character '%s'", ch)
+		}
+	}
+	// Use --end-of-options to ensure git treats the blob ref as a revision, not an option
 	args := []string{"--no-pager", "show", "--end-of-options", blobRef}
 
 	cmd := exec.CommandContext(ctx, "git", args...)

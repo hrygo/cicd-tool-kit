@@ -684,10 +684,10 @@ func ParseJenkinsWebhook(authToken string, handler func(ctx context.Context, web
 			}
 			// Strip "Bearer " prefix if present (common auth header format)
 			receivedToken = strings.TrimPrefix(receivedToken, "Bearer ")
-			// Use subtle.ConstantTimeCompare for constant-time comparison (returns 1 if equal, 0 otherwise)
-			// First check length to prevent length-based timing leakage
-			if len(receivedToken) != len(authToken) ||
-				subtle.ConstantTimeCompare([]byte(receivedToken), []byte(authToken)) != 1 {
+			// SECURITY: Use only subtle.ConstantTimeCompare for timing-attack-safe comparison
+			// Do NOT check length first - subtle.ConstantTimeCompare handles this internally
+			// and a separate length check would leak timing information
+			if subtle.ConstantTimeCompare([]byte(receivedToken), []byte(authToken)) != 1 {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}

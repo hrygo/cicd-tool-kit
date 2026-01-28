@@ -254,13 +254,15 @@ func (g *GitLabClient) GetPRInfo(ctx context.Context, mrID int) (*PRInfo, error)
 			shaReq.Header.Set("PRIVATE-TOKEN", g.token)
 			shaResp, err := g.client.Do(shaReq)
 			if err == nil {
-				defer shaResp.Body.Close()
-				var commits []struct {
-					ID string `json:"id"`
-				}
-				if json.NewDecoder(shaResp.Body).Decode(&commits) == nil && len(commits) > 0 {
-					sha = commits[0].ID
-				}
+				func() {
+					defer shaResp.Body.Close()
+					var commits []struct {
+						ID string `json:"id"`
+					}
+					if json.NewDecoder(shaResp.Body).Decode(&commits) == nil && len(commits) > 0 {
+						sha = commits[0].ID
+					}
+				}()
 			}
 		}
 	}

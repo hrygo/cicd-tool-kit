@@ -272,9 +272,10 @@ func (r *DefaultRunner) executeReview(ctx context.Context, diffContext string, s
 
 	prompt := r.buildReviewPrompt(diffContext, skills)
 
-	timeout, err := r.cfg.Claude.GetTimeout()
-	if err != nil || timeout == 0 {
-		timeout = DefaultTimeout
+	timeout := DefaultTimeout
+	t, err := r.cfg.Claude.GetTimeout()
+	if err == nil && t > 0 {
+		timeout = t
 	}
 
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -308,9 +309,12 @@ func (r *DefaultRunner) executeAnalysis(ctx context.Context, analysisContext str
 
 	prompt := r.buildAnalysisPrompt(analysisContext, skills)
 
-	timeout, err := r.cfg.Claude.GetTimeout()
-	if err != nil || timeout == 0 {
-		timeout = DefaultTimeout
+	timeout := DefaultTimeout
+	if r.cfg != nil {
+		t, err := r.cfg.Claude.GetTimeout()
+		if err == nil && t > 0 {
+			timeout = t
+		}
 	}
 
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -324,6 +328,10 @@ func (r *DefaultRunner) executeAnalysis(ctx context.Context, analysisContext str
 	})
 
 	if err != nil {
+		// Check if context was cancelled - return the context error for proper propagation
+		if ctx.Err() != nil {
+			return ChangeSummary{}, ImpactAnalysis{}, RiskAssessment{}, ChangelogEntry{}, fmt.Errorf("analysis cancelled: %w", ctx.Err())
+		}
 		return ChangeSummary{}, ImpactAnalysis{}, RiskAssessment{}, ChangelogEntry{}, err
 	}
 
@@ -347,12 +355,12 @@ func (r *DefaultRunner) executeTestGen(ctx context.Context, testGenContext strin
 
 	prompt := r.buildTestGenPrompt(testGenContext, opts)
 
-	timeout, err := r.cfg.Claude.GetTimeout()
-	if err != nil {
-		return nil, fmt.Errorf("invalid timeout configuration: %w", err)
-	}
-	if timeout == 0 {
-		timeout = CoverageEstimatePercent * time.Minute // Default timeout
+	timeout := CoverageEstimatePercent * time.Minute // Default timeout
+	if r.cfg != nil {
+		t, err := r.cfg.Claude.GetTimeout()
+		if err == nil && t > 0 {
+			timeout = t
+		}
 	}
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -619,17 +627,19 @@ func (r *DefaultRunner) RunParallel(ctx context.Context, tasks []func(context.Co
 		}(task)
 	}
 
-	// Wait for all goroutines to complete before draining error channel
-	// This ensures no goroutine can send after we close the channel
+	// Wait for all goroutines to complete
+	// This ensures no more sends will happen to errChan
 	wg.Wait()
 
-	// Close channel before draining - safe because all goroutines have finished
+	// Close channel is safe now - all goroutines have finished
 	close(errChan)
 
-	// Return first error if any
+	// Return first error if any - sync.Once ensures single error return
+	var firstErr error
 	for err := range errChan {
-		return err // Return first error, ignore rest
+		firstErr = err
+		break // Only return first error
 	}
 
-	return nil
+	return firstErr
 }

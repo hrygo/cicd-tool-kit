@@ -151,15 +151,7 @@ func (c *GitHubClient) postReviewComment(ctx context.Context, opts CommentOption
 
 // GetDiff retrieves the diff for a pull request
 func (c *GitHubClient) GetDiff(ctx context.Context, prID int) (string, error) {
-	// Try the API first
-	url := fmt.Sprintf("%s/repos/%s/pulls/%d", c.baseURL, c.repo, prID)
-
-	var pr GitHubPR
-	if err := c.doRequest(ctx, "GET", url, nil, &pr); err != nil {
-		return "", err
-	}
-
-	// Get diff URL
+	// Get diff URL directly
 	diffURL := fmt.Sprintf("%s/repos/%s/pulls/%d.diff", c.baseURL, c.repo, prID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", diffURL, nil)
