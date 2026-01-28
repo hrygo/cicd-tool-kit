@@ -2,7 +2,7 @@
 
 ## 企业级 CI/CD 智能化解决方案
 
-**版本**: 1.0.0
+**版本**: 1.1.0
 **发布日期**: 2026年1月
 **文档类型**: 产品白皮书
 
@@ -10,9 +10,16 @@
 
 ## 摘要
 
-CICD AI Toolkit 是一款基于 Anthropic Claude Code 构建的企业级 CI/CD 智能化工具集。通过创新的可插拔 Skills 架构，将人工智能能力深度集成到软件交付流水线中，实现代码审查、测试生成、变更分析等关键环节的自动化与智能化。
+CICD AI Toolkit 是一款**双模 AI Brain**架构的企业级 CI/CD 智能化工具集。通过创新的可插拔 Skills 架构，将人工智能能力深度集成到软件交付流水线中，实现代码审查、测试生成、变更分析等关键环节的自动化与智能化。
 
-本产品采用 Go 高性能运行器与 Claude AI 决策引擎的混合架构，支持 GitHub、GitLab、Gitee、Jenkins 等主流 CI/CD 平台，为企业提供可私有化部署、安全可控的 AI 赋能 DevOps 解决方案。
+本产品采用 Go 高性能运行器与**可插拔 AI Brain 后端**（支持 Claude Code CLI 和 Crush CLI）的混合架构，支持 GitHub、GitLab、Gitee、Jenkins 等主流 CI/CD 平台，为企业提供可私有化部署、安全可控、**模型可选**的 AI 赋能 DevOps 解决方案。
+
+### 核心亮点 v1.1
+
+- ✨ **双模 AI Brain**: 支持 Claude Code CLI（专有）和 Crush CLI（开源）
+- ✨ **75+ 模型支持**: 通过 Crush 后端支持 Anthropic、OpenAI、Ollama 本地等
+- ✨ **完全离线**: 使用 Crush + Ollama 实现数据完全不出域
+- ✨ **成本优化**: 开源后端 + 自选提供商，显著降低使用成本
 
 ---
 
@@ -125,11 +132,24 @@ CICD AI Toolkit 是一个**基础设施级**产品，而非单一的 SaaS 工具
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └───────────┘  │  │
 │  └────────────────────────────────────────────────────────────────────┘  │
 │                                     │                                     │
-│                          (Subprocess Spawn)                               │
+│                          (Backend Selection)                              │
 │                                     ▼                                     │
 │  ┌────────────────────────────────────────────────────────────────────┐  │
-│  │                      Claude Code Engine                             │  │
-│  │                    (Headless / Agent Mode)                          │  │
+│  │                    AI Brain Abstraction Layer                       │  │
+│  │                    ┌─────────────┬───────────────┐                   │  │
+│  │                    ▼             ▼               │                   │  │
+│  │            ┌──────────┐  ┌─────────────┐  │                   │  │
+│  │            │  Claude  │  │    Crush    │  │                   │  │
+│  │            │    CLI   │  │     CLI     │  │                   │  │
+│  │            │(Proprietary) │(Open Source)│  │                   │  │
+│  │            └─────┬────┘  └──────┬──────┘  │                   │  │
+│  │                  │               │         │                   │  │
+│  │                  ▼               ▼         │                   │  │
+│  │         ┌─────────────────────────┐     │                   │  │
+│  │         │     Unified Interface     │     │                   │  │
+│  │         │  Execute(prompt, skill)   │     │                   │  │
+│  │         │  ParseJSON(output)        │     │                   │  │
+│  │         └───────────────────────────┘     │                   │  │
 │  └───────────────────────────┬────────────────────────────────────────┘  │
 │                              │ (Loads Skill Definitions)                  │
 │                              ▼                                            │
@@ -150,6 +170,19 @@ CICD AI Toolkit 是一个**基础设施级**产品，而非单一的 SaaS 工具
 │  └────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+#### AI Brain 后端对比
+
+| 特性 | Claude Code CLI | Crush CLI |
+|------|----------------|-----------|
+| **许可协议** | 专有 (Proprietary) | MIT 开源 |
+| **模型支持** | Claude (Sonnet/Opus/Haiku) | 75+ 提供商 |
+| **本地模型** | ❌ | ✅ Ollama 本地 |
+| **定价** | $20-200/月 | 免费（付提供商） |
+| **`-p` 无头模式** | ✅ | ✅ |
+| **`--skill` 支持** | ✅ | ✅ |
+| **JSON 输出** | ✅ | ✅ |
+| **MCP 协议** | ✅ | ✅ |
 
 ### 3.2 核心设计原则
 
@@ -200,10 +233,19 @@ description: AI 驱动的代码审查
 | 层级 | 技术选型 | 理由 |
 |------|----------|------|
 | **运行器** | Go 1.21+ | 高性能、并发友好、跨平台编译 |
-| **AI 引擎** | Claude Code | 工具生态丰富、上下文窗口大 |
+| **AI 引擎** | Claude Code CLI **或** Crush CLI | 双模支持：专有体验 vs 开源灵活 |
 | **配置** | YAML | 人类可读、易于版本控制 |
 | **安全** | 自研沙箱 | 细粒度控制、审计友好 |
 | **平台集成** | REST API + Webhook | 标准化、兼容性强 |
+
+#### AI Brain 选择指南
+
+| 使用场景 | 推荐后端 | 配置 |
+|----------|----------|------|
+| **生产环境，追求最佳体验** | Claude Code CLI | `ai_backend: claude` |
+| **成本敏感，同等质量** | Crush + Anthropic | `ai_backend: crush; crush.provider: anthropic` |
+| **数据隐私，完全离线** | Crush + Ollama | `ai_backend: crush; crush.provider: ollama` |
+| **模型实验，多提供商** | Crush + 切换提供商 | `ai_backend: crush; crush.provider: openai` |
 
 ---
 
@@ -639,6 +681,10 @@ claude:
 - ✅ Change Analyzer Skill
 - ✅ GitHub Actions 集成
 - ✅ 基础安全沙箱
+- ✅ **双模 AI Brain 架构** (v1.1 新增)
+  - ✅ Claude Code CLI 后端
+  - ✅ Crush CLI 后端
+  - ✅ AI Brain 抽象层
 
 ### Phase 2: 企业增强 (开发中)
 
@@ -654,55 +700,82 @@ claude:
 - ⏳ Self-Healing Agent (自动修复)
 - ⏳ Multi-Agent Orchestration
 - ⏳ Memory System (RAG)
-- ⏳ 自定义模型适配 (支持其他 LLM)
+- ⏳ 更多 AI 后端支持 (OpenAI o1, Google Gemini 等)
 
 ---
 
 ## 附录
 
-### A. 配置完整示例
+### A. 配置完整示例 (v1.1 双模配置)
 
 ```yaml
 # .cicd-ai-toolkit.yaml
-version: "1.0"
+version: "1.1"
 
+# ========== AI Brain 后端选择 ==========
+# 可选值: "claude" | "crush"
+# 默认: "claude" (向后兼容)
+ai_backend: claude
+
+# ========== Claude Code CLI 配置 ==========
+# 当 ai_backend: claude 时使用
 claude:
-  model: "sonnet"
+  model: "sonnet"              # haiku | sonnet | opus
   max_budget_usd: 50.0
   max_turns: 10
   timeout: 5m
-  enable_cache: true
-  cache_dir: ".cicd-cache"
+  output_format: json
   skip_permissions: false
 
+# ========== Crush CLI 配置 ==========
+# 当 ai_backend: crush 时使用
+crush:
+  provider: anthropic          # anthropic | openai | gemini | ollama | ...
+  model: claude-sonnet-4-20250514
+  base_url: ""                 # 自定义端点 (如 Ollama: http://localhost:11434)
+  timeout: 5m
+  output_format: json
+
+# ========== 全局配置 ==========
 global:
-  diff_context: 3
+  log_level: info
+  enable_cache: true
+  cache_dir: ".cicd-cache"
+  parallel_skills: 3
+  diff_context: 1000
   exclude:
     - "*.lock"
     - "vendor/**"
     - "node_modules/**"
     - "*.min.js"
     - "*.min.css"
+    - "*.pb.go"
+    - "*.generated.go"
 
+# ========== Skills 配置 ==========
 skills:
   - name: code-reviewer
     enabled: true
+    priority: 100
     config:
       severity_threshold: "medium"
       exclude_patterns:
         - "generated/**"
 
   - name: test-generator
-    enabled: true
+    enabled: false            # MVP 中默认关闭
+    priority: 50
     config:
       test_framework: "testify"
       coverage_target: 80
 
   - name: change-analyzer
-    enabled: true
+    enabled: false            # MVP 中默认关闭
+    priority: 50
     config:
       include_changelog: true
 
+# ========== 平台配置 ==========
 platform:
   github:
     post_comment: true
@@ -737,9 +810,15 @@ security:
 
 ---
 
-**文档版本**: 1.0.0
+**文档版本**: 1.1.0
 **最后更新**: 2026年1月28日
 **作者**: CICD AI Toolkit 团队
+
+**v1.1 更新内容**:
+- 新增双模 AI Brain 架构支持
+- 集成 Crush CLI 开源后端
+- 支持 75+ AI 提供商和本地模型
+- 更新配置示例和架构图
 
 ---
 

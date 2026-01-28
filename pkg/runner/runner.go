@@ -5,7 +5,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/cicd-ai-toolkit/cicd-runner/pkg/claude"
+	"github.com/cicd-ai-toolkit/cicd-runner/pkg/ai"
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/config"
 )
 
@@ -58,7 +58,7 @@ type ReviewResult struct {
 	Summary ReviewSummary
 
 	// Issues contains all found issues
-	Issues []claude.Issue
+	Issues []ai.Issue
 
 	// PlatformComment is the formatted comment for PR
 	PlatformComment string

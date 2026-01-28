@@ -7,23 +7,34 @@ import (
 
 // Config represents the complete configuration
 type Config struct {
-	Version  string              `yaml:"version"`
-	Claude   ClaudeConfig        `yaml:"claude"`
-	Skills   []SkillConfig       `yaml:"skills"`
-	Platform PlatformConfig      `yaml:"platform"`
-	Global   GlobalConfig        `yaml:"global"`
-	Advanced AdvancedConfig      `yaml:"advanced,omitempty"`
+	Version   string              `yaml:"version"`
+	AIBackend string              `yaml:"ai_backend"`               // "claude" or "crush"
+	Claude    ClaudeConfig        `yaml:"claude"`
+	Crush     CrushConfig         `yaml:"crush"`
+	Skills    []SkillConfig       `yaml:"skills"`
+	Platform  PlatformConfig      `yaml:"platform"`
+	Global    GlobalConfig        `yaml:"global"`
+	Advanced  AdvancedConfig      `yaml:"advanced,omitempty"`
 }
 
 // ClaudeConfig contains Claude-specific settings
 type ClaudeConfig struct {
-	Model             string  `yaml:"model"`                        // sonnet, opus, haiku
-	MaxBudgetUSD      float64 `yaml:"max_budget_usd"`
-	MaxTurns          int     `yaml:"max_turns"`
-	Timeout           string  `yaml:"timeout"`                      // Go duration format
-	OutputFormat      string  `yaml:"output_format"`                // json, stream-json, text
-	SkipPermissions   bool    `yaml:"dangerous_skip_permissions"`
-	AllowedTools      []string `yaml:"allowed_tools,omitempty"`
+	Model           string  `yaml:"model"`                        // sonnet, opus, haiku
+	MaxBudgetUSD    float64 `yaml:"max_budget_usd"`
+	MaxTurns        int     `yaml:"max_turns"`
+	Timeout         string  `yaml:"timeout"`                      // Go duration format
+	OutputFormat    string  `yaml:"output_format"`                // json, stream-json, text
+	SkipPermissions bool    `yaml:"dangerous_skip_permissions"`
+	AllowedTools    []string `yaml:"allowed_tools,omitempty"`
+}
+
+// CrushConfig contains Crush-specific settings
+type CrushConfig struct {
+	Provider     string `yaml:"provider"`     // anthropic, openai, ollama, etc.
+	Model        string `yaml:"model"`        // e.g., claude-sonnet-4-20250514
+	BaseURL      string `yaml:"base_url"`     // For custom endpoints (e.g., Ollama)
+	Timeout      string `yaml:"timeout"`      // Go duration format
+	OutputFormat string `yaml:"output_format"` // json, text
 }
 
 // SkillConfig defines a skill configuration
@@ -115,6 +126,14 @@ type ReflectiveConfig struct {
 
 // GetTimeout returns the timeout as a time.Duration
 func (c *ClaudeConfig) GetTimeout() (time.Duration, error) {
+	return time.ParseDuration(c.Timeout)
+}
+
+// GetTimeout returns the timeout as a time.Duration for Crush
+func (c *CrushConfig) GetTimeout() (time.Duration, error) {
+	if c.Timeout == "" {
+		return 5 * time.Minute, nil // Default timeout
+	}
 	return time.ParseDuration(c.Timeout)
 }
 

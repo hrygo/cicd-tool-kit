@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cicd-ai-toolkit/cicd-runner/pkg/claude"
+	"github.com/cicd-ai-toolkit/cicd-runner/pkg/ai"
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/config"
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/platform"
 )
@@ -65,7 +65,7 @@ func TestSummarizeIssues(t *testing.T) {
 	}
 	runner, _ := NewRunner(cfg, &mockPlatform{}, ".")
 
-	issues := []claude.Issue{
+	issues := []ai.Issue{
 		{Severity: "critical", Category: "security", File: "auth.go", Line: 10},
 		{Severity: "high", Category: "performance", File: "cache.go", Line: 25},
 		{Severity: "medium", Category: "style", File: "utils.go", Line: 5},
@@ -118,7 +118,7 @@ func TestFormatReviewComment(t *testing.T) {
 			Medium:       1,
 			Low:          0,
 		},
-		Issues: []claude.Issue{
+		Issues: []ai.Issue{
 			{
 				Severity: "critical",
 				Category: "security",
@@ -215,7 +215,7 @@ func TestCache(t *testing.T) {
 	// Test Set and Get
 	review := CachedReview{
 		Summary: ReviewSummary{TotalIssues: 5},
-		Issues: []claude.Issue{
+		Issues: []ai.Issue{
 			{Severity: "critical", Message: "Test issue"},
 		},
 		Comment: "Test comment",

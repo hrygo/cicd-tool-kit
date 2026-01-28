@@ -1,0 +1,153 @@
+# CICD Tool Kit Configuration
+# This file demonstrates the dual-mode AI Brain architecture
+# Version: 1.2
+
+version: "1.0"
+
+# ===================================================================
+# AI BRAIN BACKEND SELECTION
+# ===================================================================
+# Choose which AI CLI backend to use:
+# - "claude": Claude Code CLI (proprietary, Claude-only, polished)
+# - "crush":  Crush CLI (open-source, multi-provider, local models)
+ai_backend: claude   # Default: claude
+
+# ===================================================================
+# CLAUDE CODE CLI CONFIGURATION
+# ===================================================================
+# Used when ai_backend: claude
+claude:
+  model: sonnet              # Claude model: sonnet, opus, haiku
+  max_budget_usd: 1.0        # Maximum spending per request
+  max_turns: 10              # Maximum reasoning iterations
+  timeout: 5m                # Request timeout
+  output_format: json        # Output format: json, stream-json, text
+
+# ===================================================================
+# CRUSH CLI CONFIGURATION
+# ===================================================================
+# Used when ai_backend: crush
+crush:
+  # Provider selection (Crush supports 75+ providers)
+  provider: anthropic        # anthropic, openai, gemini, groq, ollama, etc.
+
+  # Model identifier (depends on provider)
+  model: claude-sonnet-4-20250514
+
+  # Base URL for custom endpoints (e.g., local Ollama)
+  # Uncomment for local models:
+  # base_url: http://localhost:11434
+
+  timeout: 5m
+  output_format: json
+
+# Example configurations for different use cases:
+
+# --- Cost-optimized (same quality, lower overhead) ---
+# ai_backend: crush
+# crush:
+#   provider: anthropic
+#   model: claude-sonnet-4-20250514
+
+# --- Local/offline (full privacy, no API costs) ---
+# ai_backend: crush
+# crush:
+#   provider: ollama
+#   model: llama3:70b
+#   base_url: http://localhost:11434
+
+# --- Multi-model experimentation ---
+# ai_backend: crush
+# crush:
+#   provider: openai
+#   model: gpt-4o
+
+# ===================================================================
+# SKILLS CONFIGURATION
+# ===================================================================
+skills:
+  # Code Reviewer - Primary review skill
+  - name: code-reviewer
+    enabled: true
+    priority: 100
+
+  # PR Summary - Generate pull request summaries
+  - name: pr-summary
+    enabled: false          # Disabled in MVP
+    priority: 50
+
+  # Test Generator - Suggest unit tests
+  - name: test-generator
+    enabled: false          # Disabled in MVP
+    priority: 50
+
+# ===================================================================
+# PLATFORM CONFIGURATION
+# ===================================================================
+platform:
+  github:
+    # Post review comments to PR (set token via GITHUB_TOKEN env var)
+    post_comment: true
+    post_as_review: true
+    fail_on_error: false
+    max_comment_length: 65536
+    # api_url: https://api.github.com  # For GitHub Enterprise
+
+  gitlab:
+    # Post review comments to MR (set token via GITLAB_TOKEN env var)
+    post_comment: true
+    fail_on_error: false
+    merge_request_discussion: true
+    # api_url: https://gitlab.com     # For self-hosted GitLab
+
+  gitee:
+    # Post review comments to PR (set token via GITEE_TOKEN env var)
+    post_comment: true
+    api_url: https://api.gitee.com
+
+# ===================================================================
+# GLOBAL CONFIGURATION
+# ===================================================================
+global:
+  log_level: info            # debug, info, warn, error
+  cache_dir: .cache          # Directory for caching results
+  enable_cache: true         # Enable result caching
+  parallel_skills: 3         # Number of skills to run in parallel
+  diff_context: 1000         # Lines of context per file
+
+  # File patterns to exclude from review
+  exclude:
+    - "*.min.js"
+    - "*.min.css"
+    - "vendor/**"
+    - "node_modules/**"
+    - "dist/**"
+    - "build/**"
+    - "*.pb.go"
+    - "*.generated.go"
+
+# ===================================================================
+# ADVANCED CONFIGURATION (OPTIONAL)
+# ===================================================================
+advanced:
+  # MCP Servers - Model Context Protocol integrations
+  mcp_servers:
+    - name: github-mcp
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-github"]
+    # - name: filesystem
+    #   command: npx
+    #   args: ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allow"]
+
+  # Memory system for conversation context
+  memory:
+    enabled: false
+    backend: file            # file, redis, postgres
+    ttl: 24h
+
+  # Reflective runtime (VIGIL pattern)
+  reflective:
+    enabled: false
+    observer_enabled: true
+    corrector_enabled: false
+    max_corrections: 3

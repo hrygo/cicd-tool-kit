@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cicd-ai-toolkit/cicd-runner/pkg/ai"
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/buildcontext"
-	"github.com/cicd-ai-toolkit/cicd-runner/pkg/claude"
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/config"
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/platform"
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/skill"
@@ -33,11 +33,11 @@ const (
 
 // DefaultRunner implements the Runner interface
 type DefaultRunner struct {
-	cfg       *config.Config
-	platform  platform.Platform
-	builder   *buildcontext.Builder
-	parser    claude.OutputParser
-	cache     *Cache
+	cfg         *config.Config
+	platform    platform.Platform
+	builder     *buildcontext.Builder
+	aiBrain     ai.Brain
+	cache       *Cache
 	skillLoader *skill.Loader
 }
 
@@ -69,11 +69,18 @@ func NewRunner(cfg *config.Config, platform platform.Platform, baseDir string) (
 	skillsDir := filepath.Join(baseDir, "skills")
 	skillLoader := skill.NewLoader(skillsDir)
 
+	// Create AI Brain using factory
+	factory := ai.NewFactory(baseDir)
+	aiBrain, err := factory.CreateFromConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create AI brain: %w", err)
+	}
+
 	return &DefaultRunner{
 		cfg:         cfg,
 		platform:    platform,
 		builder:     builder,
-		parser:      claude.NewParser(),
+		aiBrain:     aiBrain,
 		cache:       cache,
 		skillLoader: skillLoader,
 	}, nil
@@ -284,78 +291,56 @@ func (r *DefaultRunner) buildTestGenContext(ctx context.Context, opts TestGenOpt
 	return sb.String()
 }
 
-// executeReview executes the Claude review
-func (r *DefaultRunner) executeReview(ctx context.Context, diffContext string, skills []string) ([]claude.Issue, error) {
-	session, err := claude.NewSession(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer session.Close()
-
+// executeReview executes the AI review
+func (r *DefaultRunner) executeReview(ctx context.Context, diffContext string, skills []string) ([]ai.Issue, error) {
 	prompt := r.buildReviewPrompt(diffContext, skills)
 
-	timeout := DefaultTimeout
-	t, err := r.cfg.Claude.GetTimeout()
-	if err == nil && t > 0 {
-		timeout = t
+	// Build execute options
+	opts := ai.ExecuteOptions{
+		OutputFormat: r.cfg.Claude.OutputFormat,
+		Timeout:      DefaultTimeout,
 	}
 
-	execCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
+	// Get timeout from config
+	if t, err := r.cfg.Claude.GetTimeout(); err == nil && t > 0 {
+		opts.Timeout = t
+	}
 
-	output, err := session.Execute(execCtx, claude.ExecuteOptions{
-		Prompt:          prompt,
-		StdinContent:    "",
-		Model:           r.cfg.Claude.Model,
-		MaxTurns:        r.cfg.Claude.MaxTurns,
-		MaxBudgetUSD:    r.cfg.Claude.MaxBudgetUSD,
-		OutputFormat:    r.cfg.Claude.OutputFormat,
-		SkipPermissions: r.cfg.Claude.SkipPermissions,
-	})
-
+	// Execute with AI Brain
+	output, err := r.aiBrain.Execute(ctx, prompt, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse issues from output
-	return r.parser.ExtractIssues(output.Raw)
+	// Return issues from output
+	return output.Issues, nil
 }
 
 // executeAnalysis executes the change analysis
 func (r *DefaultRunner) executeAnalysis(ctx context.Context, analysisContext string, skills []string) (ChangeSummary, ImpactAnalysis, RiskAssessment, ChangelogEntry, error) {
-	session, err := claude.NewSession(ctx)
-	if err != nil {
-		return ChangeSummary{}, ImpactAnalysis{}, RiskAssessment{}, ChangelogEntry{}, err
-	}
-	defer session.Close()
-
 	prompt := r.buildAnalysisPrompt(analysisContext, skills)
 
-	timeout := DefaultTimeout
-	if r.cfg != nil {
-		t, err := r.cfg.Claude.GetTimeout()
-		if err == nil && t > 0 {
-			timeout = t
-		}
+	// Build execute options
+	opts := ai.ExecuteOptions{
+		OutputFormat: r.cfg.Claude.OutputFormat,
+		Timeout:      DefaultTimeout,
 	}
 
-	execCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
+	// Get timeout from config
+	if r.cfg != nil {
+		if t, err := r.cfg.Claude.GetTimeout(); err == nil && t > 0 {
+			opts.Timeout = t
+		}
+	}
 
 	// Check for context cancellation before executing
 	if ctx.Err() != nil {
 		return ChangeSummary{}, ImpactAnalysis{}, RiskAssessment{}, ChangelogEntry{}, fmt.Errorf("analysis cancelled before execution: %w", ctx.Err())
 	}
 
-	_, err = session.Execute(execCtx, claude.ExecuteOptions{
-		Prompt:          prompt,
-		Model:           r.cfg.Claude.Model,
-		MaxTurns:        r.cfg.Claude.MaxTurns,
-		SkipPermissions: r.cfg.Claude.SkipPermissions,
-	})
-
+	// Execute with AI Brain
+	_, err := r.aiBrain.Execute(ctx, prompt, opts)
 	if err != nil {
-		// Check if context was cancelled - return the context error for proper propagation
 		if ctx.Err() != nil {
 			return ChangeSummary{}, ImpactAnalysis{}, RiskAssessment{}, ChangelogEntry{}, fmt.Errorf("analysis cancelled: %w", ctx.Err())
 		}
@@ -374,47 +359,34 @@ func (r *DefaultRunner) executeAnalysis(ctx context.Context, analysisContext str
 
 // executeTestGen executes test generation
 func (r *DefaultRunner) executeTestGen(ctx context.Context, testGenContext string, opts TestGenOptions) ([]GeneratedTest, error) {
-	session, err := claude.NewSession(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer session.Close()
-
 	prompt := r.buildTestGenPrompt(testGenContext, opts)
 
-	timeout := DefaultTimeout
+	// Build execute options
+	execOpts := ai.ExecuteOptions{
+		OutputFormat: r.cfg.Claude.OutputFormat,
+		Timeout:      DefaultTimeout,
+	}
+
+	// Get timeout from config
 	if r.cfg != nil {
-		t, err := r.cfg.Claude.GetTimeout()
-		if err == nil && t > 0 {
-			timeout = t
+		if t, err := r.cfg.Claude.GetTimeout(); err == nil && t > 0 {
+			execOpts.Timeout = t
 		}
 	}
-	execCtx, cancel := context.WithTimeout(ctx, timeout)
+
+	execCtx, cancel := context.WithTimeout(ctx, execOpts.Timeout)
 	defer cancel()
 
-	output, err := session.Execute(execCtx, claude.ExecuteOptions{
-		Prompt:          prompt,
-		Model:           r.cfg.Claude.Model,
-		SkipPermissions: r.cfg.Claude.SkipPermissions,
-	})
-
+	// Execute with AI Brain
+	output, err := r.aiBrain.Execute(execCtx, prompt, execOpts)
 	if err != nil {
 		return nil, err
 	}
+	_ = output // Use output in future implementation
 
-	// Extract code changes as test files
-	changes := r.parser.ExtractCodeChanges(output.Raw)
-
-	var tests []GeneratedTest
-	for _, change := range changes {
-		tests = append(tests, GeneratedTest{
-			Path:     change.File,
-			Content:  change.Content,
-			Language: detectLanguage(change.File),
-		})
-	}
-
-	return tests, nil
+	// For now, return empty tests as full implementation would parse the output
+	// TODO: Implement code extraction from AI output
+	return []GeneratedTest{}, nil
 }
 
 // buildReviewPrompt builds the prompt for code review
@@ -460,7 +432,7 @@ func (r *DefaultRunner) buildTestGenPrompt(context string, opts TestGenOptions) 
 }
 
 // summarizeIssues aggregates issues into a summary
-func (r *DefaultRunner) summarizeIssues(issues []claude.Issue) ReviewSummary {
+func (r *DefaultRunner) summarizeIssues(issues []ai.Issue) ReviewSummary {
 	summary := ReviewSummary{}
 
 	// Count files

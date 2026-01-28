@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cicd-ai-toolkit/cicd-runner/pkg/claude"
+	"github.com/cicd-ai-toolkit/cicd-runner/pkg/ai"
 )
 
 const (
@@ -33,7 +33,7 @@ type Cache struct {
 // CachedReview represents a cached review result
 type CachedReview struct {
 	Summary  ReviewSummary
-	Issues   []claude.Issue
+	Issues   []ai.Issue
 	Comment  string
 	CachedAt time.Time
 	Duration time.Duration // Original execution duration

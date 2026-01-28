@@ -27,9 +27,21 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("config version is required")
 	}
 
+	// Validate AI backend selection
+	if err := c.ValidateAIBackend(); err != nil {
+		return fmt.Errorf("ai_backend: %w", err)
+	}
+
 	// Validate Claude config
 	if err := c.Claude.Validate(); err != nil {
 		return fmt.Errorf("claude config: %w", err)
+	}
+
+	// Validate Crush config if using Crush backend
+	if strings.ToLower(c.AIBackend) == "crush" {
+		if err := c.Crush.Validate(); err != nil {
+			return fmt.Errorf("crush config: %w", err)
+		}
 	}
 
 	// Validate skills
@@ -50,6 +62,28 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("memory config: %w", err)
 		}
 	}
+
+	return nil
+}
+
+// ValidateAIBackend validates the AI backend selection
+func (c *Config) ValidateAIBackend() error {
+	if c.AIBackend == "" {
+		// Default to Claude for backward compatibility
+		c.AIBackend = "claude"
+		return nil
+	}
+
+	validBackends := map[string]bool{
+		"claude": true,
+		"crush":  true,
+	}
+	if !validBackends[strings.ToLower(c.AIBackend)] {
+		return fmt.Errorf("invalid ai_backend: %s (must be 'claude' or 'crush')", c.AIBackend)
+	}
+
+	// Normalize to lowercase
+	c.AIBackend = strings.ToLower(c.AIBackend)
 
 	return nil
 }
@@ -92,6 +126,39 @@ func (c *ClaudeConfig) Validate() error {
 	}
 	if c.OutputFormat != "" && !validFormats[c.OutputFormat] {
 		return fmt.Errorf("invalid output_format: %s (must be text, json, or stream-json)", c.OutputFormat)
+	}
+
+	return nil
+}
+
+// Validate validates the Crush configuration
+func (c *CrushConfig) Validate() error {
+	// Provider is optional (defaults to anthropic)
+	if c.Provider == "" {
+		c.Provider = "anthropic"
+	}
+
+	// Model is required
+	if c.Model == "" {
+		return fmt.Errorf("crush model is required")
+	}
+
+	// Validate timeout format if specified
+	if c.Timeout != "" {
+		if _, err := time.ParseDuration(c.Timeout); err != nil {
+			return fmt.Errorf("invalid crush timeout format: %w", err)
+		}
+	}
+
+	// Validate output format if specified
+	if c.OutputFormat != "" {
+		validFormats := map[string]bool{
+			"text": true,
+			"json": true,
+		}
+		if !validFormats[c.OutputFormat] {
+			return fmt.Errorf("invalid crush output_format: %s (must be text or json)", c.OutputFormat)
+		}
 	}
 
 	return nil
