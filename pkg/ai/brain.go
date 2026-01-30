@@ -5,6 +5,8 @@ package ai
 import (
 	"context"
 	"time"
+
+	"github.com/cicd-ai-toolkit/cicd-runner/pkg/security"
 )
 
 // BackendType represents the type of AI backend
@@ -74,6 +76,14 @@ type ExecuteOptions struct {
 	// Skills is a list of skill paths to load
 	// Both Claude and Crush support the --skill flag
 	Skills []string
+
+	// EnablePromptInjectionValidation enables prompt injection detection
+	// When true, prompts are validated before being sent to the AI backend
+	EnablePromptInjectionValidation bool
+
+	// InjectionDetector is the custom detector to use for validation
+	// If nil and validation is enabled, a default detector is created
+	InjectionDetector *security.PromptInjectionDetector
 }
 
 // Output represents the parsed output from an AI backend
@@ -82,13 +92,13 @@ type Output struct {
 	Raw string
 
 	// JSON contains the parsed JSON if output was JSON format
-	JSON map[string]interface{}
+	JSON map[string]any
 
 	// Thinking contains the thinking/reasoning block if present
 	Thinking string
 
 	// Result contains the main structured result
-	Result interface{}
+	Result any
 
 	// Issues contains any issues found (for review skills)
 	Issues []Issue

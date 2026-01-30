@@ -306,6 +306,11 @@ func (r *DefaultRunner) executeReview(ctx context.Context, diffContext string, s
 		opts.Timeout = t
 	}
 
+	// Validate prompt for injection attacks if enabled
+	if err := ai.ValidatePrompt(prompt, opts); err != nil {
+		return nil, fmt.Errorf("prompt validation failed: %w", err)
+	}
+
 	// Execute with AI Brain
 	output, err := r.aiBrain.Execute(ctx, prompt, opts)
 	if err != nil {
@@ -331,6 +336,11 @@ func (r *DefaultRunner) executeAnalysis(ctx context.Context, analysisContext str
 		if t, err := r.cfg.Claude.GetTimeout(); err == nil && t > 0 {
 			opts.Timeout = t
 		}
+	}
+
+	// Validate prompt for injection attacks if enabled
+	if err := ai.ValidatePrompt(prompt, opts); err != nil {
+		return ChangeSummary{}, ImpactAnalysis{}, RiskAssessment{}, ChangelogEntry{}, fmt.Errorf("prompt validation failed: %w", err)
 	}
 
 	// Check for context cancellation before executing
@@ -374,6 +384,11 @@ func (r *DefaultRunner) executeTestGen(ctx context.Context, testGenContext strin
 		}
 	}
 
+	// Validate prompt for injection attacks if enabled
+	if err := ai.ValidatePrompt(prompt, execOpts); err != nil {
+		return nil, fmt.Errorf("prompt validation failed: %w", err)
+	}
+
 	// Use ctx directly instead of creating a derived context
 	// The AI brain implementation should handle the timeout internally
 	output, err := r.aiBrain.Execute(ctx, prompt, execOpts)
@@ -382,17 +397,175 @@ func (r *DefaultRunner) executeTestGen(ctx context.Context, testGenContext strin
 	}
 
 	// Parse output to extract generated tests
-	// TODO: Implement robust code extraction from AI output
-	// For now, return empty tests
 	tests := r.parseTestsFromOutput(output.Raw)
 	return tests, nil
 }
 
 // parseTestsFromOutput extracts test code from AI output
-func (r *DefaultRunner) parseTestsFromOutput(_ string) []GeneratedTest {
-	// TODO: Implement parsing logic to extract code blocks from AI response
-	// This should identify code fences with language markers and extract them
-	return []GeneratedTest{}
+// It identifies markdown code fences with language markers and extracts them
+func (r *DefaultRunner) parseTestsFromOutput(output string) []GeneratedTest {
+	if output == "" {
+		return []GeneratedTest{}
+	}
+
+	tests := []GeneratedTest{}
+	lines := strings.Split(output, "\n")
+	var currentBlock []string
+	var currentLang string
+	var inCodeBlock bool
+
+	for _, line := range lines {
+		// Check for code fence start
+		if strings.HasPrefix(line, "```") {
+			if !inCodeBlock {
+				// Start of code block
+				inCodeBlock = true
+				// Extract language from fence (e.g., "```go" -> "go", "```" -> "")
+				currentLang = strings.TrimPrefix(line, "```")
+				if currentLang != "" {
+					currentLang = strings.TrimSpace(currentLang)
+				}
+				currentBlock = []string{}
+				continue
+			} else {
+				// End of code block
+				inCodeBlock = false
+				content := strings.Join(currentBlock, "\n")
+
+				// Only include if it looks like test code and has a language
+				if currentLang != "" && r.isTestContent(content) {
+					// Estimate test count by counting test functions
+					testCount := r.countTestFunctions(content, currentLang)
+
+					// Generate a file path based on language
+					path := r.generateTestPath(currentLang)
+
+					tests = append(tests, GeneratedTest{
+						Path:     path,
+						Language: currentLang,
+						Content:  content,
+						Tests:    testCount,
+					})
+				}
+
+				currentBlock = nil
+				currentLang = ""
+				continue
+			}
+		}
+
+		// Accumulate code block content
+		if inCodeBlock {
+			currentBlock = append(currentBlock, line)
+		}
+	}
+
+	return tests
+}
+
+// isTestContent checks if the content looks like test code
+func (r *DefaultRunner) isTestContent(content string) bool {
+	lowerContent := strings.ToLower(content)
+
+	// Common test indicators
+	testIndicators := []string{
+		"func test",   // Go
+		"def test_",   // Python
+		".test(",      // JavaScript/TypeScript
+		".spec(",      // JavaScript/TypeScript
+		"it(",         // JavaScript/TypeScript
+		"describe(",   // JavaScript/TypeScript
+		"test(",       // Racket, Lisp
+		"@test",       // Java (JUnit 5)
+		"@testmethod", // Objective-C
+		"void test",   // Java/C
+		"suite(",      // Python unittest
+		"testcase",    // Python
+		"assert",      // General assertion
+		"expect(",     // JS testing libraries
+		"should()",    // JS testing libraries
+		"t.run(",      // Go subtests
+		"testing.t",   // Go test parameter
+	}
+
+	for _, indicator := range testIndicators {
+		if strings.Contains(lowerContent, indicator) {
+			return true
+		}
+	}
+
+	// Check for import statements that indicate test files
+	testImports := []string{
+		`"testing"`, // Go
+		`"github.com/stretchr"`,
+		"import pytest", // Python
+		"from unittest", // Python
+		"import @test",  // Java
+		"import org.junit",
+	}
+
+	for _, imp := range testImports {
+		if strings.Contains(lowerContent, imp) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// countTestFunctions estimates the number of test functions in code
+func (r *DefaultRunner) countTestFunctions(content string, lang string) int {
+	count := 0
+	lowerContent := strings.ToLower(content)
+
+	switch lang {
+	case "go":
+		// Count "func Test" occurrences
+		count += strings.Count(lowerContent, "func test")
+	case "py", "python":
+		// Count "def test_" occurrences
+		count += strings.Count(lowerContent, "def test_")
+	case "js", "javascript", "ts", "typescript":
+		// Count various JS test patterns
+		count += strings.Count(lowerContent, "it(")
+		count += strings.Count(lowerContent, "test(")
+		count += strings.Count(lowerContent, ".spec(")
+	case "java":
+		count += strings.Count(lowerContent, "@test")
+		count += strings.Count(lowerContent, "@before")
+		count += strings.Count(lowerContent, "@after")
+	}
+
+	// Minimum of 1 if we detected it as test content
+	if count == 0 && r.isTestContent(content) {
+		count = 1
+	}
+
+	return count
+}
+
+// generateTestPath generates a test file path based on language
+func (r *DefaultRunner) generateTestPath(lang string) string {
+	switch lang {
+	case "go":
+		return "generated_test.go"
+	case "py", "python":
+		return "generated_test.py"
+	case "js":
+		return "generated.test.js"
+	case "ts":
+		return "generated.test.ts"
+	case "java":
+		return "GeneratedTest.java"
+	case "rs", "rust":
+		return "generated_test.rs"
+	case "cpp", "c++":
+		return "generated_test.cpp"
+	case "c":
+		return "generated_test.c"
+	default:
+		return "generated_test." + lang
+	}
 }
 
 // buildReviewPrompt builds the prompt for code review

@@ -324,3 +324,194 @@ func TestSummarizeTests(t *testing.T) {
 		t.Error("CoverageEst should not be empty when tests exist")
 	}
 }
+
+func TestParseTestsFromOutput(t *testing.T) {
+	cfg := &config.Config{
+		Global: config.GlobalConfig{CacheDir: ".cache", EnableCache: false},
+		Claude: config.ClaudeConfig{},
+	}
+	runner, _ := NewRunner(cfg, &mockPlatform{}, ".")
+
+	t.Run("empty output", func(t *testing.T) {
+		tests := runner.parseTestsFromOutput("")
+		if len(tests) != 0 {
+			t.Errorf("Empty output should produce 0 tests, got %d", len(tests))
+		}
+	})
+
+	t.Run("Go test code block", func(t *testing.T) {
+		output := "Here are the tests:\n```go\nfunc TestAdd(t *testing.T) {\n}\n```"
+		tests := runner.parseTestsFromOutput(output)
+		if len(tests) != 1 {
+			t.Fatalf("Expected 1 test, got %d", len(tests))
+		}
+		if tests[0].Language != "go" {
+			t.Errorf("Language = %s, want go", tests[0].Language)
+		}
+		if tests[0].Path != "generated_test.go" {
+			t.Errorf("Path = %s, want generated_test.go", tests[0].Path)
+		}
+		if !strings.Contains(tests[0].Content, "func TestAdd") {
+			t.Error("Content should contain TestAdd function")
+		}
+	})
+
+	t.Run("Python test code block", func(t *testing.T) {
+		output := "```python\nimport pytest\n\ndef test_calculate():\n    pass\n```"
+		tests := runner.parseTestsFromOutput(output)
+		if len(tests) != 1 {
+			t.Fatalf("Expected 1 test, got %d", len(tests))
+		}
+		if tests[0].Language != "python" {
+			t.Errorf("Language = %s, want python", tests[0].Language)
+		}
+		if tests[0].Tests != 1 {
+			t.Errorf("Tests = %d, want 1", tests[0].Tests)
+		}
+	})
+
+	t.Run("JavaScript test code block", func(t *testing.T) {
+		output := "```js\ndescribe('suite', () => {\n  it('should work', () => {})\n})\n```"
+		tests := runner.parseTestsFromOutput(output)
+		if len(tests) != 1 {
+			t.Fatalf("Expected 1 test, got %d", len(tests))
+		}
+		if tests[0].Language != "js" {
+			t.Errorf("Language = %s, want js", tests[0].Language)
+		}
+	})
+
+	t.Run("multiple test blocks", func(t *testing.T) {
+		output := "```go\nfunc TestOne(t *testing.T) {}\n```\n```py\ndef test_two():\n    pass\n```"
+		tests := runner.parseTestsFromOutput(output)
+		if len(tests) != 2 {
+			t.Fatalf("Expected 2 tests, got %d", len(tests))
+		}
+	})
+
+	t.Run("non-test code block is ignored", func(t *testing.T) {
+		output := "```go\nfunc RegularFunction() {}\n```"
+		tests := runner.parseTestsFromOutput(output)
+		if len(tests) != 0 {
+			t.Errorf("Non-test code should produce 0 tests, got %d", len(tests))
+		}
+	})
+
+	t.Run("code block without language is ignored", func(t *testing.T) {
+		output := "```\nfunc TestSomething(t *testing.T) {}\n```"
+		tests := runner.parseTestsFromOutput(output)
+		if len(tests) != 0 {
+			t.Errorf("Code block without language should produce 0 tests, got %d", len(tests))
+		}
+	})
+
+	t.Run("multiple test functions counted correctly", func(t *testing.T) {
+		output := "```go\nfunc TestA(t *testing.T) {}\nfunc TestB(t *testing.T) {}\nfunc TestC(t *testing.T) {}\n```"
+		tests := runner.parseTestsFromOutput(output)
+		if len(tests) != 1 {
+			t.Fatalf("Expected 1 test file, got %d", len(tests))
+		}
+		if tests[0].Tests != 3 {
+			t.Errorf("Tests = %d, want 3", tests[0].Tests)
+		}
+	})
+}
+
+func TestIsTestContent(t *testing.T) {
+	cfg := &config.Config{
+		Global: config.GlobalConfig{CacheDir: ".cache", EnableCache: false},
+		Claude: config.ClaudeConfig{},
+	}
+	runner, _ := NewRunner(cfg, &mockPlatform{}, ".")
+
+	testCases := []struct {
+		content string
+		want    bool
+	}{
+		{"func TestSomething(t *testing.T) {}", true},
+		{"def test_something():", true},
+		{"describe('test', () => {})", true},
+		{"it('should work', () => {})", true},
+		{"@Test void testMethod() {}", true},
+		{"import pytest", true},
+		{`import "testing"`, true},
+		{"func RegularFunction() {}", false},
+		{"just some text", false},
+		{"class MyClass {}", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.content, func(t *testing.T) {
+			got := runner.isTestContent(tc.content)
+			if got != tc.want {
+				t.Errorf("isTestContent(%q) = %v, want %v", tc.content, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCountTestFunctions(t *testing.T) {
+	cfg := &config.Config{
+		Global: config.GlobalConfig{CacheDir: ".cache", EnableCache: false},
+		Claude: config.ClaudeConfig{},
+	}
+	runner, _ := NewRunner(cfg, &mockPlatform{}, ".")
+
+	testCases := []struct {
+		lang    string
+		content string
+		want    int
+	}{
+		{"go", "func TestA(t *testing.T) {}", 1},
+		{"go", "func TestA(t *testing.T) {}\nfunc TestB(t *testing.T) {}", 2},
+		{"python", "def test_a():\n    pass", 1},
+		{"python", "def test_a():\ndef test_b():", 2},
+		{"js", "describe('suite', () => { it('a', () => {}) })", 1},
+		{"js", "it('a', () => {})\nit('b', () => {})", 2},
+		{"java", "@Test\npublic void testA() {}", 1},
+		{"unknown", "func TestA(t *testing.T) {}", 1}, // Fallback to isTestContent
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.lang+"_"+string(rune(tc.want)), func(t *testing.T) {
+			got := runner.countTestFunctions(tc.content, tc.lang)
+			if got != tc.want {
+				t.Errorf("countTestFunctions(%q, %s) = %d, want %d", tc.content, tc.lang, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestGenerateTestPath(t *testing.T) {
+	cfg := &config.Config{
+		Global: config.GlobalConfig{CacheDir: ".cache", EnableCache: false},
+		Claude: config.ClaudeConfig{},
+	}
+	runner, _ := NewRunner(cfg, &mockPlatform{}, ".")
+
+	testCases := []struct {
+		lang string
+		want string
+	}{
+		{"go", "generated_test.go"},
+		{"py", "generated_test.py"},
+		{"python", "generated_test.py"},
+		{"js", "generated.test.js"},
+		{"ts", "generated.test.ts"},
+		{"java", "GeneratedTest.java"},
+		{"rs", "generated_test.rs"},
+		{"rust", "generated_test.rs"},
+		{"cpp", "generated_test.cpp"},
+		{"c", "generated_test.c"},
+		{"ruby", "generated_test.ruby"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.lang, func(t *testing.T) {
+			got := runner.generateTestPath(tc.lang)
+			if got != tc.want {
+				t.Errorf("generateTestPath(%s) = %s, want %s", tc.lang, got, tc.want)
+			}
+		})
+	}
+}

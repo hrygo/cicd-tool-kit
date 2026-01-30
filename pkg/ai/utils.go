@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/cicd-ai-toolkit/cicd-runner/pkg/security"
 )
 
 // validateCommand checks if a command exists and is executable
@@ -109,4 +111,21 @@ func ParseTimeout(timeout string, defaultTimeout time.Duration) time.Duration {
 		return duration
 	}
 	return defaultTimeout
+}
+
+// ValidatePrompt validates a prompt for injection attacks
+// If EnablePromptInjectionValidation is set in opts, it validates the prompt
+// Returns an error if the prompt contains potential injection patterns
+func ValidatePrompt(prompt string, opts ExecuteOptions) error {
+	if !opts.EnablePromptInjectionValidation {
+		return nil
+	}
+
+	detector := opts.InjectionDetector
+	if detector == nil {
+		// Use default detector if none provided
+		detector = security.NewPromptInjectionDetector()
+	}
+
+	return detector.Validate(prompt)
 }
