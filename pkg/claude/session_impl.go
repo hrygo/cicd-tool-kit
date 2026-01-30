@@ -78,7 +78,7 @@ func (s *processSession) Execute(ctx context.Context, opts ExecuteOptions) (*Out
 
 	// Try to extract JSON if present
 	if jsonStr, err := extractJSONBlock(rawOutput); err == nil {
-		output.JSON = make(map[string]interface{})
+		output.JSON = make(map[string]any)
 		// Simple JSON parse attempt
 		// Full parsing would use json.Unmarshal in a real implementation
 		output.Result = jsonStr

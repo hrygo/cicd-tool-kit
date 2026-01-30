@@ -50,7 +50,7 @@ type SkillConfig struct {
 	Path   string                 `yaml:"path"`
 	Enabled bool                  `yaml:"enabled"`
 	Priority int                  `yaml:"priority,omitempty"`
-	Config map[string]interface{} `yaml:"config,omitempty"`
+	Config map[string]any `yaml:"config,omitempty"`
 }
 
 // PlatformConfig contains platform-specific settings
@@ -187,7 +187,7 @@ func (c *Config) GetEnabledSkills() []string {
 }
 
 // GetSkillConfig returns configuration for a specific skill
-func (c *Config) GetSkillConfig(skillName string) (map[string]interface{}, bool) {
+func (c *Config) GetSkillConfig(skillName string) (map[string]any, bool) {
 	for _, s := range c.Skills {
 		if s.Name == skillName {
 			return s.Config, len(s.Config) > 0

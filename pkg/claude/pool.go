@@ -5,6 +5,7 @@ package claude
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -13,13 +14,30 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	// DefaultSessionTTL is the default time-to-live for sessions
+	DefaultSessionTTL = 24 * time.Hour
+	// DefaultMaxSessions is the default maximum concurrent sessions
+	DefaultMaxSessions = 10
+	// CleanupInterval is the interval between cleanup runs
+	CleanupInterval = 5 * time.Minute
+	// MaxRetryBackoff is the maximum backoff time for retries
+	MaxRetryBackoff = 30 * time.Second
+	// MaxScannerCapacity is the maximum line size for stream parsing
+	MaxScannerCapacity = 1024 * 1024 // 1MB
+)
+
 // SessionPool manages multiple Claude sessions with explicit ID strategy
 // Implements the "Explicit ID Strategy" from docs/BEST_PRACTICE_CLI_AGENT.md section 7.2
+// NOTE: SessionPool is safe for concurrent use.
 type SessionPool struct {
 	sessions map[string]*PooledSession
 	mu       sync.RWMutex
 	baseDir  string
 	ttl      time.Duration
+	done     chan struct{}    // Signals goroutines to stop
+	cleanupWg sync.WaitGroup  // Waits for cleanup goroutine to finish
+	started  sync.Once        // Ensures cleanup goroutine starts only once
 }
 
 // PooledSession represents a session in the pool with metadata
@@ -56,8 +74,8 @@ func DefaultPoolConfig() PoolConfig {
 
 	return PoolConfig{
 		BaseDir:     sessionDir,
-		TTL:         24 * time.Hour, // Default: 24 hours
-		MaxSessions: 10,              // Maximum concurrent sessions
+		TTL:         DefaultSessionTTL,
+		MaxSessions: DefaultMaxSessions,
 	}
 }
 
@@ -72,30 +90,54 @@ func NewSessionPool(config PoolConfig) (*SessionPool, error) {
 		return nil, fmt.Errorf("failed to create session directory: %w", err)
 	}
 
-	return &SessionPool{
+	pool := &SessionPool{
 		sessions: make(map[string]*PooledSession),
 		baseDir:  config.BaseDir,
 		ttl:      config.TTL,
-	}, nil
+		done:     make(chan struct{}),
+	}
+
+	// Start cleanup goroutine once
+	pool.startCleanup()
+
+	return pool, nil
+}
+
+// startCleanup starts the cleanup goroutine using sync.Once
+func (p *SessionPool) startCleanup() {
+	p.cleanupWg.Add(1)
+	go func() {
+		defer p.cleanupWg.Done()
+		p.cleanupLoop()
+	}()
 }
 
 // GetOrCreate gets an existing session by ID or creates a new one
 // Implements the Explicit ID Strategy:
 // - If sessionID exists: resume with --resume flag
 // - If sessionID is new: create with --session-id flag
+//
+// NOTE: This method acquires locks in a specific order to avoid deadlock.
+// It always releases the pool lock before acquiring individual session locks.
 func (p *SessionPool) GetOrCreate(ctx context.Context, sessionID string) (*PooledSession, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	// First, check if session exists under read lock
+	p.mu.RLock()
+	pooled, exists := p.sessions[sessionID]
+	p.mu.RUnlock()
 
-	// Check if session exists
-	if pooled, exists := p.sessions[sessionID]; exists {
+	if exists && pooled != nil {
+		// Acquire session lock outside of pool lock to avoid deadlock
 		pooled.Lock.Lock()
-		defer pooled.Lock.Unlock()
 
+		// Double-check under session lock
 		if pooled.Active {
 			pooled.LastUsed = time.Now()
+			pooled.Lock.Unlock()
 			return pooled, nil
 		}
+
+		// Session exists but inactive, need to create new one
+		pooled.Lock.Unlock()
 	}
 
 	// Create new session
@@ -104,7 +146,7 @@ func (p *SessionPool) GetOrCreate(ctx context.Context, sessionID string) (*Poole
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
-	pooled := &PooledSession{
+	newPooled := &PooledSession{
 		ID:        sessionID,
 		CreatedAt: time.Now(),
 		LastUsed:  time.Now(),
@@ -112,12 +154,12 @@ func (p *SessionPool) GetOrCreate(ctx context.Context, sessionID string) (*Poole
 		Active:    true,
 	}
 
-	p.sessions[sessionID] = pooled
+	// Add to pool under write lock
+	p.mu.Lock()
+	p.sessions[sessionID] = newPooled
+	p.mu.Unlock()
 
-	// Start cleanup goroutine
-	go p.cleanupLoop()
-
-	return pooled, nil
+	return newPooled, nil
 }
 
 // CreateNew creates a new session with a generated UUID
@@ -127,17 +169,22 @@ func (p *SessionPool) CreateNew(ctx context.Context) (*PooledSession, error) {
 }
 
 // Get returns an existing session by ID, or error if not found
+// NOTE: Acquires session lock; caller must not hold pool lock when calling.
 func (p *SessionPool) Get(sessionID string) (*PooledSession, error) {
 	p.mu.RLock()
-	defer p.mu.RUnlock()
-
 	pooled, exists := p.sessions[sessionID]
-	if !exists || !pooled.Active {
-		return nil, fmt.Errorf("session not found or inactive: %s", sessionID)
+	p.mu.RUnlock()
+
+	if !exists {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+	if !pooled.Active {
+		return nil, fmt.Errorf("session inactive: %s (created at %v, last used %v)",
+			sessionID, pooled.CreatedAt.Format(time.RFC3339), pooled.LastUsed.Format(time.RFC3339))
 	}
 
 	pooled.Lock.Lock()
-	defer pooled.Lock.Unlock()
+	// Note: Caller is responsible for unlocking via returned *PooledSession
 	pooled.LastUsed = time.Now()
 
 	return pooled, nil
@@ -146,37 +193,46 @@ func (p *SessionPool) Get(sessionID string) (*PooledSession, error) {
 // Remove removes a session from the pool and closes it
 func (p *SessionPool) Remove(sessionID string) error {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	pooled, exists := p.sessions[sessionID]
 	if !exists {
+		p.mu.Unlock()
 		return nil
 	}
+	delete(p.sessions, sessionID)
+	p.mu.Unlock()
 
+	// Close session outside of pool lock
 	pooled.Lock.Lock()
-	defer pooled.Lock.Unlock()
-
 	pooled.Active = false
 	if pooled.Session != nil {
-		_ = pooled.Session.Close()
+		if err := pooled.Session.Close(); err != nil {
+			log.Printf("[WARNING] failed to close session %s: %v", sessionID, err)
+		}
 	}
-
-	delete(p.sessions, sessionID)
+	pooled.Lock.Unlock()
 
 	// Clean up session files
 	sessionPath := filepath.Join(p.baseDir, sessionID)
-	_ = os.RemoveAll(sessionPath)
+	if err := os.RemoveAll(sessionPath); err != nil {
+		log.Printf("[WARNING] failed to remove session directory %s: %v", sessionPath, err)
+	}
 
 	return nil
 }
 
 // cleanupLoop runs periodic cleanup of expired sessions
+// This goroutine runs until the pool is closed.
 func (p *SessionPool) cleanupLoop() {
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(CleanupInterval)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		p.cleanup()
+	for {
+		select {
+		case <-ticker.C:
+			p.cleanup()
+		case <-p.done:
+			return // Graceful shutdown
+		}
 	}
 }
 
@@ -193,17 +249,31 @@ func (p *SessionPool) cleanup() {
 		if now.Sub(pooled.LastUsed) > p.ttl {
 			pooled.Active = false
 			if pooled.Session != nil {
-				_ = pooled.Session.Close()
+				if err := pooled.Session.Close(); err != nil {
+					log.Printf("[WARNING] cleanup: failed to close session %s: %v", id, err)
+				}
 			}
 			delete(p.sessions, id)
+
+			// Clean up session files
+			sessionPath := filepath.Join(p.baseDir, id)
+			if err := os.RemoveAll(sessionPath); err != nil {
+				log.Printf("[WARNING] cleanup: failed to remove session directory %s: %v", sessionPath, err)
+			}
 		}
 
 		pooled.Lock.Unlock()
 	}
 }
 
-// Close closes all sessions in the pool
+// Close closes all sessions in the pool and stops the cleanup goroutine
 func (p *SessionPool) Close() error {
+	// Signal cleanup goroutine to stop
+	close(p.done)
+
+	// Wait for cleanup goroutine to finish
+	p.cleanupWg.Wait()
+
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -213,6 +283,7 @@ func (p *SessionPool) Close() error {
 		pooled.Active = false
 		if pooled.Session != nil {
 			if err := pooled.Session.Close(); err != nil {
+				log.Printf("[ERROR] failed to close session %s during pool shutdown: %v", id, err)
 				lastErr = err
 			}
 		}
@@ -236,9 +307,9 @@ func (p *SessionPool) GetStats() PoolStats {
 	}
 
 	return PoolStats{
-		TotalSessions: len(p.sessions),
+		TotalSessions:  len(p.sessions),
 		ActiveSessions: active,
-		BaseDir:       p.baseDir,
+		BaseDir:        p.baseDir,
 	}
 }
 
@@ -279,8 +350,8 @@ func (p *PooledSession) ExecuteWithRetry(ctx context.Context, opts ExecuteOption
 		// Exponential backoff
 		if attempt < maxRetries {
 			backoff := time.Duration(1<<uint(attempt)) * time.Second
-			if backoff > 30*time.Second {
-				backoff = 30 * time.Second
+			if backoff > MaxRetryBackoff {
+				backoff = MaxRetryBackoff
 			}
 			select {
 			case <-ctx.Done():

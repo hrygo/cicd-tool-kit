@@ -69,13 +69,13 @@ type Output struct {
 	Raw string
 
 	// JSON contains the parsed JSON if output was JSON format
-	JSON map[string]interface{}
+	JSON map[string]any
 
 	// Thinking contains the thinking block if present
 	Thinking string
 
 	// Result contains the main structured result
-	Result interface{}
+	Result any
 
 	// Issues contains any issues found (for review skills)
 	Issues []Issue
@@ -111,7 +111,7 @@ type TokenUsage struct {
 // OutputParser parses Claude's output format
 type OutputParser interface {
 	// ParseJSON extracts and parses JSON from Claude output
-	ParseJSON(output string, target interface{}) error
+	ParseJSON(output string, target any) error
 
 	// ExtractJSONBlock extracts JSON code blocks from markdown
 	ExtractJSONBlock(output string) (string, error)

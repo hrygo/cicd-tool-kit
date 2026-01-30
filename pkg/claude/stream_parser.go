@@ -8,6 +8,12 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
+)
+
+const (
+	// DefaultScannerBufferSize is the initial buffer size for the scanner
+	DefaultScannerBufferSize = 4096
 )
 
 // StreamEventType represents the type of stream event
@@ -30,15 +36,18 @@ const (
 
 // StreamEvent represents a single event in the stream
 type StreamEvent struct {
-	Type      StreamEventType     `json:"type"`
-	Timestamp string              `json:"timestamp,omitempty"`
-	Data      json.RawMessage     `json:"data,omitempty"`
-	Error     string              `json:"error,omitempty"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	Type      StreamEventType `json:"type"`
+	Timestamp string          `json:"timestamp,omitempty"`
+	Data      json.RawMessage `json:"data,omitempty"`
+	Error     string          `json:"error,omitempty"`
+	Metadata  map[string]any  `json:"metadata,omitempty"`
 }
 
 // StreamParser parses streaming JSON output from Claude CLI
 // Implements stream-json parsing from docs/BEST_PRACTICE_CLI_AGENT.md section 7.3
+//
+// NOTE: StreamParser is NOT safe for concurrent use. Use separate instances
+// for each goroutine or synchronize access externally.
 type StreamParser struct {
 	scanner *bufio.Scanner
 	handler EventHandler
@@ -66,24 +75,38 @@ type EventHandler interface {
 	OnThinking(event StreamEvent)
 }
 
-// DefaultEventHandler provides a no-op implementation of EventHandler
-type DefaultEventHandler struct{}
+// defaultEventHandler provides a no-op implementation of EventHandler
+// Using empty struct allocates no memory.
+type defaultEventHandler struct{}
 
-func (h *DefaultEventHandler) OnMessage(event StreamEvent)    {}
-func (h *DefaultEventHandler) OnContentDelta(event StreamEvent) {}
-func (h *DefaultEventHandler) OnToolUse(event StreamEvent)     {}
-func (h *DefaultEventHandler) OnResult(event StreamEvent)      {}
-func (h *DefaultEventHandler) OnError(event StreamEvent)       {}
-func (h *DefaultEventHandler) OnThinking(event StreamEvent)    {}
+func (h *defaultEventHandler) OnMessage(event StreamEvent)    {}
+func (h *defaultEventHandler) OnContentDelta(event StreamEvent) {}
+func (h *defaultEventHandler) OnToolUse(event StreamEvent)     {}
+func (h *defaultEventHandler) OnResult(event StreamEvent)      {}
+func (h *defaultEventHandler) OnError(event StreamEvent)       {}
+func (h *defaultEventHandler) OnThinking(event StreamEvent)    {}
 
-// NewStreamParser creates a new stream parser
+// DefaultEventHandler provides a no-op implementation of EventHandler.
+// This is a var pointing to an empty struct to avoid allocations.
+var DefaultEventHandler EventHandler = &defaultEventHandler{}
+
+// NewStreamParser creates a new stream parser.
+// The parser can handle lines up to MaxScannerCapacity (1MB by default).
+// If handler is nil, DefaultEventHandler will be used.
+//
+// NOTE: The returned StreamParser is NOT safe for concurrent use.
 func NewStreamParser(r io.Reader, handler EventHandler) *StreamParser {
 	if handler == nil {
-		handler = &DefaultEventHandler{}
+		handler = DefaultEventHandler
 	}
 
+	scanner := bufio.NewScanner(r)
+	// Set buffer size to handle large lines (up to 1MB)
+	buf := make([]byte, 0, DefaultScannerBufferSize)
+	scanner.Buffer(buf, MaxScannerCapacity)
+
 	return &StreamParser{
-		scanner: bufio.NewScanner(r),
+		scanner: scanner,
 		handler: handler,
 		errors:  make([]string, 0),
 	}
@@ -175,8 +198,12 @@ func (p *StreamParser) HasErrors() bool {
 }
 
 // BufferedEventHandler buffers all events for later processing
+//
+// NOTE: BufferedEventHandler is NOT safe for concurrent use.
+// Use external synchronization if sharing between goroutines.
 type BufferedEventHandler struct {
 	events []StreamEvent
+	mu     sync.Mutex // For future concurrent access support
 }
 
 // NewBufferedEventHandler creates a new buffered event handler
