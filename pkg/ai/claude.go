@@ -49,7 +49,7 @@ func (b *ClaudeBackend) Execute(ctx context.Context, prompt string, opts Execute
 	if err != nil {
 		return nil, fmt.Errorf("failed to create claude session: %w", err)
 	}
-	defer session.Close()
+	defer func() { _ = session.Close() }()
 
 	// Build execute options for Claude
 	claudeOpts := claude.ExecuteOptions{

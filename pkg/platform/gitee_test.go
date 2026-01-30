@@ -30,7 +30,9 @@ func TestGiteeClientSetBaseURL(t *testing.T) {
 	client := NewGiteeClient("test-token", "owner/repo")
 	customURL := "https://gitee.enterprise.com/api/v5"
 
-	client.SetBaseURL(customURL)
+	if err := client.SetBaseURL(customURL); err != nil {
+		t.Fatalf("SetBaseURL failed: %v", err)
+	}
 
 	if client.baseURL != customURL {
 		t.Errorf("Expected baseURL '%s', got '%s'", customURL, client.baseURL)

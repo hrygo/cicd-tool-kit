@@ -227,7 +227,7 @@ func TestParallelError(t *testing.T) {
 func TestRateLimiter(t *testing.T) {
 	ctx := context.Background()
 	limiter := NewRateLimiter(2)
-	defer limiter.Close()
+	defer func() { _ = limiter.Close() }()
 
 	counter := atomic.Int32{}
 	done := make(chan struct{})
@@ -235,7 +235,7 @@ func TestRateLimiter(t *testing.T) {
 	// Start 4 goroutines
 	for i := 0; i < 4; i++ {
 		go func() {
-			limiter.Do(ctx, func() error {
+			_ = limiter.Do(ctx, func() error {
 				counter.Add(1)
 				time.Sleep(50 * time.Millisecond)
 				return nil
@@ -257,7 +257,7 @@ func TestRateLimiter(t *testing.T) {
 func TestRateLimiterConcurrency(t *testing.T) {
 	ctx := context.Background()
 	limiter := NewRateLimiter(1)
-	defer limiter.Close()
+	defer func() { _ = limiter.Close() }()
 
 	start := time.Now()
 	concurrent := 3
@@ -265,7 +265,7 @@ func TestRateLimiterConcurrency(t *testing.T) {
 	done := make(chan struct{})
 	for i := 0; i < concurrent; i++ {
 		go func() {
-			limiter.Do(ctx, func() error {
+			_ = limiter.Do(ctx, func() error {
 				time.Sleep(50 * time.Millisecond)
 				return nil
 			})
@@ -357,12 +357,12 @@ func TestWorkerPoolSubmitAfterStop(t *testing.T) {
 
 func TestRateLimiterTimeout(t *testing.T) {
 	limiter := NewRateLimiter(1)
-	defer limiter.Close()
+	defer func() { _ = limiter.Close() }()
 
 	// First call takes the slot
 	done := make(chan struct{})
 	go func() {
-		limiter.Do(context.Background(), func() error {
+		_ = limiter.Do(context.Background(), func() error {
 			time.Sleep(100 * time.Millisecond)
 			return nil
 		})

@@ -156,7 +156,7 @@ func (g *GitLabClient) PostComment(ctx context.Context, opts CommentOptions) err
 	if err != nil {
 		return fmt.Errorf("failed to post comment: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -186,7 +186,7 @@ func (g *GitLabClient) GetDiff(ctx context.Context, mrID int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get diff: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to get diff (status %d)", resp.StatusCode)
@@ -229,7 +229,7 @@ func (g *GitLabClient) GetFile(ctx context.Context, path, ref string) (string, e
 	if err != nil {
 		return "", fmt.Errorf("failed to get file: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to get file (status %d)", resp.StatusCode)
@@ -275,7 +275,7 @@ func (g *GitLabClient) GetPRInfo(ctx context.Context, mrID int) (*PRInfo, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get MR info: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get MR info (status %d)", resp.StatusCode)
@@ -305,7 +305,7 @@ func (g *GitLabClient) GetPRInfo(ctx context.Context, mrID int) (*PRInfo, error)
 				if json.NewDecoder(shaResp.Body).Decode(&commits) == nil && len(commits) > 0 {
 					sha = commits[0].ID
 				}
-				shaResp.Body.Close()
+				_ = shaResp.Body.Close()
 			}
 		}
 	}
@@ -341,7 +341,7 @@ func (g *GitLabClient) Health(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("GitLab API returned status %d", resp.StatusCode)

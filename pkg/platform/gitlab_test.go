@@ -30,7 +30,9 @@ func TestGitLabClientSetBaseURL(t *testing.T) {
 	client := NewGitLabClient("test-token", "owner/repo")
 	customURL := "https://gitlab.enterprise.com/api/v4"
 
-	client.SetBaseURL(customURL)
+	if err := client.SetBaseURL(customURL); err != nil {
+		t.Fatalf("SetBaseURL failed: %v", err)
+	}
 
 	if client.baseURL != customURL {
 		t.Errorf("Expected baseURL '%s', got '%s'", customURL, client.baseURL)

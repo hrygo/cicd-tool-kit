@@ -27,7 +27,9 @@ func TestNewGitHubClient(t *testing.T) {
 
 func TestGitHubClient_SetBaseURL(t *testing.T) {
 	client := NewGitHubClient("token", "owner/repo")
-	client.SetBaseURL("https://github.enterprise.com/api/v3")
+	if err := client.SetBaseURL("https://github.enterprise.com/api/v3"); err != nil {
+		t.Fatalf("SetBaseURL failed: %v", err)
+	}
 
 	if client.baseURL != "https://github.enterprise.com/api/v3" {
 		t.Errorf("baseURL = %s, want https://github.enterprise.com/api/v3", client.baseURL)
@@ -54,7 +56,7 @@ func TestGitHubClient_PostComment(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{"id": 1}`))
+		_, _ = w.Write([]byte(`{"id": 1}`))
 	}))
 	defer server.Close()
 
@@ -77,7 +79,7 @@ func TestGitHubClient_PostCommentAsReview(t *testing.T) {
 		// First request is get PR
 		if r.URL.Path == "/repos/owner/repo/pulls/123" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{
+			_, _ = w.Write([]byte(`{
 				"number": 123,
 				"title": "Test PR",
 				"head": {"sha": "abc123", "ref": "feature"}
@@ -88,7 +90,7 @@ func TestGitHubClient_PostCommentAsReview(t *testing.T) {
 		// Second request is post review
 		if r.URL.Path == "/repos/owner/repo/pulls/123/reviews" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"id": 1}`))
+			_, _ = w.Write([]byte(`{"id": 1}`))
 			return
 		}
 
@@ -115,7 +117,7 @@ func TestGitHubClient_GetDiff(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/repos/owner/repo/pulls/123" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{
+			_, _ = w.Write([]byte(`{
 				"number": 123,
 				"head": {"sha": "abc123"}
 			}`))
@@ -124,7 +126,7 @@ func TestGitHubClient_GetDiff(t *testing.T) {
 
 		if r.URL.Path == "/repos/owner/repo/pulls/123.diff" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("diff --git a/file.go b/file.go\n+new line"))
+			_, _ = w.Write([]byte("diff --git a/file.go b/file.go\n+new line"))
 			return
 		}
 
@@ -150,7 +152,7 @@ func TestGitHubClient_GetDiff(t *testing.T) {
 func TestGitHubClient_GetPRInfo(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"number": 123,
 			"title": "Test PR",
 			"body": "Test description",
@@ -323,7 +325,7 @@ func TestGitHubClient_PostCommentWithPosition(t *testing.T) {
 		// Get PR first
 		if r.URL.Path == "/repos/owner/repo/pulls/123" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{
+			_, _ = w.Write([]byte(`{
 				"number": 123,
 				"head": {"sha": "abc123"}
 			}`))
@@ -334,7 +336,7 @@ func TestGitHubClient_PostCommentWithPosition(t *testing.T) {
 		if r.URL.Path == "/repos/owner/repo/pulls/123/reviews" {
 			// Verify body contains position
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"id": 1}`))
+			_, _ = w.Write([]byte(`{"id": 1}`))
 			return
 		}
 
@@ -367,14 +369,14 @@ func BenchmarkGitHubClient_GetDiff(b *testing.B) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/repos/owner/repo/pulls/123" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"head": {"sha": "abc123"}}`))
+			_, _ = w.Write([]byte(`{"head": {"sha": "abc123"}}`))
 			return
 		}
 		if r.URL.Path == "/repos/owner/repo/pulls/123.diff" {
 			// Simulate a large diff
 			w.WriteHeader(http.StatusOK)
 			for i := 0; i < 1000; i++ {
-				w.Write([]byte("+line " + string(rune(i)) + "\n"))
+				_, _ = w.Write([]byte("+line " + string(rune(i)) + "\n"))
 			}
 			return
 		}

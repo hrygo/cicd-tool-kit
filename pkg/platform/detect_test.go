@@ -20,7 +20,7 @@ func TestDetectPlatform(t *testing.T) {
 
 	// Clean env for testing
 	for _, v := range envVars {
-		os.Unsetenv(v)
+		_ = os.Unsetenv(v)
 	}
 
 	// Default should be local
@@ -29,43 +29,43 @@ func TestDetectPlatform(t *testing.T) {
 	}
 
 	// Test GitHub
-	os.Setenv("GITHUB_ACTIONS", "true")
+	_ = os.Setenv("GITHUB_ACTIONS", "true")
 	if got := DetectPlatform(); got != "github" {
 		t.Errorf("expected github, got %s", got)
 	}
-	os.Unsetenv("GITHUB_ACTIONS")
+	_ = os.Unsetenv("GITHUB_ACTIONS")
 
 	// Test GitLab
-	os.Setenv("GITLAB_CI", "true")
+	_ = os.Setenv("GITLAB_CI", "true")
 	if got := DetectPlatform(); got != "gitlab" {
 		t.Errorf("expected gitlab, got %s", got)
 	}
-	os.Unsetenv("GITLAB_CI")
+	_ = os.Unsetenv("GITLAB_CI")
 
 	// Test Gitee
-	os.Setenv("GITEE_CI", "true")
+	_ = os.Setenv("GITEE_CI", "true")
 	if got := DetectPlatform(); got != "gitee" {
 		t.Errorf("expected gitee, got %s", got)
 	}
-	os.Unsetenv("GITEE_CI")
+	_ = os.Unsetenv("GITEE_CI")
 
-	os.Setenv("GITEE_SERVER_URL", "https://gitee.com")
+	_ = os.Setenv("GITEE_SERVER_URL", "https://gitee.com")
 	if got := DetectPlatform(); got != "gitee" {
 		t.Errorf("expected gitee, got %s", got)
 	}
-	os.Unsetenv("GITEE_SERVER_URL")
+	_ = os.Unsetenv("GITEE_SERVER_URL")
 
 	// Test Jenkins
-	os.Setenv("JENKINS_HOME", "/var/jenkins")
+	_ = os.Setenv("JENKINS_HOME", "/var/jenkins")
 	if got := DetectPlatform(); got != "jenkins" {
 		t.Errorf("expected jenkins, got %s", got)
 	}
-	os.Unsetenv("JENKINS_HOME")
+	_ = os.Unsetenv("JENKINS_HOME")
 
 	// Restore env
 	for _, v := range envVars {
 		if val, ok := origEnv[v]; ok {
-			os.Setenv(v, val)
+			_ = os.Setenv(v, val)
 		}
 	}
 }
@@ -76,7 +76,7 @@ func TestDetectPlatformInfo(t *testing.T) {
 	envVars := []string{"GITHUB_ACTIONS", "GITLAB_CI"}
 	for _, v := range envVars {
 		origEnv[v] = os.Getenv(v)
-		os.Unsetenv(v)
+		_ = os.Unsetenv(v)
 	}
 
 	// Test no CI
@@ -89,7 +89,7 @@ func TestDetectPlatformInfo(t *testing.T) {
 	}
 
 	// Test GitHub
-	os.Setenv("GITHUB_ACTIONS", "true")
+	_ = os.Setenv("GITHUB_ACTIONS", "true")
 	info = DetectPlatformInfo()
 	if info.Name != "github" {
 		t.Errorf("expected github, got %s", info.Name)
@@ -104,12 +104,12 @@ func TestDetectPlatformInfo(t *testing.T) {
 		t.Errorf("expected true, got %s", info.VarValue)
 	}
 
-	os.Unsetenv("GITHUB_ACTIONS")
+	_ = os.Unsetenv("GITHUB_ACTIONS")
 
 	// Restore env
 	for _, v := range envVars {
 		if val, ok := origEnv[v]; ok {
-			os.Setenv(v, val)
+			_ = os.Setenv(v, val)
 		}
 	}
 }
@@ -119,20 +119,20 @@ func TestIsRunningInCI(t *testing.T) {
 	origVal := os.Getenv("GITHUB_ACTIONS")
 	defer func() {
 		if origVal != "" {
-			os.Setenv("GITHUB_ACTIONS", origVal)
+			_ = os.Setenv("GITHUB_ACTIONS", origVal)
 		} else {
-			os.Unsetenv("GITHUB_ACTIONS")
+			_ = os.Unsetenv("GITHUB_ACTIONS")
 		}
 	}()
 
 	// Not in CI
-	os.Unsetenv("GITHUB_ACTIONS")
+	_ = os.Unsetenv("GITHUB_ACTIONS")
 	if IsRunningInCI() {
 		t.Error("expected false when not in CI")
 	}
 
 	// In CI
-	os.Setenv("GITHUB_ACTIONS", "true")
+	_ = os.Setenv("GITHUB_ACTIONS", "true")
 	if !IsRunningInCI() {
 		t.Error("expected true when in CI")
 	}
@@ -143,13 +143,13 @@ func TestGetPlatformFromConfig(t *testing.T) {
 	origVal := os.Getenv("GITHUB_ACTIONS")
 	defer func() {
 		if origVal != "" {
-			os.Setenv("GITHUB_ACTIONS", origVal)
+			_ = os.Setenv("GITHUB_ACTIONS", origVal)
 		} else {
-			os.Unsetenv("GITHUB_ACTIONS")
+			_ = os.Unsetenv("GITHUB_ACTIONS")
 		}
 	}()
 
-	os.Unsetenv("GITHUB_ACTIONS")
+	_ = os.Unsetenv("GITHUB_ACTIONS")
 
 	// Auto mode should detect
 	if got := GetPlatformFromConfig("auto"); got != "local" {

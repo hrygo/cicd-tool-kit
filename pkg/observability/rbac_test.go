@@ -89,7 +89,9 @@ func TestAssignRole(t *testing.T) {
 		Email: "test@example.com",
 		Roles: []string{},
 	}
-	rbac.AddUser(user)
+	if err := rbac.AddUser(user); err != nil {
+		t.Fatalf("AddUser failed: %v", err)
+	}
 
 	err := rbac.AssignRole("user1", "developer")
 	if err != nil {
@@ -128,7 +130,9 @@ func TestRevokeRole(t *testing.T) {
 		Email: "test@example.com",
 		Roles: []string{"viewer", "developer"},
 	}
-	rbac.AddUser(user)
+	if err := rbac.AddUser(user); err != nil {
+		t.Fatalf("AddUser failed: %v", err)
+	}
 
 	err := rbac.RevokeRole("user1", "viewer")
 	if err != nil {
@@ -155,7 +159,9 @@ func TestHasPermission(t *testing.T) {
 		Email: "test@example.com",
 		Roles: []string{"viewer"},
 	}
-	rbac.AddUser(user)
+	if err := rbac.AddUser(user); err != nil {
+		t.Fatalf("AddUser failed: %v", err)
+	}
 
 	// Viewer should have read permission
 	if !rbac.HasPermission("user1", PermissionRead) {
@@ -183,7 +189,9 @@ func TestHasAllPermissions(t *testing.T) {
 		Email: "test@example.com",
 		Roles: []string{"admin"},
 	}
-	rbac.AddUser(user)
+	if err := rbac.AddUser(user); err != nil {
+		t.Fatalf("AddUser failed: %v", err)
+	}
 
 	// Admin should have all these permissions
 	perms := []Permission{PermissionRead, PermissionWrite, PermissionDelete}
@@ -208,7 +216,9 @@ func TestHasAnyPermission(t *testing.T) {
 		Email: "test@example.com",
 		Roles: []string{"viewer"},
 	}
-	rbac.AddUser(user)
+	if err := rbac.AddUser(user); err != nil {
+		t.Fatalf("AddUser failed: %v", err)
+	}
 
 	// Viewer has read but not write
 	perms := []Permission{PermissionRead, PermissionWrite}
@@ -233,7 +243,9 @@ func TestCheckPermission(t *testing.T) {
 		Email: "test@example.com",
 		Roles: []string{"viewer"},
 	}
-	rbac.AddUser(user)
+	if err := rbac.AddUser(user); err != nil {
+		t.Fatalf("AddUser failed: %v", err)
+	}
 
 	// Should succeed for read permission
 	err := rbac.CheckPermission("user1", PermissionRead)
@@ -258,7 +270,9 @@ func TestDisableUser(t *testing.T) {
 		Email: "test@example.com",
 		Roles: []string{"admin"},
 	}
-	rbac.AddUser(user)
+	if err := rbac.AddUser(user); err != nil {
+		t.Fatalf("AddUser failed: %v", err)
+	}
 
 	err := rbac.DisableUser("user1")
 	if err != nil {
@@ -286,8 +300,12 @@ func TestListUsers(t *testing.T) {
 	audit, _ := NewAuditLogger("")
 	rbac := NewRBAC(audit)
 
-	rbac.AddUser(&User{ID: "user1", Name: "User 1"})
-	rbac.AddUser(&User{ID: "user2", Name: "User 2"})
+	if err := rbac.AddUser(&User{ID: "user1", Name: "User 1"}); err != nil {
+		t.Fatalf("AddUser failed: %v", err)
+	}
+	if err := rbac.AddUser(&User{ID: "user2", Name: "User 2"}); err != nil {
+		t.Fatalf("AddUser failed: %v", err)
+	}
 
 	users := rbac.ListUsers()
 	if len(users) != 2 {

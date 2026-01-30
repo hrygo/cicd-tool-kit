@@ -255,7 +255,7 @@ func (g *GiteeClient) GetBranchProtection(ctx context.Context, branch string) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to get branch protection: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// API may not be available, return default rule
 	if resp.StatusCode == http.StatusNotFound {
@@ -288,7 +288,7 @@ func (g *GiteeClient) GetSecurityScanResults(ctx context.Context, sha string) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to get security scan results: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get security scan results (status %d)", resp.StatusCode)
@@ -322,7 +322,7 @@ func (g *GiteeClient) TriggerSecurityScan(ctx context.Context, sha string, scanT
 	if err != nil {
 		return fmt.Errorf("failed to trigger security scan: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -341,7 +341,7 @@ func (g *GiteeClient) GetCodeQualityMetrics(ctx context.Context, sha string) (*C
 	if err != nil {
 		return nil, fmt.Errorf("failed to get code quality metrics: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Metrics may not be available
 	if resp.StatusCode == http.StatusNotFound {
@@ -464,7 +464,7 @@ func (g *GiteeClient) GetEnterpriseInfo(ctx context.Context) (*EnterpriseInfo, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to get enterprise info: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get enterprise info (status %d)", resp.StatusCode)
@@ -516,7 +516,7 @@ func (g *GiteeClient) CreatePipeline(ctx context.Context, config GiteeGoConfig) 
 	if err != nil {
 		return fmt.Errorf("failed to create pipeline: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -535,7 +535,7 @@ func (g *GiteeClient) GetPipelineStatus(ctx context.Context, pipelineID, runID i
 	if err != nil {
 		return "", fmt.Errorf("failed to get pipeline status: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to get pipeline status (status %d)", resp.StatusCode)
@@ -570,7 +570,7 @@ func (g *GiteeClient) TriggerPipeline(ctx context.Context, pipelineID int, branc
 	if err != nil {
 		return 0, fmt.Errorf("failed to trigger pipeline: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)

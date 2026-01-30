@@ -306,7 +306,9 @@ func createPlatform(cfg *config.Config) (platform.Platform, error) {
 		}
 		client := platform.NewGitHubClient(token, repo)
 		if cfg.Platform.GitHub.APIURL != "" {
-			client.SetBaseURL(cfg.Platform.GitHub.APIURL)
+			if err := client.SetBaseURL(cfg.Platform.GitHub.APIURL); err != nil {
+				return nil, fmt.Errorf("failed to set GitHub API URL: %w", err)
+			}
 		}
 		return client, nil
 
@@ -321,7 +323,9 @@ func createPlatform(cfg *config.Config) (platform.Platform, error) {
 		}
 		client := platform.NewGitLabClient(token, repo)
 		if cfg.Platform.GitLab.APIURL != "" {
-			client.SetBaseURL(cfg.Platform.GitLab.APIURL)
+			if err := client.SetBaseURL(cfg.Platform.GitLab.APIURL); err != nil {
+				return nil, fmt.Errorf("failed to set GitLab API URL: %w", err)
+			}
 		}
 		return client, nil
 
@@ -336,7 +340,9 @@ func createPlatform(cfg *config.Config) (platform.Platform, error) {
 		}
 		client := platform.NewGiteeClient(token, repo)
 		if cfg.Platform.Gitee.APIURL != "" {
-			client.SetBaseURL(cfg.Platform.Gitee.APIURL)
+			if err := client.SetBaseURL(cfg.Platform.Gitee.APIURL); err != nil {
+				return nil, fmt.Errorf("failed to set Gitee API URL: %w", err)
+			}
 		}
 		return client, nil
 

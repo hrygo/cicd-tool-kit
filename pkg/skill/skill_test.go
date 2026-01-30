@@ -24,13 +24,23 @@ func TestNewLoader(t *testing.T) {
 func TestDiscover(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(tmpDir, "skill1"), 0755)
-	os.WriteFile(filepath.Join(tmpDir, "skill1", "SKILL.md"), []byte("# Test"), 0644)
+	if err := os.MkdirAll(filepath.Join(tmpDir, "skill1"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "skill1", "SKILL.md"), []byte("# Test"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
-	os.MkdirAll(filepath.Join(tmpDir, "skill2"), 0755)
-	os.WriteFile(filepath.Join(tmpDir, "skill2", "SKILL.md"), []byte("# Test"), 0644)
+	if err := os.MkdirAll(filepath.Join(tmpDir, "skill2"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "skill2", "SKILL.md"), []byte("# Test"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
-	os.MkdirAll(filepath.Join(tmpDir, "not-a-skill"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmpDir, "not-a-skill"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	loader := NewLoader(tmpDir)
 	names, err := loader.Discover()
@@ -126,8 +136,12 @@ func TestLoadAll(t *testing.T) {
 	skillNames := []string{"reviewer", "analyzer", "tester"}
 	for _, name := range skillNames {
 		skillPath := filepath.Join(tmpDir, name)
-		os.MkdirAll(skillPath, 0755)
-		os.WriteFile(filepath.Join(skillPath, "SKILL.md"), []byte("# "+name+" Skill"), 0644)
+		if err := os.MkdirAll(skillPath, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(skillPath, "SKILL.md"), []byte("# "+name+" Skill"), 0644); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	loader := NewLoader(tmpDir)
@@ -145,8 +159,12 @@ func TestLoadAll(t *testing.T) {
 func TestGetPromptForSkill(t *testing.T) {
 	tmpDir := t.TempDir()
 	skillPath := filepath.Join(tmpDir, "test-skill")
-	os.MkdirAll(skillPath, 0755)
-	os.WriteFile(filepath.Join(skillPath, "SKILL.md"), []byte("# Test Content"), 0644)
+	if err := os.MkdirAll(skillPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillPath, "SKILL.md"), []byte("# Test Content"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	loader := NewLoader(tmpDir)
 	prompt, err := loader.GetPromptForSkill("test-skill")
@@ -166,8 +184,12 @@ func TestGetSkillNamesForOperation(t *testing.T) {
 	skills := []string{"code-reviewer", "test-generator", "change-analyzer", "log-analyzer"}
 	for _, name := range skills {
 		skillPath := filepath.Join(tmpDir, name)
-		os.MkdirAll(skillPath, 0755)
-		os.WriteFile(filepath.Join(skillPath, "SKILL.md"), []byte("# "+name), 0644)
+		if err := os.MkdirAll(skillPath, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(skillPath, "SKILL.md"), []byte("# "+name), 0644); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	loader := NewLoader(tmpDir)

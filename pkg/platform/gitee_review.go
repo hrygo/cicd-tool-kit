@@ -100,7 +100,7 @@ func (g *GiteeClient) PostReviewComment(ctx context.Context, prID int, comment R
 	if err != nil {
 		return nil, fmt.Errorf("failed to post review comment: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -160,7 +160,7 @@ func (g *GiteeClient) GetReviewComments(ctx context.Context, prID int) ([]Review
 	if err != nil {
 		return nil, fmt.Errorf("failed to get review comments: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get review comments (status %d)", resp.StatusCode)
@@ -195,7 +195,7 @@ func (g *GiteeClient) UpdateReviewComment(ctx context.Context, prID, commentID i
 	if err != nil {
 		return fmt.Errorf("failed to update review comment: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -213,7 +213,7 @@ func (g *GiteeClient) DeleteReviewComment(ctx context.Context, prID, commentID i
 	if err != nil {
 		return fmt.Errorf("failed to delete review comment: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -240,7 +240,7 @@ func (g *GiteeClient) ResolveReviewComment(ctx context.Context, prID, commentID 
 	if err != nil {
 		return fmt.Errorf("failed to resolve review comment: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -267,7 +267,7 @@ func (g *GiteeClient) UnresolveReviewComment(ctx context.Context, prID, commentI
 	if err != nil {
 		return fmt.Errorf("failed to unresolve review comment: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)

@@ -376,7 +376,7 @@ func (j *JenkinsClient) GetPRInfo(ctx context.Context, prID int) (*PRInfo, error
 			case "ghprbPullId", "pull_request_id":
 				// Override build number with actual PR ID if available
 				if param.Value != "" {
-					fmt.Sscanf(param.Value, "%d", &prInfo.Number)
+					_, _ = fmt.Sscanf(param.Value, "%d", &prInfo.Number)
 				}
 			case "ghprbSourceBranch", "source_branch":
 				prInfo.HeadBranch = param.Value

@@ -211,7 +211,7 @@ func (s *WebhookServer) handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	// Limit body size to prevent unbounded memory usage
 	limitedReader := http.MaxBytesReader(w, r.Body, maxWebhookBodySize)
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	// Read request body
 	body, err := io.ReadAll(limitedReader)
@@ -285,7 +285,7 @@ func (s *WebhookServer) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		// No slot available, drop event to prevent unbounded goroutine growth
 		s.logger("handler concurrency limit reached, dropping event %s", eventCopy.Type)
 		w.WriteHeader(http.StatusServiceUnavailable)
-		fmt.Fprintf(w, `{"status":"dropped","reason":"concurrency limit"}`)
+		_, _ = fmt.Fprintf(w, `{"status":"dropped","reason":"concurrency limit"}`)
 		return
 	}
 
@@ -303,7 +303,7 @@ func (s *WebhookServer) handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	// Respond immediately
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{"status":"received","event":"%s"}`, event.Type)
+	_, _ = fmt.Fprintf(w, `{"status":"received","event":"%s"}`, event.Type)
 }
 
 // verifySignature verifies the webhook signature
@@ -342,7 +342,7 @@ func ValidateGiteeWebhook(r *http.Request, secret string) (*GiteeWebhookEvent, e
 
 	// Limit body size to prevent unbounded memory usage
 	limitedReader := http.MaxBytesReader(nil, r.Body, maxWebhookBodySize)
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	// Read body
 	body, err := io.ReadAll(limitedReader)
@@ -544,7 +544,7 @@ func (m *WebhookMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to read body", http.StatusBadRequest)
 			return
 		}
-		r.Body.Close()
+		_ = r.Body.Close()
 
 		mac := hmac.New(sha256.New, []byte(m.secret))
 		mac.Write(body)

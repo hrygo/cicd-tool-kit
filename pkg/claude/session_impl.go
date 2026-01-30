@@ -109,37 +109,37 @@ func (s *processSession) ExecuteWithStreams(ctx context.Context, opts ExecuteOpt
 	defer func() {
 		// Close stdin if Start fails (will be no-op if successfully started and copied)
 		if cmdStdin != nil {
-			cmdStdin.Close()
+			_ = cmdStdin.Close()
 		}
 	}()
 
 	cmdStdout, err := s.cmd.StdoutPipe()
 	if err != nil {
 		// Clean up stdin pipe before returning
-		cmdStdin.Close()
+		_ = cmdStdin.Close()
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 	defer func() {
 		// Close stdout if Start fails
 		if cmdStdout != nil {
-			io.Copy(io.Discard, cmdStdout) // Drain any pending data
-			cmdStdout.Close()
+			_, _ = io.Copy(io.Discard, cmdStdout) // Drain any pending data
+			_ = cmdStdout.Close()
 		}
 	}()
 
 	cmdStderr, err := s.cmd.StderrPipe()
 	if err != nil {
 		// Clean up previously created pipes before returning
-		cmdStdin.Close()
-		io.Copy(io.Discard, cmdStdout)
-		cmdStdout.Close()
+		_ = cmdStdin.Close()
+		_, _ = io.Copy(io.Discard, cmdStdout)
+		_ = cmdStdout.Close()
 		return fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
 	defer func() {
 		// Close stderr if Start fails
 		if cmdStderr != nil {
-			io.Copy(io.Discard, cmdStderr) // Drain any pending data
-			cmdStderr.Close()
+			_, _ = io.Copy(io.Discard, cmdStderr) // Drain any pending data
+			_ = cmdStderr.Close()
 		}
 	}()
 
@@ -414,7 +414,7 @@ func ExecuteSimple(ctx context.Context, prompt string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer session.Close()
+	defer func() { _ = session.Close() }()
 
 	opts := ExecuteOptions{
 		Prompt:          prompt,
@@ -436,7 +436,7 @@ func ExecuteWithInput(ctx context.Context, prompt string, input string) (string,
 	if err != nil {
 		return "", err
 	}
-	defer session.Close()
+	defer func() { _ = session.Close() }()
 
 	opts := ExecuteOptions{
 		Prompt:          prompt,

@@ -199,7 +199,7 @@ func (g *GiteeClient) PostComment(ctx context.Context, opts CommentOptions) erro
 	if err != nil {
 		return fmt.Errorf("failed to post comment: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -217,7 +217,7 @@ func (g *GiteeClient) GetDiff(ctx context.Context, prID int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get diff: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to get diff (status %d)", resp.StatusCode)
@@ -250,7 +250,7 @@ func (g *GiteeClient) GetFile(ctx context.Context, path, ref string) (string, er
 	if err != nil {
 		return "", fmt.Errorf("failed to get file: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to get file (status %d)", resp.StatusCode)
@@ -285,7 +285,7 @@ func (g *GiteeClient) GetPRInfo(ctx context.Context, prID int) (*PRInfo, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PR info: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get PR info (status %d)", resp.StatusCode)
@@ -316,7 +316,7 @@ func (g *GiteeClient) Health(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("gitee: health check failed (status %d)", resp.StatusCode)

@@ -302,7 +302,7 @@ func (m *MetricsCollector) backgroundFlush() {
 	for {
 		select {
 		case <-ticker.C:
-			m.FlushMetrics()
+			_ = m.FlushMetrics() // Log error internally, don't fail ticker
 		case <-m.stopCh:
 			return
 		}
@@ -546,7 +546,7 @@ func (a *AuditLogger) Clear() error {
 func (a *AuditLogger) Close() error {
 	a.closeOnce.Do(func() {
 		if a.file != nil {
-			a.file.Close()
+			_ = a.file.Close()
 		}
 	})
 	return nil

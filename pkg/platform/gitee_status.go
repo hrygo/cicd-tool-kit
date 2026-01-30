@@ -101,7 +101,7 @@ func (g *GiteeClient) CreateStatus(ctx context.Context, sha string, opts StatusO
 	if err != nil {
 		return nil, fmt.Errorf("failed to create status: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -128,7 +128,7 @@ func (g *GiteeClient) GetStatuses(ctx context.Context, sha string) ([]GiteeStatu
 	if err != nil {
 		return nil, fmt.Errorf("failed to get statuses: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get statuses (status %d)", resp.StatusCode)
@@ -154,7 +154,7 @@ func (g *GiteeClient) GetCombinedStatus(ctx context.Context, sha string) (*Gitee
 	if err != nil {
 		return nil, fmt.Errorf("failed to get combined status: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get combined status (status %d)", resp.StatusCode)
@@ -365,7 +365,7 @@ func (g *GiteeClient) GetPRMergeStatus(ctx context.Context, prID int) (*MergeSta
 	if err != nil {
 		return nil, fmt.Errorf("failed to get merge status: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get merge status (status %d)", resp.StatusCode)
@@ -418,7 +418,7 @@ func (g *GiteeClient) MergePR(ctx context.Context, prID int, opts MergeOptions) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge PR: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)

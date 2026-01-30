@@ -279,16 +279,16 @@ func (p *parser) ExtractTokenUsage(output string) *TokenUsage {
 
 	for _, line := range lines {
 		if matches := inputRe.FindStringSubmatch(line); len(matches) >= 2 {
-			fmt.Sscanf(matches[1], "%d", &usage.InputTokens)
+			_, _ = fmt.Sscanf(matches[1], "%d", &usage.InputTokens)
 		}
 		if matches := outputRe.FindStringSubmatch(line); len(matches) >= 2 {
-			fmt.Sscanf(matches[1], "%d", &usage.OutputTokens)
+			_, _ = fmt.Sscanf(matches[1], "%d", &usage.OutputTokens)
 		}
 		if matches := totalRe.FindStringSubmatch(line); len(matches) >= 2 {
-			fmt.Sscanf(matches[1], "%d", &usage.TotalTokens)
+			_, _ = fmt.Sscanf(matches[1], "%d", &usage.TotalTokens)
 		}
 		if matches := costRe.FindStringSubmatch(line); len(matches) >= 2 {
-			fmt.Sscanf(matches[1], "%f", &usage.CostUSD)
+			_, _ = fmt.Sscanf(matches[1], "%f", &usage.CostUSD)
 		}
 	}
 

@@ -109,10 +109,13 @@ func NewRBAC(audit *AuditLogger) *RBAC {
 		audit:     audit,
 	}
 
-	// Register default roles
-	rbac.RegisterRole(&RoleViewer)
-	rbac.RegisterRole(&RoleDeveloper)
-	rbac.RegisterRole(&RoleAdmin)
+	// Register default roles (these are well-defined, errors indicate programming bugs)
+	for _, role := range []*Role{&RoleViewer, &RoleDeveloper, &RoleAdmin} {
+		if err := rbac.RegisterRole(role); err != nil {
+			// Should never happen with well-defined roles
+			panic(fmt.Sprintf("failed to register default role: %v", err))
+		}
+	}
 
 	return rbac
 }
