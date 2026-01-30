@@ -8,9 +8,9 @@ import (
 
 func TestNewMetricsCollector(t *testing.T) {
 	config := MetricConfig{
-		Enabled:        true,
-		FlushInterval:  100 * time.Millisecond,
-		MaxSamples:     10,
+		Enabled:       true,
+		FlushInterval: 100 * time.Millisecond,
+		MaxSamples:    10,
 	}
 
 	m := NewMetricsCollector(config)
@@ -138,9 +138,9 @@ func TestGetAverageDuration(t *testing.T) {
 
 func TestFlushMetrics(t *testing.T) {
 	m := NewMetricsCollector(MetricConfig{
-		Enabled:        true,
-		FlushInterval:  50 * time.Millisecond,
-		MaxSamples:     5,
+		Enabled:       true,
+		FlushInterval: 50 * time.Millisecond,
+		MaxSamples:    5,
 	})
 
 	m.Counter("test", 1, nil)
@@ -269,9 +269,9 @@ func TestTracerCurrentSpan(t *testing.T) {
 
 func TestMetricsCollectorDoubleClose(t *testing.T) {
 	m := NewMetricsCollector(MetricConfig{
-		Enabled:        true,
-		FlushInterval:  50 * time.Millisecond,
-		MaxSamples:     5,
+		Enabled:       true,
+		FlushInterval: 50 * time.Millisecond,
+		MaxSamples:    5,
 	})
 
 	m.Counter("test", 1, nil)

@@ -39,7 +39,7 @@ func TestParseCodeOwners(t *testing.T) {
 			want: 2,
 		},
 		{
-			name: "multiple owners",
+			name:    "multiple owners",
 			content: "*.go @user1 @user2 @user3",
 			want:    1,
 		},
@@ -280,14 +280,14 @@ func TestReviewerSuggestionFields(t *testing.T) {
 
 func TestEnterpriseInfoFields(t *testing.T) {
 	info := EnterpriseInfo{
-		ID:            123,
-		Name:          "Test Enterprise",
-		Slug:          "test-enterprise",
-		DisplayName:   "Test Enterprise Display",
-		LogoURL:       "https://example.com/logo.png",
+		ID:             123,
+		Name:           "Test Enterprise",
+		Slug:           "test-enterprise",
+		DisplayName:    "Test Enterprise Display",
+		LogoURL:        "https://example.com/logo.png",
 		Level3Security: true,
-		PasswordEval:  true,
-		Xinchuang:     true,
+		PasswordEval:   true,
+		Xinchuang:      true,
 	}
 
 	if info.ID != 123 {
@@ -336,12 +336,12 @@ func TestComplianceReportFields(t *testing.T) {
 			ID:   123,
 			Name: "Enterprise",
 		},
-		HasCodeOwners:        true,
-		HasBranchProtection:  true,
-		HasSecurityScan:      true,
-		HasStatusChecks:      true,
-		ComplianceScore:      95.5,
-		Recommendations:      []string{"Enable 2FA"},
+		HasCodeOwners:       true,
+		HasBranchProtection: true,
+		HasSecurityScan:     true,
+		HasStatusChecks:     true,
+		ComplianceScore:     95.5,
+		Recommendations:     []string{"Enable 2FA"},
 	}
 
 	if !report.HasCodeOwners {

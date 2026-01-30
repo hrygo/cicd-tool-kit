@@ -98,8 +98,8 @@ func NewSandbox(config *Config) *Sandbox {
 		config = DefaultConfig()
 	}
 	return &Sandbox{
-		config:         config,
-		allowedPaths:   config.ReadOnlyPaths,
+		config:       config,
+		allowedPaths: config.ReadOnlyPaths,
 		deniedPatterns: []string{
 			"/etc/passwd",
 			"/etc/shadow",
@@ -207,12 +207,12 @@ func (s *Sandbox) Execute(ctx context.Context, code string) (string, error) {
 	// which includes more whitespace characters than our explicit check
 	dangerousChars := []string{
 		"|", "&", ";", "$", "(", ")", "`", "\\", ">", "<",
-		"!", // history expansion in bash
+		"!",                // history expansion in bash
 		"*", "?", "[", "]", // glob characters that could expand unexpectedly
 		"{", "}", // brace expansion
-		"~", // home directory expansion
-		"#", // comment character
-		"%", // job control
+		"~",       // home directory expansion
+		"#",       // comment character
+		"%",       // job control
 		"'", "\"", // quotes - strings.Fields cannot parse quoted arguments correctly
 		"\n", "\r", "\t", "\f", "\v", // explicit whitespace checks
 		"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07",

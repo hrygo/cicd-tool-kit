@@ -237,7 +237,6 @@ func TestStatsCacheResetStats(t *testing.T) {
 	}
 }
 
-
 func TestCacheDoubleClose(t *testing.T) {
 	cache := NewCache[string, int](5, 50*time.Millisecond)
 	cache.Set("key1", 100)

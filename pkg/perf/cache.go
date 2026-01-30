@@ -17,15 +17,15 @@ type CacheItem[K comparable, V any] struct {
 
 // Cache is a thread-safe LRU cache with TTL support
 type Cache[K comparable, V any] struct {
-	mu         sync.RWMutex
-	items      map[K]*list.Element
-	lru        *list.List
-	maxSize    int
-	ttl        time.Duration
-	onEvicted  func(K, V)
-	closeCh    chan struct{}
-	closed     bool
-	closeOnce  sync.Once
+	mu        sync.RWMutex
+	items     map[K]*list.Element
+	lru       *list.List
+	maxSize   int
+	ttl       time.Duration
+	onEvicted func(K, V)
+	closeCh   chan struct{}
+	closed    bool
+	closeOnce sync.Once
 }
 
 // NewCache creates a new cache

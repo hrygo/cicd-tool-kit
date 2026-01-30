@@ -429,9 +429,9 @@ func Parallel[R any](ctx context.Context, fns ...func() (R, error)) ([]R, error)
 	defer cancel()
 
 	type result struct {
-		idx  int
-		val  R
-		err  error
+		idx int
+		val R
+		err error
 	}
 
 	resultCh := make(chan result, len(fns))

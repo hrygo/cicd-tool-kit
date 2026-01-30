@@ -54,14 +54,14 @@ type ReviewCommentRequest struct {
 
 // ReviewCommentResponse represents the response from creating a review comment
 type ReviewCommentResponse struct {
-	ID       int    `json:"id"`
-	Body     string `json:"body"`
-	Path     string `json:"path"`
-	Position int    `json:"position"`
-	Side     string `json:"side"`
-	CommitID string `json:"commit_id"`
-	User     GiteeUser `json:"user"`
-	CreatedAt string `json:"created_at"`
+	ID        int       `json:"id"`
+	Body      string    `json:"body"`
+	Path      string    `json:"path"`
+	Position  int       `json:"position"`
+	Side      string    `json:"side"`
+	CommitID  string    `json:"commit_id"`
+	User      GiteeUser `json:"user"`
+	CreatedAt string    `json:"created_at"`
 }
 
 // PostReviewComment posts a line-level review comment to a Gitee pull request
@@ -314,10 +314,10 @@ func (g *GiteeClient) GetLatestCommitID(ctx context.Context, prID int) (string, 
 
 // BatchReviewOptions represents options for batch review operations
 type BatchReviewOptions struct {
-	PRID        int
-	Body        string
-	State       ReviewState
-	Comments    []ReviewComment
+	PRID     int
+	Body     string
+	State    ReviewState
+	Comments []ReviewComment
 }
 
 // SubmitReview submits a complete review with optional line comments

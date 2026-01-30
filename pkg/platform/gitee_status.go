@@ -62,7 +62,7 @@ type GiteeStatus struct {
 // StatusListResponse represents the response when listing statuses
 type StatusListResponse struct {
 	Statuses []GiteeStatus `json:"statuses"`
-	Total   int           `json:"total_count"`
+	Total    int           `json:"total_count"`
 }
 
 // CreateStatus creates a status check on a commit
@@ -170,13 +170,13 @@ func (g *GiteeClient) GetCombinedStatus(ctx context.Context, sha string) (*Gitee
 
 // StatusCheckResult represents the result of checking if PR can merge
 type StatusCheckResult struct {
-	SHA           string            `json:"sha"`
-	State         StatusState       `json:"state"`
-	TotalCount    int               `json:"total_count"`
-	Statuses      []GiteeStatus     `json:"statuses"`
-	Contexts      map[string]string `json:"contexts"` // context -> state mapping
-	CanMerge      bool              `json:"can_merge"`
-	RequiredContexts []string       `json:"required_contexts"`
+	SHA              string            `json:"sha"`
+	State            StatusState       `json:"state"`
+	TotalCount       int               `json:"total_count"`
+	Statuses         []GiteeStatus     `json:"statuses"`
+	Contexts         map[string]string `json:"contexts"` // context -> state mapping
+	CanMerge         bool              `json:"can_merge"`
+	RequiredContexts []string          `json:"required_contexts"`
 }
 
 // CheckPRStatusChecks checks if all required status checks have passed for a PR
@@ -192,10 +192,10 @@ func (g *GiteeClient) CheckPRStatusChecks(ctx context.Context, prID int, require
 	}
 
 	result := &StatusCheckResult{
-		SHA:        prInfo.SHA,
-		Statuses:   statuses,
-		TotalCount: len(statuses),
-		Contexts:   make(map[string]string),
+		SHA:              prInfo.SHA,
+		Statuses:         statuses,
+		TotalCount:       len(statuses),
+		Contexts:         make(map[string]string),
 		RequiredContexts: requiredContexts,
 	}
 
@@ -291,10 +291,10 @@ func (g *GiteeClient) CreateErrorStatus(ctx context.Context, sha, description, c
 
 // StatusCheckConfig represents configuration for status check validation
 type StatusCheckConfig struct {
-	RequiredContexts   []string
-	WaitForCompletion  bool
-	Timeout            time.Duration
-	PollInterval       time.Duration
+	RequiredContexts  []string
+	WaitForCompletion bool
+	Timeout           time.Duration
+	PollInterval      time.Duration
 }
 
 // WaitForStatusChecks waits for all required status checks to complete
@@ -349,12 +349,12 @@ func (g *GiteeClient) WaitForStatusChecks(ctx context.Context, prID int, config 
 
 // MergeStatus represents the merge status of a PR
 type MergeStatus struct {
-	CanMerge      bool   `json:"can_merge"`
-	Mergeable     bool   `json:"mergeable"`
-	Merged        bool   `json:"merged"`
-	MergedAt      *time.Time `json:"merged_at"`
-	MergeCommitSHA string `json:"merge_commit_sha"`
-	Message       string `json:"message"`
+	CanMerge       bool       `json:"can_merge"`
+	Mergeable      bool       `json:"mergeable"`
+	Merged         bool       `json:"merged"`
+	MergedAt       *time.Time `json:"merged_at"`
+	MergeCommitSHA string     `json:"merge_commit_sha"`
+	Message        string     `json:"message"`
 }
 
 // GetPRMergeStatus checks if a PR can be merged
@@ -372,11 +372,11 @@ func (g *GiteeClient) GetPRMergeStatus(ctx context.Context, prID int) (*MergeSta
 	}
 
 	var result struct {
-		Mergeable     bool       `json:"mergeable"`
-		Merged        bool       `json:"merged"`
-		MergedAt      *time.Time `json:"merged_at"`
-		MergeCommitSHA string    `json:"merge_commit_sha"`
-		Message       string     `json:"message"`
+		Mergeable      bool       `json:"mergeable"`
+		Merged         bool       `json:"merged"`
+		MergedAt       *time.Time `json:"merged_at"`
+		MergeCommitSHA string     `json:"merge_commit_sha"`
+		Message        string     `json:"message"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -384,12 +384,12 @@ func (g *GiteeClient) GetPRMergeStatus(ctx context.Context, prID int) (*MergeSta
 	}
 
 	return &MergeStatus{
-		CanMerge:      result.Mergeable && !result.Merged,
-		Mergeable:     result.Mergeable,
-		Merged:        result.Merged,
-		MergedAt:      result.MergedAt,
+		CanMerge:       result.Mergeable && !result.Merged,
+		Mergeable:      result.Mergeable,
+		Merged:         result.Merged,
+		MergedAt:       result.MergedAt,
 		MergeCommitSHA: result.MergeCommitSHA,
-		Message:       result.Message,
+		Message:        result.Message,
 	}, nil
 }
 
@@ -426,10 +426,10 @@ func (g *GiteeClient) MergePR(ctx context.Context, prID int, opts MergeOptions) 
 	}
 
 	var result struct {
-		Merged        bool       `json:"merged"`
-		MergedAt      *time.Time `json:"merged_at"`
-		MergeCommitSHA string    `json:"merge_commit_sha"`
-		Message       string     `json:"message"`
+		Merged         bool       `json:"merged"`
+		MergedAt       *time.Time `json:"merged_at"`
+		MergeCommitSHA string     `json:"merge_commit_sha"`
+		Message        string     `json:"message"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -437,12 +437,12 @@ func (g *GiteeClient) MergePR(ctx context.Context, prID int, opts MergeOptions) 
 	}
 
 	return &MergeStatus{
-		CanMerge:      false,
-		Mergeable:     true,
-		Merged:        result.Merged,
-		MergedAt:      result.MergedAt,
+		CanMerge:       false,
+		Mergeable:      true,
+		Merged:         result.Merged,
+		MergedAt:       result.MergedAt,
 		MergeCommitSHA: result.MergeCommitSHA,
-		Message:       result.Message,
+		Message:        result.Message,
 	}, nil
 }
 

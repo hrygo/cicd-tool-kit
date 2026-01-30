@@ -195,7 +195,7 @@ func (r *DefaultRunner) Health(ctx context.Context) error {
 }
 
 // buildReviewContext builds the context for code review
-func (r *DefaultRunner) buildReviewContext(ctx context.Context, opts ReviewOptions) string {
+func (r *DefaultRunner) buildReviewContext(_ context.Context, opts ReviewOptions) string {
 	var sb strings.Builder
 
 	sb.WriteString("# Code Review Context\n\n")
@@ -217,14 +217,14 @@ func (r *DefaultRunner) buildReviewContext(ctx context.Context, opts ReviewOptio
 }
 
 // buildAnalysisContext builds the context for change analysis
-func (r *DefaultRunner) buildAnalysisContext(ctx context.Context, opts AnalyzeOptions) string {
+func (r *DefaultRunner) buildAnalysisContext(_ context.Context, opts AnalyzeOptions) string {
 	var sb strings.Builder
 
 	sb.WriteString("# Change Analysis Context\n\n")
-	sb.WriteString(fmt.Sprintf("## Summary\n\n"))
-	sb.WriteString(fmt.Sprintf("- Files Changed: %d\n", opts.FileCount))
-	sb.WriteString(fmt.Sprintf("- Additions: +%d\n", opts.Additions))
-	sb.WriteString(fmt.Sprintf("- Deletions: -%d\n", opts.Deletions))
+	fmt.Fprintf(&sb, "## Summary\n\n")
+	fmt.Fprintf(&sb, "- Files Changed: %d\n", opts.FileCount)
+	fmt.Fprintf(&sb, "- Additions: +%d\n", opts.Additions)
+	fmt.Fprintf(&sb, "- Deletions: -%d\n", opts.Deletions)
 
 	if opts.Diff != "" {
 		sb.WriteString("\n## Diff\n\n")
@@ -254,7 +254,7 @@ func (r *DefaultRunner) buildAnalysisContext(ctx context.Context, opts AnalyzeOp
 		}
 		if wasTruncated {
 			// Log truncation warning for observability
-			sb.WriteString(fmt.Sprintf("[WARNING] Diff truncated from %d to %d bytes for context limits\n", len(opts.Diff), len(diff)))
+			fmt.Fprintf(&sb, "[WARNING] Diff truncated from %d to %d bytes for context limits\n", len(opts.Diff), len(diff))
 		}
 		sb.WriteString(diff)
 		sb.WriteString("\n```\n")
@@ -264,7 +264,7 @@ func (r *DefaultRunner) buildAnalysisContext(ctx context.Context, opts AnalyzeOp
 }
 
 // buildTestGenContext builds the context for test generation
-func (r *DefaultRunner) buildTestGenContext(ctx context.Context, opts TestGenOptions) string {
+func (r *DefaultRunner) buildTestGenContext(_ context.Context, opts TestGenOptions) string {
 	var sb strings.Builder
 
 	sb.WriteString("# Test Generation Context\n\n")
@@ -279,13 +279,13 @@ func (r *DefaultRunner) buildTestGenContext(ctx context.Context, opts TestGenOpt
 	if len(opts.TargetFiles) > 0 {
 		sb.WriteString("## Target Files\n\n")
 		for _, f := range opts.TargetFiles {
-			sb.WriteString(fmt.Sprintf("- %s\n", f))
+			fmt.Fprintf(&sb, "- %s\n", f)
 		}
 		sb.WriteString("\n")
 	}
 
 	if opts.TestFramework != "" {
-		sb.WriteString(fmt.Sprintf("## Test Framework\n\n%s\n\n", opts.TestFramework))
+		fmt.Fprintf(&sb, "## Test Framework\n\n%s\n\n", opts.TestFramework)
 	}
 
 	return sb.String()
@@ -350,11 +350,11 @@ func (r *DefaultRunner) executeAnalysis(ctx context.Context, analysisContext str
 	// Parse the output - for now return defaults
 	// A full implementation would parse JSON output
 	return ChangeSummary{
-		Title:        "Analysis Complete",
-		FilesChanged: 0,
-	}, ImpactAnalysis{}, RiskAssessment{
-		Score: 5,
-	}, ChangelogEntry{}, nil
+			Title:        "Analysis Complete",
+			FilesChanged: 0,
+		}, ImpactAnalysis{}, RiskAssessment{
+			Score: 5,
+		}, ChangelogEntry{}, nil
 }
 
 // executeTestGen executes test generation
@@ -374,23 +374,29 @@ func (r *DefaultRunner) executeTestGen(ctx context.Context, testGenContext strin
 		}
 	}
 
-	execCtx, cancel := context.WithTimeout(ctx, execOpts.Timeout)
-	defer cancel()
-
-	// Execute with AI Brain
-	output, err := r.aiBrain.Execute(execCtx, prompt, execOpts)
+	// Use ctx directly instead of creating a derived context
+	// The AI brain implementation should handle the timeout internally
+	output, err := r.aiBrain.Execute(ctx, prompt, execOpts)
 	if err != nil {
 		return nil, err
 	}
-	_ = output // Use output in future implementation
 
-	// For now, return empty tests as full implementation would parse the output
-	// TODO: Implement code extraction from AI output
-	return []GeneratedTest{}, nil
+	// Parse output to extract generated tests
+	// TODO: Implement robust code extraction from AI output
+	// For now, return empty tests
+	tests := r.parseTestsFromOutput(output.Raw)
+	return tests, nil
+}
+
+// parseTestsFromOutput extracts test code from AI output
+func (r *DefaultRunner) parseTestsFromOutput(_ string) []GeneratedTest {
+	// TODO: Implement parsing logic to extract code blocks from AI response
+	// This should identify code fences with language markers and extract them
+	return []GeneratedTest{}
 }
 
 // buildReviewPrompt builds the prompt for code review
-func (r *DefaultRunner) buildReviewPrompt(context string, skills []string) string {
+func (r *DefaultRunner) buildReviewPrompt(context string, _ []string) string {
 	var sb strings.Builder
 
 	sb.WriteString("You are an expert code reviewer. Analyze the provided code changes.\n\n")
@@ -414,7 +420,7 @@ func (r *DefaultRunner) buildReviewPrompt(context string, skills []string) strin
 }
 
 // buildAnalysisPrompt builds the prompt for change analysis
-func (r *DefaultRunner) buildAnalysisPrompt(context string, skills []string) string {
+func (r *DefaultRunner) buildAnalysisPrompt(context string, _ []string) string {
 	return fmt.Sprintf("Analyze the following changes and provide impact assessment, risk analysis, and changelog entry.\n\n%s\n\nProvide a summary with risk score (1-10), impact analysis, and structured changelog.", context)
 }
 
@@ -486,21 +492,21 @@ func (r *DefaultRunner) formatReviewComment(result *ReviewResult) string {
 
 	// Summary section
 	sb.WriteString("### Summary\n\n")
-	sb.WriteString(fmt.Sprintf("- **Files Changed**: %d\n", result.Summary.FilesChanged))
-	sb.WriteString(fmt.Sprintf("- **Total Issues**: %d\n", result.Summary.TotalIssues))
+	fmt.Fprintf(&sb, "- **Files Changed**: %d\n", result.Summary.FilesChanged)
+	fmt.Fprintf(&sb, "- **Total Issues**: %d\n", result.Summary.TotalIssues)
 
 	// Severity breakdown
 	if result.Summary.Critical > 0 {
-		sb.WriteString(fmt.Sprintf("- **🔴 Critical**: %d\n", result.Summary.Critical))
+		fmt.Fprintf(&sb, "- **🔴 Critical**: %d\n", result.Summary.Critical)
 	}
 	if result.Summary.High > 0 {
-		sb.WriteString(fmt.Sprintf("- **🟠 High**: %d\n", result.Summary.High))
+		fmt.Fprintf(&sb, "- **🟠 High**: %d\n", result.Summary.High)
 	}
 	if result.Summary.Medium > 0 {
-		sb.WriteString(fmt.Sprintf("- **🟡 Medium**: %d\n", result.Summary.Medium))
+		fmt.Fprintf(&sb, "- **🟡 Medium**: %d\n", result.Summary.Medium)
 	}
 	if result.Summary.Low > 0 {
-		sb.WriteString(fmt.Sprintf("- **🟢 Low**: %d\n", result.Summary.Low))
+		fmt.Fprintf(&sb, "- **🟢 Low**: %d\n", result.Summary.Low)
 	}
 
 	sb.WriteString("\n")
@@ -511,10 +517,10 @@ func (r *DefaultRunner) formatReviewComment(result *ReviewResult) string {
 
 		for _, issue := range result.Issues {
 			icon := severityIcon(issue.Severity)
-			sb.WriteString(fmt.Sprintf("%s **%s** - `%s:%d`\n", icon, issue.Category, issue.File, issue.Line))
-			sb.WriteString(fmt.Sprintf("%s\n\n", issue.Message))
+			fmt.Fprintf(&sb, "%s **%s** - `%s:%d`\n", icon, issue.Category, issue.File, issue.Line)
+			fmt.Fprintf(&sb, "%s\n\n", issue.Message)
 			if issue.Suggestion != "" {
-				sb.WriteString(fmt.Sprintf("**Suggestion**: %s\n\n", issue.Suggestion))
+				fmt.Fprintf(&sb, "**Suggestion**: %s\n\n", issue.Suggestion)
 			}
 		}
 	} else {
@@ -576,16 +582,16 @@ func detectLanguage(path string) string {
 	ext := strings.TrimPrefix(filepath.Ext(path), ".")
 
 	langMap := map[string]string{
-		"go":  "go",
-		"js":  "javascript",
-		"ts":  "typescript",
-		"py":  "python",
-		"rb":  "ruby",
+		"go":   "go",
+		"js":   "javascript",
+		"ts":   "typescript",
+		"py":   "python",
+		"rb":   "ruby",
 		"java": "java",
-		"rs":  "rust",
-		"cpp": "c++",
-		"c":   "c",
-		"cs":  "c#",
+		"rs":   "rust",
+		"cpp":  "c++",
+		"c":    "c",
+		"cs":   "c#",
 	}
 
 	if lang, ok := langMap[ext]; ok {

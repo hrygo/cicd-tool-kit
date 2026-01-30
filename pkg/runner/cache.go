@@ -24,10 +24,10 @@ const (
 
 // Cache provides caching for review results
 type Cache struct {
-	dir      string
-	enabled  bool
-	mu       sync.RWMutex
-	ttl      time.Duration
+	dir     string
+	enabled bool
+	mu      sync.RWMutex
+	ttl     time.Duration
 }
 
 // CachedReview represents a cached review result

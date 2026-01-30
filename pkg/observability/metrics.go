@@ -14,16 +14,16 @@ import (
 
 // MetricsCollector collects and reports metrics
 type MetricsCollector struct {
-	mu                 sync.RWMutex
-	metrics            map[string]interface{}
-	samples            []*MetricSample
-	maxSamples         int
+	mu                  sync.RWMutex
+	metrics             map[string]interface{}
+	samples             []*MetricSample
+	maxSamples          int
 	maxHistogramSamples int
-	enabled            bool
-	flushInterval      time.Duration
-	stopCh             chan struct{}
-	flushDone          chan struct{}
-	closeOnce          sync.Once
+	enabled             bool
+	flushInterval       time.Duration
+	stopCh              chan struct{}
+	flushDone           chan struct{}
+	closeOnce           sync.Once
 }
 
 // MetricSample represents a single metric sample at a point in time
@@ -34,10 +34,10 @@ type MetricSample struct {
 
 // MetricConfig configures metrics collection
 type MetricConfig struct {
-	Enabled            bool          `json:"enabled" yaml:"enabled"`
-	FlushInterval      time.Duration `json:"flush_interval" yaml:"flush_interval"`
-	MaxSamples         int           `json:"max_samples" yaml:"max_samples"`
-	MaxHistogramSamples int          `json:"max_histogram_samples" yaml:"max_histogram_samples"`
+	Enabled             bool          `json:"enabled" yaml:"enabled"`
+	FlushInterval       time.Duration `json:"flush_interval" yaml:"flush_interval"`
+	MaxSamples          int           `json:"max_samples" yaml:"max_samples"`
+	MaxHistogramSamples int           `json:"max_histogram_samples" yaml:"max_histogram_samples"`
 }
 
 // NewMetricsCollector creates a new metrics collector
@@ -54,14 +54,14 @@ func NewMetricsCollector(config MetricConfig) *MetricsCollector {
 	}
 
 	m := &MetricsCollector{
-		metrics:            make(map[string]interface{}),
-		samples:            make([]*MetricSample, 0, config.MaxSamples),
-		maxSamples:         config.MaxSamples,
+		metrics:             make(map[string]interface{}),
+		samples:             make([]*MetricSample, 0, config.MaxSamples),
+		maxSamples:          config.MaxSamples,
 		maxHistogramSamples: config.MaxHistogramSamples,
-		enabled:            config.Enabled,
-		flushInterval:      config.FlushInterval,
-		stopCh:             make(chan struct{}),
-		flushDone:          make(chan struct{}),
+		enabled:             config.Enabled,
+		flushInterval:       config.FlushInterval,
+		stopCh:              make(chan struct{}),
+		flushDone:           make(chan struct{}),
 	}
 
 	if m.enabled {
@@ -398,11 +398,11 @@ type AuditLogger struct {
 // AuditEntry represents a single audit log entry
 type AuditEntry struct {
 	Timestamp time.Time              `json:"timestamp"`
-	Level     string                `json:"level"` // info, warning, error
-	Event     string                `json:"event"`
-	User      string                `json:"user,omitempty"`
-	Resource  string                `json:"resource,omitempty"`
-	Action    string                `json:"action,omitempty"`
+	Level     string                 `json:"level"` // info, warning, error
+	Event     string                 `json:"event"`
+	User      string                 `json:"user,omitempty"`
+	Resource  string                 `json:"resource,omitempty"`
+	Action    string                 `json:"action,omitempty"`
 	Details   map[string]interface{} `json:"details,omitempty"`
 }
 
@@ -500,7 +500,7 @@ func (a *AuditLogger) LogConfigChange(user, changedFile string) {
 		"config_change",
 		"config_updated",
 		map[string]interface{}{
-			"user":        user,
+			"user":         user,
 			"changed_file": changedFile,
 		},
 	)
@@ -557,27 +557,27 @@ type Tracer struct {
 	serviceName string
 	enabled     bool
 	spans       []*Span
-	current    *Span
-	mu         sync.Mutex
+	current     *Span
+	mu          sync.Mutex
 }
 
 // Span represents a trace span
 type Span struct {
-	ID        string    `json:"id"`
-	ParentID  string    `json:"parent_id,omitempty"`
-	Name      string    `json:"name"`
-	StartTime time.Time `json:"start_time"`
-	EndTime   time.Time `json:"end_time,omitempty"`
-	Duration  float64  `json:"duration_ms,omitempty"`
+	ID        string            `json:"id"`
+	ParentID  string            `json:"parent_id,omitempty"`
+	Name      string            `json:"name"`
+	StartTime time.Time         `json:"start_time"`
+	EndTime   time.Time         `json:"end_time,omitempty"`
+	Duration  float64           `json:"duration_ms,omitempty"`
 	Tags      map[string]string `json:"tags,omitempty"`
-	Events    []SpanEvent `json:"events,omitempty"`
+	Events    []SpanEvent       `json:"events,omitempty"`
 }
 
 // SpanEvent represents an event within a span
 type SpanEvent struct {
-	Time      time.Time `json:"time"`
-	Name      string    `json:"name"`
-	Payload   string    `json:"payload,omitempty"`
+	Time    time.Time `json:"time"`
+	Name    string    `json:"name"`
+	Payload string    `json:"payload,omitempty"`
 }
 
 // NewTracer creates a new tracer

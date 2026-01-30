@@ -1,0 +1,83 @@
+#!/bin/bash
+# Pre-commit hook for CI/CD Toolkit
+# Runs go vet, gofmt, go test, and staticcheck before allowing commit
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Get the list of staged Go files
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+
+# If no Go files are staged, skip checks
+if [ -z "$STAGED_GO_FILES" ]; then
+    exit 0
+fi
+
+echo -e "${YELLOW}Running pre-commit checks...${NC}"
+echo ""
+
+# Track failures
+FAILURES=0
+
+# 1. gofmt - check formatting
+echo -e "${YELLOW}[1/4] Checking code formatting (gofmt)...${NC}"
+FMT_FILES=$(echo "$STAGED_GO_FILES" | xargs gofmt -l 2>/dev/null || true)
+if [ -n "$FMT_FILES" ]; then
+    echo -e "${RED}✗ The following files are not properly formatted:${NC}"
+    echo "$FMT_FILES"
+    echo -e "${YELLOW}Run 'gofmt -w <files>' to fix${NC}"
+    FAILURES=$((FAILURES + 1))
+else
+    echo -e "${GREEN}✓ gofmt check passed${NC}"
+fi
+echo ""
+
+# 2. go vet - check for issues
+echo -e "${YELLOW}[2/4] Running go vet...${NC}"
+if ! go vet ./... 2>&1 | head -20; then
+    echo -e "${RED}✗ go vet failed${NC}"
+    FAILURES=$((FAILURES + 1))
+else
+    echo -e "${GREEN}✓ go vet check passed${NC}"
+fi
+echo ""
+
+# 3. go test - run tests (short mode)
+echo -e "${YELLOW}[3/4] Running tests (short mode)...${NC}"
+if ! go test -short ./... 2>&1 | tail -5; then
+    echo -e "${RED}✗ go test failed${NC}"
+    FAILURES=$((FAILURES + 1))
+else
+    echo -e "${GREEN}✓ tests passed${NC}"
+fi
+echo ""
+
+# 4. staticcheck - advanced analysis (if available)
+echo -e "${YELLOW}[4/4] Running staticcheck...${NC}"
+if command -v staticcheck &> /dev/null; then
+    if ! staticcheck ./... 2>&1 | head -20; then
+        echo -e "${RED}✗ staticcheck failed${NC}"
+        FAILURES=$((FAILURES + 1))
+    else
+        echo -e "${GREEN}✓ staticcheck check passed${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠ staticcheck not found, skipping...${NC}"
+    echo -e "${YELLOW}  Install with: go install honnef.co/go/tools/cmd/staticcheck@latest${NC}"
+fi
+echo ""
+
+# Final result
+if [ $FAILURES -gt 0 ]; then
+    echo -e "${RED}✗ Pre-commit checks failed ($FAILURES check(s) failed)${NC}"
+    echo -e "${YELLOW}To bypass this hook, use: git commit --no-verify${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ All pre-commit checks passed!${NC}"
+exit 0

@@ -26,7 +26,7 @@ type CodeOwnersFile struct {
 // BranchProtectionRule represents a branch protection rule
 type BranchProtectionRule struct {
 	Name            string   `json:"name"`
-	Pattern         string   `json:"pattern"`         // Branch name pattern
+	Pattern         string   `json:"pattern"` // Branch name pattern
 	RequireApproval bool     `json:"require_approval"`
 	ApprovalCount   int      `json:"approval_count"`
 	RequireStatus   bool     `json:"require_status"`
@@ -36,33 +36,33 @@ type BranchProtectionRule struct {
 
 // SecurityScanResult represents a security scan result from GiteeScan
 type SecurityScanResult struct {
-	ID          int               `json:"id"`
-	Tool        string            `json:"tool"`        // sast, license, duplication
-	Status      string            `json:"status"`      // passed, failed, running
-	Summary     string            `json:"summary"`
-	Issues      []SecurityIssue   `json:"issues"`
-	ReportURL   string            `json:"report_url"`
-	CreatedAt   string            `json:"created_at"`
+	ID        int             `json:"id"`
+	Tool      string          `json:"tool"`   // sast, license, duplication
+	Status    string          `json:"status"` // passed, failed, running
+	Summary   string          `json:"summary"`
+	Issues    []SecurityIssue `json:"issues"`
+	ReportURL string          `json:"report_url"`
+	CreatedAt string          `json:"created_at"`
 }
 
 // SecurityIssue represents a single security issue
 type SecurityIssue struct {
-	Severity    string `json:"severity"`    // critical, high, medium, low
+	Severity    string `json:"severity"` // critical, high, medium, low
 	RuleID      string `json:"rule_id"`
 	Description string `json:"description"`
 	File        string `json:"file"`
 	Line        int    `json:"line"`
-	CWE         string `json:"cwe,omitempty"`  // CWE identifier if applicable
+	CWE         string `json:"cwe,omitempty"` // CWE identifier if applicable
 }
 
 // CodeQualityMetrics represents code quality metrics
 type CodeQualityMetrics struct {
-	Coverage       float64  `json:"coverage"`        // Test coverage percentage
-	Duplication    float64  `json:"duplication"`     // Code duplication percentage
-	Complexity     float64  `json:"complexity"`      // Cyclomatic complexity
-	CodeSmellCount int      `json:"code_smell_count"`
-	BugCount       int      `json:"bug_count"`
-	VulnerabilityCount int   `json:"vulnerability_count"`
+	Coverage           float64 `json:"coverage"`    // Test coverage percentage
+	Duplication        float64 `json:"duplication"` // Code duplication percentage
+	Complexity         float64 `json:"complexity"`  // Cyclomatic complexity
+	CodeSmellCount     int     `json:"code_smell_count"`
+	BugCount           int     `json:"bug_count"`
+	VulnerabilityCount int     `json:"vulnerability_count"`
 }
 
 // GetCodeOwners retrieves the CODEOWNERS file from the repository
@@ -451,8 +451,8 @@ func (g *GiteeClient) GetEnterpriseInfo(ctx context.Context) (*EnterpriseInfo, e
 		if len(parts) > 1 {
 			slug := strings.Split(parts[0], "://")[1]
 			return &EnterpriseInfo{
-				Slug:   slug,
-				Name:   slug,
+				Slug: slug,
+				Name: slug,
 			}, nil
 		}
 	}
@@ -489,8 +489,8 @@ func (g *GiteeClient) GetEnterpriseInfo(ctx context.Context) (*EnterpriseInfo, e
 type GiteeGoConfig struct {
 	Name        string            `json:"name"`
 	Description string            `json:"description"`
-	YAML        string            `json:"yaml"`        // Pipeline YAML content
-	Variables   map[string]string `json:"variables"`   // Environment variables
+	YAML        string            `json:"yaml"`      // Pipeline YAML content
+	Variables   map[string]string `json:"variables"` // Environment variables
 	Enabled     bool              `json:"enabled"`
 }
 
@@ -597,7 +597,7 @@ func (g *GiteeClient) GetComplianceReport(ctx context.Context) (*ComplianceRepor
 	}
 
 	report := &ComplianceReport{
-		Enterprise: enterprise,
+		Enterprise:          enterprise,
 		HasCodeOwners:       false,
 		HasBranchProtection: false,
 		HasSecurityScan:     false,
@@ -627,11 +627,11 @@ func (g *GiteeClient) GetComplianceReport(ctx context.Context) (*ComplianceRepor
 
 // ComplianceReport represents a compliance status report
 type ComplianceReport struct {
-	Enterprise           *EnterpriseInfo `json:"enterprise"`
-	HasCodeOwners        bool            `json:"has_code_owners"`
-	HasBranchProtection  bool            `json:"has_branch_protection"`
-	HasSecurityScan      bool            `json:"has_security_scan"`
-	HasStatusChecks      bool            `json:"has_status_checks"`
-	ComplianceScore      float64         `json:"compliance_score"`
-	Recommendations      []string        `json:"recommendations"`
+	Enterprise          *EnterpriseInfo `json:"enterprise"`
+	HasCodeOwners       bool            `json:"has_code_owners"`
+	HasBranchProtection bool            `json:"has_branch_protection"`
+	HasSecurityScan     bool            `json:"has_security_scan"`
+	HasStatusChecks     bool            `json:"has_status_checks"`
+	ComplianceScore     float64         `json:"compliance_score"`
+	Recommendations     []string        `json:"recommendations"`
 }

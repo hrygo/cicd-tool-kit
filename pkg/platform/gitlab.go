@@ -31,18 +31,18 @@ type GitLabAPIResponse struct {
 
 // GitLabMR represents GitLab merge request response
 type GitLabMR struct {
-	ID     int    `json:"id"`
-	IID    int    `json:"iid"` // Merge Request IID (user-facing number)
-	Title  string `json:"title"`
-	Description string `json:"description"`
-	Head   GitLabMRRef `json:"source_branch"`
-	Base   GitLabMRRef `json:"target_branch"`
-	Author GitLabUser `json:"author"`
-	WebURL string `json:"web_url"`
-	State  string `json:"state"`
-	MergedAt *time.Time `json:"merged_at"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID            int           `json:"id"`
+	IID           int           `json:"iid"` // Merge Request IID (user-facing number)
+	Title         string        `json:"title"`
+	Description   string        `json:"description"`
+	Head          GitLabMRRef   `json:"source_branch"`
+	Base          GitLabMRRef   `json:"target_branch"`
+	Author        GitLabUser    `json:"author"`
+	WebURL        string        `json:"web_url"`
+	State         string        `json:"state"`
+	MergedAt      *time.Time    `json:"merged_at"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
 	SourceProject GitLabProject `json:"source_project"`
 }
 
@@ -51,8 +51,8 @@ type GitLabMRRef string
 
 // GitLabProject represents GitLab project info
 type GitLabProject struct {
-	ID             int    `json:"id"`
-	Name           string `json:"name"`
+	ID                int    `json:"id"`
+	Name              string `json:"name"`
 	PathWithNamespace string `json:"path_with_namespace"`
 }
 
@@ -236,7 +236,7 @@ func (g *GitLabClient) GetFile(ctx context.Context, path, ref string) (string, e
 	}
 
 	var result struct {
-		Content string `json:"content"`
+		Content  string `json:"content"`
 		Encoding string `json:"encoding"`
 	}
 

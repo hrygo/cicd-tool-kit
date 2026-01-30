@@ -35,31 +35,31 @@ type GiteeAPIResponse struct {
 
 // GiteePR represents Gitee pull request response
 type GiteePR struct {
-	ID     int    `json:"id"`
-	Number int    `json:"number"`
-	Title  string `json:"title"`
-	Body   string `json:"body"`
-	Head   GiteePRRef `json:"head"`
-	Base   GiteePRRef `json:"base"`
-	User   GiteeUser `json:"user"`
-	HTMLURL string `json:"html_url"`
-	State  string `json:"state"`
-	MergedAt *time.Time `json:"merged_at"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        int        `json:"id"`
+	Number    int        `json:"number"`
+	Title     string     `json:"title"`
+	Body      string     `json:"body"`
+	Head      GiteePRRef `json:"head"`
+	Base      GiteePRRef `json:"base"`
+	User      GiteeUser  `json:"user"`
+	HTMLURL   string     `json:"html_url"`
+	State     string     `json:"state"`
+	MergedAt  *time.Time `json:"merged_at"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 }
 
 // GiteePRRef represents a git reference in a PR
 type GiteePRRef struct {
-	Ref  string `json:"ref"`
-	SHA  string `json:"sha"`
+	Ref  string    `json:"ref"`
+	SHA  string    `json:"sha"`
 	Repo GiteeRepo `json:"repo"`
 }
 
 // GiteeRepo represents Gitee repository info
 type GiteeRepo struct {
-	Name     string `json:"name"`
-	FullName string `json:"full_name"`
+	Name     string    `json:"name"`
+	FullName string    `json:"full_name"`
 	Owner    GiteeUser `json:"owner"`
 }
 
@@ -257,7 +257,7 @@ func (g *GiteeClient) GetFile(ctx context.Context, path, ref string) (string, er
 	}
 
 	var result struct {
-		Content string `json:"content"`
+		Content  string `json:"content"`
 		Encoding string `json:"encoding"`
 	}
 

@@ -24,7 +24,7 @@ const (
 // GitHubClient implements Platform for GitHub
 type GitHubClient struct {
 	token   string
- baseURL string // For GitHub Enterprise
+	baseURL string // For GitHub Enterprise
 	repo    string // owner/repo format
 	client  *http.Client
 }
@@ -37,30 +37,30 @@ type GitHubAPIResponse struct {
 
 // GitHubPR represents GitHub pull request response
 type GitHubPR struct {
-	Number     int    `json:"number"`
-	Title      string `json:"title"`
-	Body       string `json:"body"`
-	Head       GitHubPRRef `json:"head"`
-	Base       GitHubPRRef `json:"base"`
-	User       GitHubUser `json:"user"`
-	HTMLURL    string `json:"html_url"`
-	State      string `json:"state"`
-	MergedAt   *time.Time `json:"merged_at"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	Number    int         `json:"number"`
+	Title     string      `json:"title"`
+	Body      string      `json:"body"`
+	Head      GitHubPRRef `json:"head"`
+	Base      GitHubPRRef `json:"base"`
+	User      GitHubUser  `json:"user"`
+	HTMLURL   string      `json:"html_url"`
+	State     string      `json:"state"`
+	MergedAt  *time.Time  `json:"merged_at"`
+	CreatedAt time.Time   `json:"created_at"`
+	UpdatedAt time.Time   `json:"updated_at"`
 }
 
 // GitHubPRRef represents a git reference in a PR
 type GitHubPRRef struct {
-	Ref string `json:"ref"`
-	SHA string `json:"sha"`
+	Ref  string     `json:"ref"`
+	SHA  string     `json:"sha"`
 	Repo GitHubRepo `json:"repo"`
 }
 
 // GitHubRepo represents GitHub repository info
 type GitHubRepo struct {
-	Name     string `json:"name"`
-	FullName string `json:"full_name"`
+	Name     string     `json:"name"`
+	FullName string     `json:"full_name"`
 	Owner    GitHubUser `json:"owner"`
 }
 
@@ -73,8 +73,8 @@ type GitHubUser struct {
 type GitHubReviewComment struct {
 	Body     string `json:"body"`
 	Path     string `json:"path,omitempty"`
-	Position *int    `json:"position,omitempty"`
-	Line     *int    `json:"line,omitempty"`
+	Position *int   `json:"position,omitempty"`
+	Line     *int   `json:"line,omitempty"`
 }
 
 // NewGitHubClient creates a new GitHub platform client
@@ -213,7 +213,7 @@ func (c *GitHubClient) GetFile(ctx context.Context, path, ref string) (string, e
 	}
 
 	var result struct {
-		Content string `json:"content"`
+		Content  string `json:"content"`
 		Encoding string `json:"encoding"`
 	}
 

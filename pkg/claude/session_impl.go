@@ -35,8 +35,8 @@ func validatePrompt(prompt string) error {
 
 // processSession implements Session using a subprocess
 type processSession struct {
-	cmd    *exec.Cmd
-	closed bool
+	cmd      *exec.Cmd
+	closed   bool
 	closeMux sync.Mutex
 }
 

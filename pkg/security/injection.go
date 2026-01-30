@@ -45,7 +45,7 @@ type injectionPattern struct {
 type Severity int
 
 const (
-	SeverityLow    Severity = iota
+	SeverityLow Severity = iota
 	SeverityMedium
 	SeverityHigh
 	SeverityCritical

@@ -50,16 +50,16 @@ type SkillInput struct {
 
 // SkillOptions contains optional skill configuration
 type SkillOptions struct {
-	Thinking        ThinkingOptions `json:"thinking"`
-	AllowedTools    []string        `json:"tools,omitempty"`
-	OutputFormat    string          `json:"output_format,omitempty"`
-	MaxTurns        int             `json:"max_turns,omitempty"`
-	BudgetUSD       float64         `json:"budget_usd,omitempty"`
+	Thinking     ThinkingOptions `json:"thinking"`
+	AllowedTools []string        `json:"tools,omitempty"`
+	OutputFormat string          `json:"output_format,omitempty"`
+	MaxTurns     int             `json:"max_turns,omitempty"`
+	BudgetUSD    float64         `json:"budget_usd,omitempty"`
 }
 
 // ThinkingOptions configures thinking behavior
 type ThinkingOptions struct {
-	BudgetTokens int `json:"budget_tokens,omitempty"`
+	BudgetTokens int  `json:"budget_tokens,omitempty"`
 	Enabled      bool `json:"enabled,omitempty"`
 }
 

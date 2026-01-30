@@ -45,9 +45,10 @@ type Event struct {
 type Platform string
 
 const (
-	PlatformGitHub Platform = "github"
-	PlatformGitLab Platform = "gitlab"
-	PlatformGitee  Platform = "gitee"
+	PlatformGitHub    Platform = "github"
+	PlatformGitLab    Platform = "gitlab"
+	PlatformGitee     Platform = "gitee"
+	MaxRawPayloadSize          = 10 * 1024 * 1024 // 10MB limit for raw payload storage
 )
 
 // EventType represents webhook event types
@@ -88,17 +89,17 @@ type GitHubWebhook struct {
 
 	// PullRequest contains PR details
 	PullRequest struct {
-		Number    int    `json:"number"`
-		Title     string `json:"title"`
-		Body      string `json:"body"`
-		State     string `json:"state"`
-		HTMLURL   string `json:"html_url"`
-		User      struct {
+		Number  int    `json:"number"`
+		Title   string `json:"title"`
+		Body    string `json:"body"`
+		State   string `json:"state"`
+		HTMLURL string `json:"html_url"`
+		User    struct {
 			Login string `json:"login"`
 		} `json:"user"`
 		Head struct {
-			Ref string `json:"ref"`
-			SHA string `json:"sha"`
+			Ref  string `json:"ref"`
+			SHA  string `json:"sha"`
 			Repo struct {
 				Name     string `json:"name"`
 				FullName string `json:"full_name"`
@@ -108,8 +109,8 @@ type GitHubWebhook struct {
 			} `json:"repo"`
 		} `json:"head"`
 		Base struct {
-			Ref string `json:"ref"`
-			SHA string `json:"sha"`
+			Ref  string `json:"ref"`
+			SHA  string `json:"sha"`
 			Repo struct {
 				Name     string `json:"name"`
 				FullName string `json:"full_name"`
@@ -128,7 +129,7 @@ type GitHubWebhook struct {
 		Owner    struct {
 			Login string `json:"login"`
 		} `json:"owner"`
-		Private bool   `json:"private"`
+		Private bool `json:"private"`
 	} `json:"repository"`
 
 	// Sender contains the user who triggered the event
@@ -176,25 +177,43 @@ func ParseGitHubEvent(data []byte, eventType string) (*Event, error) {
 		return nil, nil
 	}
 
+	// Validate required fields
+	if payload.PullRequest.Number <= 0 {
+		return nil, fmt.Errorf("invalid PR number: %d", payload.PullRequest.Number)
+	}
+
+	// Limit raw payload size to prevent memory issues
+	rawPayload := data
+	if len(data) > MaxRawPayloadSize {
+		rawPayload = data[:MaxRawPayloadSize]
+	}
+
 	event := &Event{
-		Platform: PlatformGitHub,
-		Type:     evtType,
-		PRID:     payload.PullRequest.Number,
-		Repo:     payload.Repository.Name,
-		RepoID:   int(payload.Repository.ID),
-		Owner:    payload.Repository.Owner.Login,
-		FullName: payload.Repository.FullName,
-		SHA:      payload.PullRequest.Head.SHA,
-		BaseRef:  payload.PullRequest.Base.Ref,
-		HeadRef:  payload.PullRequest.Head.Ref,
-		Title:    payload.PullRequest.Title,
-		// Use body if available, otherwise empty string
-		Description: payload.PullRequest.Body,
-		Author:       payload.PullRequest.User.Login,
-		RawPayload:   data,
+		Platform:    PlatformGitHub,
+		Type:        evtType,
+		PRID:        payload.PullRequest.Number,
+		Repo:        nonEmptyString(payload.Repository.Name, "unknown"),
+		RepoID:      int(payload.Repository.ID),
+		Owner:       nonEmptyString(payload.Repository.Owner.Login, "unknown"),
+		FullName:    nonEmptyString(payload.Repository.FullName, "unknown"),
+		SHA:         payload.PullRequest.Head.SHA,
+		BaseRef:     payload.PullRequest.Base.Ref,
+		HeadRef:     payload.PullRequest.Head.Ref,
+		Title:       nonEmptyString(payload.PullRequest.Title, "Untitled"),
+		Description: payload.PullRequest.Body, // Body can be empty
+		Author:      nonEmptyString(payload.PullRequest.User.Login, "unknown"),
+		RawPayload:  rawPayload,
 	}
 
 	return event, nil
+}
+
+// nonEmptyString returns the string if non-empty, otherwise returns the default value
+func nonEmptyString(s, defaultValue string) string {
+	if s == "" {
+		return defaultValue
+	}
+	return s
 }
 
 // GitLabWebhook represents a GitLab webhook event payload
@@ -287,21 +306,32 @@ func ParseGitLabEvent(data []byte, eventType string) (*Event, error) {
 	// Extract owner/repo from path_with_namespace
 	fullName := payload.Project.PathWithNamespace
 
+	// Validate required fields
+	if payload.ObjectAttributes.IID <= 0 {
+		return nil, fmt.Errorf("invalid MR number: %d", payload.ObjectAttributes.IID)
+	}
+
+	// Limit raw payload size to prevent memory issues
+	rawPayload := data
+	if len(data) > MaxRawPayloadSize {
+		rawPayload = data[:MaxRawPayloadSize]
+	}
+
 	event := &Event{
 		Platform:    PlatformGitLab,
 		Type:        evtType,
 		PRID:        payload.ObjectAttributes.IID,
-		Repo:        payload.Project.Name,
+		Repo:        nonEmptyString(payload.Project.Name, "unknown"),
 		RepoID:      int(payload.Project.ID),
-		Owner:       payload.User.Username,
-		FullName:    fullName,
+		Owner:       nonEmptyString(payload.User.Username, "unknown"),
+		FullName:    nonEmptyString(fullName, "unknown"),
 		SHA:         payload.ObjectAttributes.LastCommit.ID,
 		BaseRef:     payload.ObjectAttributes.TargetBranch,
 		HeadRef:     payload.ObjectAttributes.SourceBranch,
-		Title:       payload.ObjectAttributes.Title,
+		Title:       nonEmptyString(payload.ObjectAttributes.Title, "Untitled"),
 		Description: payload.ObjectAttributes.Description,
-		Author:      payload.User.Username,
-		RawPayload:  data,
+		Author:      nonEmptyString(payload.User.Username, "unknown"),
+		RawPayload:  rawPayload,
 	}
 
 	return event, nil

@@ -31,13 +31,12 @@ const (
 // Implements the "Explicit ID Strategy" from docs/BEST_PRACTICE_CLI_AGENT.md section 7.2
 // NOTE: SessionPool is safe for concurrent use.
 type SessionPool struct {
-	sessions map[string]*PooledSession
-	mu       sync.RWMutex
-	baseDir  string
-	ttl      time.Duration
-	done     chan struct{}    // Signals goroutines to stop
-	cleanupWg sync.WaitGroup  // Waits for cleanup goroutine to finish
-	started  sync.Once        // Ensures cleanup goroutine starts only once
+	sessions  map[string]*PooledSession
+	mu        sync.RWMutex
+	baseDir   string
+	ttl       time.Duration
+	done      chan struct{}  // Signals goroutines to stop
+	cleanupWg sync.WaitGroup // Waits for cleanup goroutine to finish
 }
 
 // PooledSession represents a session in the pool with metadata

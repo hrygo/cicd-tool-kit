@@ -117,9 +117,9 @@ func defaultConfig() *Config {
 		},
 		Skills: []SkillConfig{
 			{
-				Name:   "code-reviewer",
-				Path:   "./skills/code-reviewer",
-				Enabled: true,
+				Name:     "code-reviewer",
+				Path:     "./skills/code-reviewer",
+				Enabled:  true,
 				Priority: 100,
 			},
 		},
@@ -131,11 +131,11 @@ func defaultConfig() *Config {
 			},
 		},
 		Global: GlobalConfig{
-			LogLevel:      "info",
-			CacheDir:      ".cicd-cache",
-			EnableCache:   true,
+			LogLevel:       "info",
+			CacheDir:       ".cicd-cache",
+			EnableCache:    true,
 			ParallelSkills: 1,
-			DiffContext:   3,
+			DiffContext:    3,
 		},
 	}
 }

@@ -79,12 +79,12 @@ type EventHandler interface {
 // Using empty struct allocates no memory.
 type defaultEventHandler struct{}
 
-func (h *defaultEventHandler) OnMessage(event StreamEvent)    {}
+func (h *defaultEventHandler) OnMessage(event StreamEvent)      {}
 func (h *defaultEventHandler) OnContentDelta(event StreamEvent) {}
-func (h *defaultEventHandler) OnToolUse(event StreamEvent)     {}
-func (h *defaultEventHandler) OnResult(event StreamEvent)      {}
-func (h *defaultEventHandler) OnError(event StreamEvent)       {}
-func (h *defaultEventHandler) OnThinking(event StreamEvent)    {}
+func (h *defaultEventHandler) OnToolUse(event StreamEvent)      {}
+func (h *defaultEventHandler) OnResult(event StreamEvent)       {}
+func (h *defaultEventHandler) OnError(event StreamEvent)        {}
+func (h *defaultEventHandler) OnThinking(event StreamEvent)     {}
 
 // DefaultEventHandler provides a no-op implementation of EventHandler.
 // This is a var pointing to an empty struct to avoid allocations.
@@ -203,7 +203,8 @@ func (p *StreamParser) HasErrors() bool {
 // Use external synchronization if sharing between goroutines.
 type BufferedEventHandler struct {
 	events []StreamEvent
-	mu     sync.Mutex // For future concurrent access support
+	// mu is reserved for future concurrent access support
+	_ sync.Mutex
 }
 
 // NewBufferedEventHandler creates a new buffered event handler
@@ -217,12 +218,12 @@ func (h *BufferedEventHandler) record(event StreamEvent) {
 	h.events = append(h.events, event)
 }
 
-func (h *BufferedEventHandler) OnMessage(event StreamEvent)    { h.record(event) }
+func (h *BufferedEventHandler) OnMessage(event StreamEvent)      { h.record(event) }
 func (h *BufferedEventHandler) OnContentDelta(event StreamEvent) { h.record(event) }
-func (h *BufferedEventHandler) OnToolUse(event StreamEvent)     { h.record(event) }
-func (h *BufferedEventHandler) OnResult(event StreamEvent)      { h.record(event) }
-func (h *BufferedEventHandler) OnError(event StreamEvent)       { h.record(event) }
-func (h *BufferedEventHandler) OnThinking(event StreamEvent)    { h.record(event) }
+func (h *BufferedEventHandler) OnToolUse(event StreamEvent)      { h.record(event) }
+func (h *BufferedEventHandler) OnResult(event StreamEvent)       { h.record(event) }
+func (h *BufferedEventHandler) OnError(event StreamEvent)        { h.record(event) }
+func (h *BufferedEventHandler) OnThinking(event StreamEvent)     { h.record(event) }
 
 // GetEvents returns all buffered events
 func (h *BufferedEventHandler) GetEvents() []StreamEvent {

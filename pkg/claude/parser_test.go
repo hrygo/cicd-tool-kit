@@ -13,27 +13,27 @@ func TestExtractJSONBlock(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "simple JSON block",
+			name:  "simple JSON block",
 			input: "```json\n{\"key\": \"value\"}\n```",
 			want:  `{"key": "value"}`,
 		},
 		{
-			name: "JSON with indentation",
+			name:  "JSON with indentation",
 			input: "```json\n{\n  \"key\": \"value\"\n}\n```",
-			want: "{\n  \"key\": \"value\"\n}",
+			want:  "{\n  \"key\": \"value\"\n}",
 		},
 		{
-			name: "no JSON block",
-			input: "just plain text",
+			name:    "no JSON block",
+			input:   "just plain text",
 			wantErr: true,
 		},
 		{
-			name: "JSON block with content before and after",
+			name:  "JSON block with content before and after",
 			input: "Some text\n```json\n{\"result\": true}\n```\nMore text",
 			want:  `{"result": true}`,
 		},
 		{
-			name: "json variant (no language specifier)",
+			name:  "json variant (no language specifier)",
 			input: "```\n{\"plain\": \"json\"}\n```",
 			want:  `{"plain": "json"}`,
 		},
@@ -106,13 +106,13 @@ func TestParserExtractIssues(t *testing.T) {
 		minLen  int // Minimum expected issues
 	}{
 		{
-			name: "JSON format issues",
-			input: "```json\n{\"issues\": [{\"severity\": \"critical\", \"category\": \"security\", \"message\": \"SQL injection\"}]}\n```",
+			name:   "JSON format issues",
+			input:  "```json\n{\"issues\": [{\"severity\": \"critical\", \"category\": \"security\", \"message\": \"SQL injection\"}]}\n```",
 			minLen: 1,
 		},
 		{
-			name: "text format with critical",
-			input: "CRITICAL: Security vulnerability found in auth.go",
+			name:   "text format with critical",
+			input:  "CRITICAL: Security vulnerability found in auth.go",
 			minLen: 1,
 		},
 		{
@@ -124,8 +124,8 @@ file3.go:5: Low: Minor formatting issue`,
 			minLen: 2, // At least critical and warning
 		},
 		{
-			name:  "empty output",
-			input: "",
+			name:   "empty output",
+			input:  "",
 			minLen: 0,
 		},
 	}
@@ -163,9 +163,9 @@ No major issues found.
 			want: "This PR fixes a critical bug.\nNo major issues found.",
 		},
 		{
-			name: "no summary section",
+			name:  "no summary section",
 			input: "Some code changes were made.\nEverything looks good.",
-			want: "Some code changes were made. Everything looks good.",
+			want:  "Some code changes were made. Everything looks good.",
 		},
 		{
 			name:  "empty",
@@ -198,7 +198,7 @@ func TestParseJSON(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "valid JSON",
+			name:  "valid JSON",
 			input: "```json\n{\"message\": \"hello\", \"count\": 42}\n```",
 		},
 		{

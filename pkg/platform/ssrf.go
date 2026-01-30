@@ -19,9 +19,9 @@ var privateIPPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(^|\.)192\.168\.`),                    // 192.168.0.0/16 (private network)
 	// Block cloud metadata endpoints specifically
 	regexp.MustCompile(`(^|\.)169\.254\.169\.254$`), // AWS/GCP/Azure metadata endpoint
-	regexp.MustCompile(`(^|\.)fc00:`),                // fc00::/7 (IPv6 private)
-	regexp.MustCompile(`^fe80:`),                     // fe80::/10 (IPv6 link-local) - prefix match to prevent bypass
-	regexp.MustCompile(`^::1`),                       // IPv6 loopback - prefix match to catch ::1, ::1%1, etc.
+	regexp.MustCompile(`(^|\.)fc00:`),               // fc00::/7 (IPv6 private)
+	regexp.MustCompile(`^fe80:`),                    // fe80::/10 (IPv6 link-local) - prefix match to prevent bypass
+	regexp.MustCompile(`^::1`),                      // IPv6 loopback - prefix match to catch ::1, ::1%1, etc.
 }
 
 // validateBaseURL validates the baseURL to prevent SSRF attacks

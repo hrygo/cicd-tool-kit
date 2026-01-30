@@ -133,20 +133,20 @@ func TestGiteeClientName(t *testing.T) {
 // TestValidatePath tests path validation
 func TestValidatePath(t *testing.T) {
 	tests := []struct {
-		name      string
-		path      string
-		wantErr   bool
+		name        string
+		path        string
+		wantErr     bool
 		errContains string
 	}{
 		{
-			name:      "valid relative path",
-			path:      "pkg/main.go",
-			wantErr:   false,
+			name:    "valid relative path",
+			path:    "pkg/main.go",
+			wantErr: false,
 		},
 		{
-			name:      "valid nested path",
-			path:      "pkg/platform/client.go",
-			wantErr:   false,
+			name:    "valid nested path",
+			path:    "pkg/platform/client.go",
+			wantErr: false,
 		},
 		{
 			name:        "path traversal with ..",
@@ -173,9 +173,9 @@ func TestValidatePath(t *testing.T) {
 			errContains: "absolute paths not allowed",
 		},
 		{
-			name:      "empty path",
-			path:      "",
-			wantErr:   true,
+			name:        "empty path",
+			path:        "",
+			wantErr:     true,
 			errContains: "cannot be empty",
 		},
 	}

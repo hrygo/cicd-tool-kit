@@ -15,7 +15,7 @@ import (
 // MockPlatform for testing
 type mockPlatform struct{}
 
-func (m *mockPlatform) Name() string                                      { return "mock" }
+func (m *mockPlatform) Name() string { return "mock" }
 func (m *mockPlatform) PostComment(ctx context.Context, opts platform.CommentOptions) error {
 	return nil
 }
@@ -138,7 +138,7 @@ func TestFormatReviewComment(t *testing.T) {
 	// Check key elements are present
 	checks := []struct {
 		substring string
-		negative bool
+		negative  bool
 	}{
 		{"Code Review Results", false},
 		{"**Files Changed**: 2", false},
@@ -185,8 +185,8 @@ func TestDetectLanguage(t *testing.T) {
 
 func TestSeverityIcon(t *testing.T) {
 	tests := []struct {
-		severity  string
-		expected  string
+		severity string
+		expected string
 	}{
 		{"critical", "🔴"},
 		{"high", "🟠"},

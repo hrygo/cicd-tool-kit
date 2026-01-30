@@ -419,11 +419,11 @@ func (b *Builder) GetCommitInfo(ctx context.Context) (*CommitInfo, error) {
 	}
 
 	return &CommitInfo{
-		SHA:      sha,
-		Branch:   branch,
-		Message:  message,
-		Author:   author,
-		Time:     time.Unix(timestamp, 0),
+		SHA:          sha,
+		Branch:       branch,
+		Message:      message,
+		Author:       author,
+		Time:         time.Unix(timestamp, 0),
 		ChangedFiles: []string{},
 	}, nil
 }
@@ -453,7 +453,7 @@ func (b *Builder) GetStats(ctx context.Context, opts DiffOptions) (*DiffStats, e
 
 	lines := strings.Split(stdout.String(), "\n")
 	stats := &DiffStats{
-		Files:    make(map[string]*FileStats),
+		Files:     make(map[string]*FileStats),
 		Additions: 0,
 		Deletions: 0,
 	}
@@ -515,9 +515,9 @@ type CommitInfo struct {
 
 // DiffStats contains diff statistics
 type DiffStats struct {
-	Files      map[string]*FileStats
-	Additions  int
-	Deletions  int
+	Files     map[string]*FileStats
+	Additions int
+	Deletions int
 }
 
 // FileStats contains stats for a single file

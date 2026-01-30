@@ -18,7 +18,7 @@ const (
 	PermissionAdmin  Permission = "admin"
 
 	// Skill permissions
-	PermissionSkillRun   Permission = "skill:run"
+	PermissionSkillRun    Permission = "skill:run"
 	PermissionSkillCreate Permission = "skill:create"
 	PermissionSkillModify Permission = "skill:modify"
 	PermissionSkillDelete Permission = "skill:delete"
@@ -28,7 +28,7 @@ const (
 	PermissionConfigWrite Permission = "config:write"
 
 	// Audit permissions
-	PermissionAuditRead Permission = "audit:read"
+	PermissionAuditRead  Permission = "audit:read"
 	PermissionAuditWrite Permission = "audit:write"
 )
 
@@ -144,10 +144,10 @@ func (r *RBAC) AddUser(user *User) error {
 
 	if r.audit != nil {
 		r.audit.LogEvent("info", "user_added", "create_user", map[string]interface{}{
-			"user_id":   user.ID,
-			"user_name": user.Name,
+			"user_id":    user.ID,
+			"user_name":  user.Name,
 			"user_email": user.Email,
-			"roles":     user.Roles,
+			"roles":      user.Roles,
 		})
 	}
 
@@ -492,9 +492,9 @@ func (g *ResourceGuard) GrantResourcePermission(resourceName, grantorUserID, tar
 
 	if g.audit != nil {
 		g.audit.LogEvent("info", "resource_permission_granted", "grant_permission", map[string]interface{}{
-			"resource": resourceName,
+			"resource":   resourceName,
 			"grantor_id": grantorUserID,
-			"user_id":   targetUserID,
+			"user_id":    targetUserID,
 			"permission": permission,
 		})
 	}

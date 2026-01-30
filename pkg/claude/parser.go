@@ -65,7 +65,7 @@ func (p *parser) parseTextIssues(output string) ([]Issue, error) {
 
 	// Common patterns for issue reporting in text format
 	patterns := []struct {
-		regex   string
+		regex    string
 		severity string
 		category string
 	}{
@@ -89,7 +89,7 @@ func (p *parser) parseTextIssues(output string) ([]Issue, error) {
 		}
 
 		// Check for file:line pattern
-		if matches := fileLineRe.FindStringSubmatch(line); matches != nil && len(matches) >= 3 {
+		if matches := fileLineRe.FindStringSubmatch(line); len(matches) >= 3 {
 			currentFile = matches[1]
 			if _, err := fmt.Sscanf(matches[2], "%d", &currentLine); err != nil {
 				currentLine = 0 // Reset to default on parse error
@@ -199,7 +199,7 @@ func (p *parser) ExtractCodeChanges(output string) []CodeChange {
 				// Start of code block - try to extract file from context
 				inCodeBlock = true
 				// Check if the last non-code line contains a file reference
-				if matches := fileHeaderRe.FindStringSubmatch(lastNonCodeLine); matches != nil && len(matches) >= 2 {
+				if matches := fileHeaderRe.FindStringSubmatch(lastNonCodeLine); len(matches) >= 2 {
 					currentFile = matches[1]
 				}
 			}
@@ -209,7 +209,7 @@ func (p *parser) ExtractCodeChanges(output string) []CodeChange {
 		if inCodeBlock {
 			// First line in code block might be the file reference
 			if currentFile == "" {
-				if matches := fileHeaderRe.FindStringSubmatch(line); matches != nil && len(matches) >= 2 {
+				if matches := fileHeaderRe.FindStringSubmatch(line); len(matches) >= 2 {
 					currentFile = matches[1]
 				}
 			}

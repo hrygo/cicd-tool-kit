@@ -71,8 +71,8 @@ func TestWebhookServerRegisterHandler(t *testing.T) {
 
 func TestWebhookEventTypeConstants(t *testing.T) {
 	tests := []struct {
-		event   GiteeEventType
-		value   string
+		event GiteeEventType
+		value string
 	}{
 		{GiteeEventPush, "push_hooks"},
 		{GiteeEventMergeRequest, "merge_request_hooks"},
@@ -167,9 +167,9 @@ func TestValidateGiteeWebhook(t *testing.T) {
 			errContains: "invalid method",
 		},
 		{
-			name:   "missing event header",
-			method: "POST",
-			wantErr: true,
+			name:        "missing event header",
+			method:      "POST",
+			wantErr:     true,
 			errContains: "missing event type header",
 		},
 		{
@@ -455,10 +455,10 @@ func TestGiteeEnterpriseFields(t *testing.T) {
 
 func TestPushCommitFields(t *testing.T) {
 	commit := PushCommit{
-		ID:      "abc123",
-		Message: "Test commit",
-		Added:   []string{"file1.go"},
-		Removed: []string{"file2.go"},
+		ID:       "abc123",
+		Message:  "Test commit",
+		Added:    []string{"file1.go"},
+		Removed:  []string{"file2.go"},
 		Modified: []string{"file3.go"},
 	}
 

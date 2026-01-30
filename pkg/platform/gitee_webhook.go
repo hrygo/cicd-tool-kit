@@ -48,16 +48,16 @@ type WebhookServer struct {
 
 // GiteeWebhookEvent represents a parsed Gitee webhook event
 type GiteeWebhookEvent struct {
-	Type      GiteeEventType `json:"hook_name"`
-	Timestamp int64          `json:"timestamp"`
-	Repo      *GiteeRepo     `json:"repository"`
-	PR        *GiteePR       `json:"pull_request"`
-	Issue     *GiteeIssue    `json:"issue"`
-	Comment   *GiteeNote     `json:"note"`
-	Sender    *GiteeUser     `json:"sender"`
+	Type       GiteeEventType   `json:"hook_name"`
+	Timestamp  int64            `json:"timestamp"`
+	Repo       *GiteeRepo       `json:"repository"`
+	PR         *GiteePR         `json:"pull_request"`
+	Issue      *GiteeIssue      `json:"issue"`
+	Comment    *GiteeNote       `json:"note"`
+	Sender     *GiteeUser       `json:"sender"`
 	Enterprise *GiteeEnterprise `json:"enterprise"`
-	Action    string         `json:"action"` // open, update, merge, close, etc.
-	Raw       json.RawMessage `json:"-"`     // Raw payload for custom processing
+	Action     string           `json:"action"` // open, update, merge, close, etc.
+	Raw        json.RawMessage  `json:"-"`      // Raw payload for custom processing
 }
 
 // GiteeIssue represents an issue in Gitee
@@ -445,13 +445,13 @@ func ParsePushEvent(data []byte) (*PushEvent, error) {
 
 // PushEvent represents a push webhook event
 type PushEvent struct {
-	Ref         string      `json:"ref"`         // refs/heads/main
-	Before      string      `json:"before"`      // SHA before push
-	After       string      `json:"after"`       // SHA after push
-	Repository  *GiteeRepo  `json:"repository"`
-	Pusher      *GiteeUser  `json:"pusher"`
-	Commits     []PushCommit `json:"commits"`
-	TotalCommits int         `json:"total_commits"`
+	Ref          string       `json:"ref"`    // refs/heads/main
+	Before       string       `json:"before"` // SHA before push
+	After        string       `json:"after"`  // SHA after push
+	Repository   *GiteeRepo   `json:"repository"`
+	Pusher       *GiteeUser   `json:"pusher"`
+	Commits      []PushCommit `json:"commits"`
+	TotalCommits int          `json:"total_commits"`
 }
 
 // PushCommit represents a commit in a push event
@@ -479,13 +479,13 @@ func ParseMergeRequestEvent(data []byte) (*MergeRequestEvent, error) {
 
 // MergeRequestEvent represents a merge request webhook event
 type MergeRequestEvent struct {
-	Action     string            `json:"action"` // open, update, merge, close
-	Number     int               `json:"number"`
-	PR         *GiteePR          `json:"pull_request"`
-	Repository *GiteeRepo        `json:"repository"`
-	Sender     *GiteeUser        `json:"sender"`
-	Enterprise *GiteeEnterprise  `json:"enterprise"`
-	Timestamp  int64             `json:"timestamp"`
+	Action     string           `json:"action"` // open, update, merge, close
+	Number     int              `json:"number"`
+	PR         *GiteePR         `json:"pull_request"`
+	Repository *GiteeRepo       `json:"repository"`
+	Sender     *GiteeUser       `json:"sender"`
+	Enterprise *GiteeEnterprise `json:"enterprise"`
+	Timestamp  int64            `json:"timestamp"`
 }
 
 // IsPRAction checks if the event is a specific PR action

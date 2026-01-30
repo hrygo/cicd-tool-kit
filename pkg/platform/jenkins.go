@@ -111,13 +111,13 @@ type JenkinsClient struct {
 
 // JenkinsBuildInfo represents information about a Jenkins build
 type JenkinsBuildInfo struct {
-	Number      int    `json:"number"`
-	URL         string `json:"url"`
-	Building    bool   `json:"building"`
-	Result      string `json:"result"`
-	Timestamp   int64  `json:"timestamp"`
-	Duration    int64  `json:"duration"`
-	DisplayName string `json:"displayName"`
+	Number          int    `json:"number"`
+	URL             string `json:"url"`
+	Building        bool   `json:"building"`
+	Result          string `json:"result"`
+	Timestamp       int64  `json:"timestamp"`
+	Duration        int64  `json:"duration"`
+	DisplayName     string `json:"displayName"`
 	FullDisplayName string `json:"fullDisplayName"`
 }
 
@@ -418,7 +418,7 @@ func (j *JenkinsClient) Health(ctx context.Context) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Jenkins health check failed with status: %d", resp.StatusCode)
+		return fmt.Errorf("jenkins health check failed with status: %d", resp.StatusCode)
 	}
 
 	return nil
@@ -562,7 +562,7 @@ func (j *JenkinsClient) TriggerBuild(ctx context.Context, parameters map[string]
 		if formData.Len() > 0 {
 			formData.WriteString("&")
 		}
-		formData.WriteString(fmt.Sprintf("%s=%s", url.QueryEscape(key), url.QueryEscape(value)))
+		fmt.Fprintf(&formData, "%s=%s", url.QueryEscape(key), url.QueryEscape(value))
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, &formData)
@@ -707,12 +707,12 @@ func (j *JenkinsClient) CreateCrumb(ctx context.Context) (string, string, error)
 
 // JenkinsWebhook represents a Jenkins webhook payload
 type JenkinsWebhook struct {
-	BuildName  string `json:"name"`
-	BuildURL   string `json:"url"`
-	BuildNumber int   `json:"number"`
-	Phase      string `json:"phase"`
-	Status     string `json:"status"`
-	URL        string `json:"buildUrl"`
+	BuildName   string `json:"name"`
+	BuildURL    string `json:"url"`
+	BuildNumber int    `json:"number"`
+	Phase       string `json:"phase"`
+	Status      string `json:"status"`
+	URL         string `json:"buildUrl"`
 }
 
 // ParseWebhook parses a Jenkins webhook notification

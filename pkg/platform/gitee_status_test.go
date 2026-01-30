@@ -49,9 +49,9 @@ func TestCreateStatusValidation(t *testing.T) {
 			errContains: "commit SHA cannot be empty",
 		},
 		{
-			name: "valid with defaults",
-			sha:  "abc123",
-			opts: StatusOptions{},
+			name:    "valid with defaults",
+			sha:     "abc123",
+			opts:    StatusOptions{},
 			wantErr: true, // Network error
 		},
 		{
@@ -272,12 +272,12 @@ func TestGetPRMergeStatusValidation(t *testing.T) {
 
 func TestStatusCheckResultFields(t *testing.T) {
 	result := &StatusCheckResult{
-		SHA:        "abc123",
-		State:      StatusSuccess,
-		TotalCount: 5,
-		Statuses:   []GiteeStatus{},
-		Contexts:   make(map[string]string),
-		CanMerge:   true,
+		SHA:              "abc123",
+		State:            StatusSuccess,
+		TotalCount:       5,
+		Statuses:         []GiteeStatus{},
+		Contexts:         make(map[string]string),
+		CanMerge:         true,
 		RequiredContexts: []string{"cicd-ai-toolkit"},
 	}
 
@@ -295,10 +295,10 @@ func TestStatusCheckResultFields(t *testing.T) {
 // TestStatusCheckConfig verifies StatusCheckConfig struct
 func TestStatusCheckConfig(t *testing.T) {
 	config := StatusCheckConfig{
-		RequiredContexts:   []string{"cicd-ai-toolkit", "security-scan"},
-		WaitForCompletion:  true,
-		Timeout:            5 * time.Minute,
-		PollInterval:       5 * time.Second,
+		RequiredContexts:  []string{"cicd-ai-toolkit", "security-scan"},
+		WaitForCompletion: true,
+		Timeout:           5 * time.Minute,
+		PollInterval:      5 * time.Second,
 	}
 
 	if len(config.RequiredContexts) != 2 {
@@ -318,12 +318,12 @@ func TestStatusCheckConfig(t *testing.T) {
 func TestMergeStatusFields(t *testing.T) {
 	now := time.Now()
 	status := &MergeStatus{
-		CanMerge:      true,
-		Mergeable:     true,
-		Merged:        false,
-		MergedAt:      &now,
+		CanMerge:       true,
+		Mergeable:      true,
+		Merged:         false,
+		MergedAt:       &now,
 		MergeCommitSHA: "merged123",
-		Message:       "Ready to merge",
+		Message:        "Ready to merge",
 	}
 
 	if !status.CanMerge {

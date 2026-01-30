@@ -26,22 +26,22 @@ type Runner interface {
 
 // ReviewOptions contains options for code review
 type ReviewOptions struct {
-	PRID        int
-	Diff        string
-	BaseSHA     string
-	HeadSHA     string
-	Skills      []string
-	Force       bool // Skip cache
+	PRID    int
+	Diff    string
+	BaseSHA string
+	HeadSHA string
+	Skills  []string
+	Force   bool // Skip cache
 }
 
 // AnalyzeOptions contains options for change analysis
 type AnalyzeOptions struct {
-	PRID       int
-	Diff       string
-	FileCount  int
-	Additions  int
-	Deletions  int
-	Skills     []string
+	PRID      int
+	Diff      string
+	FileCount int
+	Additions int
+	Deletions int
+	Skills    []string
 }
 
 // TestGenOptions contains options for test generation
@@ -82,12 +82,12 @@ type ReviewSummary struct {
 
 // AnalyzeResult contains the result of change analysis
 type AnalyzeResult struct {
-	Summary      ChangeSummary
-	Impact       ImpactAnalysis
-	Risk         RiskAssessment
-	Changelog    ChangelogEntry
-	Suggestions  []string
-	Duration     time.Duration
+	Summary     ChangeSummary
+	Impact      ImpactAnalysis
+	Risk        RiskAssessment
+	Changelog   ChangelogEntry
+	Suggestions []string
+	Duration    time.Duration
 }
 
 // ChangeSummary describes the changes
@@ -110,9 +110,9 @@ type ImpactAnalysis struct {
 
 // RiskAssessment provides risk scoring
 type RiskAssessment struct {
-	Score           int  // 1-10
-	Factors         []string
-	TestingLevel    string
+	Score              int // 1-10
+	Factors            []string
+	TestingLevel       string
 	RollbackComplexity string
 }
 
@@ -127,9 +127,9 @@ type ChangelogEntry struct {
 
 // TestGenResult contains the result of test generation
 type TestGenResult struct {
-	TestFiles  []GeneratedTest
-	Summary    TestGenSummary
-	Duration   time.Duration
+	TestFiles []GeneratedTest
+	Summary   TestGenSummary
+	Duration  time.Duration
 }
 
 // GeneratedTest represents a generated test file
@@ -142,9 +142,9 @@ type GeneratedTest struct {
 
 // TestGenSummary contains test generation statistics
 type TestGenSummary struct {
-	FilesCreated  int
-	TotalTests    int
-	CoverageEst   string
+	FilesCreated int
+	TotalTests   int
+	CoverageEst  string
 }
 
 // Builder builds context for Claude execution
@@ -179,10 +179,10 @@ type Reporter interface {
 
 // Config represents the runner configuration
 type Config struct {
-	Version   string
-	Claude    config.ClaudeConfig
-	Skills    []config.SkillConfig
-	Platform  config.PlatformConfig
-	Global    config.GlobalConfig
-	Advanced  config.AdvancedConfig
+	Version  string
+	Claude   config.ClaudeConfig
+	Skills   []config.SkillConfig
+	Platform config.PlatformConfig
+	Global   config.GlobalConfig
+	Advanced config.AdvancedConfig
 }

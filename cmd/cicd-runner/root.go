@@ -38,12 +38,12 @@ var reviewCmd = &cobra.Command{
 }
 
 var reviewOpts struct {
-	prID       int
-	diff       string
-	baseSHA    string
-	headSHA    string
-	skills     []string
-	force      bool
+	prID        int
+	diff        string
+	baseSHA     string
+	headSHA     string
+	skills      []string
+	force       bool
 	postComment bool
 }
 
@@ -137,9 +137,9 @@ func runReview(cmd *cobra.Command, args []string) error {
 
 	// Build review options
 	opts := runner.ReviewOptions{
-		PRID:    reviewOpts.prID,
-		Force:   reviewOpts.force,
-		Skills:  reviewOpts.skills,
+		PRID:   reviewOpts.prID,
+		Force:  reviewOpts.force,
+		Skills: reviewOpts.skills,
 	}
 
 	// Get diff if not provided

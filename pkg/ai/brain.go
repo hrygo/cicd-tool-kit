@@ -109,15 +109,15 @@ type Output struct {
 // Issue represents a code review issue or finding
 // This struct is shared across all backends for consistency
 type Issue struct {
-	Severity   string `json:"severity"`   // critical, high, medium, low
-	Category   string `json:"category"`   // security, performance, logic, architecture
-	File       string `json:"file"`
-	Line       int    `json:"line"`
-	Rule       string `json:"rule,omitempty"`
-	Message    string `json:"message"`
-	Suggestion string `json:"suggestion,omitempty"`
+	Severity    string `json:"severity"` // critical, high, medium, low
+	Category    string `json:"category"` // security, performance, logic, architecture
+	File        string `json:"file"`
+	Line        int    `json:"line"`
+	Rule        string `json:"rule,omitempty"`
+	Message     string `json:"message"`
+	Suggestion  string `json:"suggestion,omitempty"`
 	CodeSnippet string `json:"code_snippet,omitempty"`
-	Note       string `json:"note,omitempty"`
+	Note        string `json:"note,omitempty"`
 }
 
 // TokenUsage contains token usage statistics

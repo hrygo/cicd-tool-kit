@@ -122,9 +122,9 @@ func TestFilterFilesByExtension(t *testing.T) {
 	}
 
 	extensions := map[string]bool{
-		"go":  true,
-		"js":  true,
-		"md":  false,
+		"go":   true,
+		"js":   true,
+		"md":   false,
 		"json": false,
 	}
 

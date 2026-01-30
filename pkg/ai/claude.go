@@ -13,9 +13,9 @@ import (
 
 // ClaudeBackend implements the Brain interface using Claude Code CLI
 type ClaudeBackend struct {
-	cfg        *config.ClaudeConfig
-	cliPath    string
-	validator  func(ctx context.Context) error
+	cfg       *config.ClaudeConfig
+	cliPath   string
+	validator func(ctx context.Context) error
 }
 
 // NewClaudeBackend creates a new Claude Code CLI backend
@@ -63,9 +63,7 @@ func (b *ClaudeBackend) Execute(ctx context.Context, prompt string, opts Execute
 	}
 
 	// Add skills
-	for _, skill := range execOpts.Skills {
-		claudeOpts.Skills = append(claudeOpts.Skills, skill)
-	}
+	claudeOpts.Skills = append(claudeOpts.Skills, execOpts.Skills...)
 
 	// Add timeout if specified
 	if execOpts.Timeout > 0 {

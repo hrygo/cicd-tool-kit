@@ -203,10 +203,8 @@ func TestJenkinsTriggerBuild(t *testing.T) {
 			}
 
 			// Check for parameters in form data
-			body := r.URL.Query().Get("body") // Form data in POST body
-			if body == "" {
-				body = r.FormValue("key1")
-			}
+			_ = r.URL.Query().Get("body") // Form data in POST body
+			_ = r.FormValue("key1")
 
 			w.Header().Set("Location", "/job/test-job/43/")
 			w.WriteHeader(http.StatusCreated)

@@ -26,17 +26,17 @@ type Platform interface {
 
 // CommentOptions contains options for posting a comment
 type CommentOptions struct {
-	PRID      int
-	Body      string
-	AsReview  bool   // Post as a review comment vs simple comment
-	Position  *Position // Optional: for line-specific comments
+	PRID     int
+	Body     string
+	AsReview bool      // Post as a review comment vs simple comment
+	Position *Position // Optional: for line-specific comments
 }
 
 // Position specifies a location in a file for comments
 type Position struct {
-	Path    string
-	Line    int
-	SHA     string // Commit SHA for line tracking
+	Path string
+	Line int
+	SHA  string // Commit SHA for line tracking
 }
 
 // PRInfo contains pull/merge request metadata
@@ -56,11 +56,11 @@ type PRInfo struct {
 type EventType string
 
 const (
-	EventPROpened     EventType = "opened"
+	EventPROpened      EventType = "opened"
 	EventPRSynchronize EventType = "synchronize"
-	EventPRReopened   EventType = "reopened"
-	EventPRClosed     EventType = "closed"
-	EventPRMerged     EventType = "merged"
+	EventPRReopened    EventType = "reopened"
+	EventPRClosed      EventType = "closed"
+	EventPRMerged      EventType = "merged"
 )
 
 // WebhookEvent represents a normalized webhook event

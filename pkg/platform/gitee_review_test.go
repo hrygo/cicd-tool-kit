@@ -119,10 +119,10 @@ func TestPostBatchReviewCommentsValidation(t *testing.T) {
 		errContains string
 	}{
 		{
-			name:     "empty comments",
-			comments: []ReviewComment{},
-			body:     "Summary",
-			wantErr:  true,
+			name:        "empty comments",
+			comments:    []ReviewComment{},
+			body:        "Summary",
+			wantErr:     true,
 			errContains: "at least one comment",
 		},
 		{
@@ -206,29 +206,29 @@ func TestPostCommentAsReviewValidation(t *testing.T) {
 		errContains string
 	}{
 		{
-			name:  "empty body",
-			body:  "",
-			state: ReviewStateApproved,
-			wantErr: true,
+			name:        "empty body",
+			body:        "",
+			state:       ReviewStateApproved,
+			wantErr:     true,
 			errContains: "comment body cannot be empty",
 		},
 		{
-			name:  "invalid state",
-			body:  "Review",
-			state: "invalid",
-			wantErr: true,
+			name:        "invalid state",
+			body:        "Review",
+			state:       "invalid",
+			wantErr:     true,
 			errContains: "invalid review state",
 		},
 		{
-			name:  "valid approved",
-			body:  "Looks good!",
-			state: ReviewStateApproved,
+			name:    "valid approved",
+			body:    "Looks good!",
+			state:   ReviewStateApproved,
 			wantErr: true, // Network error
 		},
 		{
-			name:  "valid changes requested",
-			body:  "Please fix",
-			state: ReviewStateChanges,
+			name:    "valid changes requested",
+			body:    "Please fix",
+			state:   ReviewStateChanges,
 			wantErr: true, // Network error
 		},
 	}

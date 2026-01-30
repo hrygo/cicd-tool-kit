@@ -7,11 +7,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -229,14 +227,6 @@ func (b *CrushBackend) runCommand(cmd *exec.Cmd) (stdout string, stderr string, 
 	return stdoutBuf.String(), stderrBuf.String(), err
 }
 
-// crushProcessSession manages a Crush subprocess
-type crushProcessSession struct {
-	cmd      *exec.Cmd
-	stdin    io.WriteCloser
-	closed   bool
-	closeMux sync.Mutex
-}
-
 // extractJSONBlock extracts JSON from markdown code blocks
 func extractJSONBlock(output string) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(output))
@@ -292,10 +282,10 @@ func extractThinking(output string) string {
 		// Check for thinking block start
 		if strings.Contains(line, "<thinking>") {
 			inThinkingBlock = true
-			if idx := strings.Index(line, "<thinking>"); idx >= 0 {
-				rest := line[idx+len("<thinking>"):]
-				if closeIdx := strings.Index(rest, "</thinking>"); closeIdx >= 0 {
-					return strings.TrimSpace(rest[:closeIdx])
+			if _, after, ok := strings.Cut(line, "<thinking>"); ok {
+				rest := after
+				if content, _, ok := strings.Cut(rest, "</thinking>"); ok {
+					return strings.TrimSpace(content)
 				}
 				if rest != "" {
 					thinkingBuf.WriteString(rest)
@@ -307,10 +297,9 @@ func extractThinking(output string) string {
 
 		// Check for thinking block end
 		if inThinkingBlock && strings.Contains(line, "</thinking>") {
-			if idx := strings.Index(line, "</thinking>"); idx >= 0 {
-				rest := line[:idx]
-				if rest != "" {
-					thinkingBuf.WriteString(rest)
+			if before, _, ok := strings.Cut(line, "</thinking>"); ok {
+				if before != "" {
+					thinkingBuf.WriteString(before)
 				}
 			}
 			break
