@@ -16,12 +16,22 @@ ai_backend: claude   # Default: claude
 # CLAUDE CODE CLI CONFIGURATION
 # ===================================================================
 # Used when ai_backend: claude
+# Based on best practices from docs/BEST_PRACTICE_CLI_AGENT.md
 claude:
   model: sonnet              # Claude model: sonnet, opus, haiku
   max_budget_usd: 1.0        # Maximum spending per request
   max_turns: 10              # Maximum reasoning iterations
   timeout: 5m                # Request timeout
-  output_format: json        # Output format: json, stream-json, text
+  output_format: stream-json # Output format: json, stream-json, text (stream-json recommended)
+
+  # Session Management (Explicit ID Strategy - RECOMMENDED)
+  # See: docs/BEST_PRACTICE_CLI_AGENT.md section 7.2
+  use_explicit_id: true      # Use explicit session ID strategy for production
+  session_ttl: 24h           # Session time-to-live (default: 24h)
+  max_retries: 3             # Maximum retry attempts for failed requests
+
+  # Advanced session options
+  # session_dir: ~/.cache/cicd-toolkit/sessions  # Custom session directory
 
 # ===================================================================
 # CRUSH CLI CONFIGURATION

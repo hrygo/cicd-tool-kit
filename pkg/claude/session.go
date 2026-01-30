@@ -53,6 +53,14 @@ type ExecuteOptions struct {
 
 	// Environment variables to pass to Claude
 	Env []string
+
+	// SessionID is the explicit session identifier for persistence
+	// See: docs/BEST_PRACTICE_CLI_AGENT.md section 7.2
+	SessionID string
+
+	// IsNewSession indicates whether this is a new session (use --session-id)
+	// or resuming an existing session (use --resume)
+	IsNewSession bool
 }
 
 // Output represents parsed Claude output

@@ -241,11 +241,23 @@ func (s *processSession) Close() error {
 
 // buildArgs constructs command line arguments from options
 // Returns error if validation fails to prevent execution with invalid input
+//
+// Based on production best practices from docs/BEST_PRACTICE_CLI_AGENT.md:
+// - Use -p for headless/print mode (non-interactive)
+// - Use --verbose when using stream-json (REQUIRED by Claude CLI)
+// - Use --output-format stream-json for real-time output
+// - Use --session-id for new sessions or --resume for existing sessions
 func (s *processSession) buildArgs(opts ExecuteOptions) ([]string, error) {
 	args := []string{}
 
-	// Print mode (headless/non-interactive)
-	args = append(args, "-p")
+	// Print mode (headless/non-interactive) - REQUIRED for CI/CD
+	args = append(args, "--print")
+
+	// Verbose mode - REQUIRED when using stream-json output format
+	// See: docs/BEST_PRACTICE_CLI_AGENT.md section 7.1
+	if opts.OutputFormat == "stream-json" {
+		args = append(args, "--verbose")
+	}
 
 	// Validate and add prompt - SECURITY: fail fast on invalid prompts
 	if err := validatePrompt(opts.Prompt); err != nil {
@@ -253,9 +265,19 @@ func (s *processSession) buildArgs(opts ExecuteOptions) ([]string, error) {
 	}
 	args = append(args, opts.Prompt)
 
-	// Skip permissions
+	// Skip permissions for automated workflows
 	if opts.SkipPermissions {
 		args = append(args, "--dangerously-skip-permissions")
+	}
+
+	// Session management - Explicit ID Strategy (RECOMMENDED)
+	// See: docs/BEST_PRACTICE_CLI_AGENT.md section 7.2
+	if opts.SessionID != "" {
+		if opts.IsNewSession {
+			args = append(args, "--session-id", opts.SessionID)
+		} else {
+			args = append(args, "--resume", opts.SessionID)
+		}
 	}
 
 	// Model selection
@@ -273,7 +295,7 @@ func (s *processSession) buildArgs(opts ExecuteOptions) ([]string, error) {
 		args = append(args, "--max-budget-usd", fmt.Sprintf("%.2f", opts.MaxBudgetUSD))
 	}
 
-	// Output format
+	// Output format - stream-json is preferred for production
 	if opts.OutputFormat != "" {
 		args = append(args, "--output-format", opts.OutputFormat)
 	}

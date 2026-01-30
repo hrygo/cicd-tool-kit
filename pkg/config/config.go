@@ -18,14 +18,21 @@ type Config struct {
 }
 
 // ClaudeConfig contains Claude-specific settings
+// Based on best practices from docs/BEST_PRACTICE_CLI_AGENT.md
 type ClaudeConfig struct {
 	Model           string  `yaml:"model"`                        // sonnet, opus, haiku
 	MaxBudgetUSD    float64 `yaml:"max_budget_usd"`
 	MaxTurns        int     `yaml:"max_turns"`
 	Timeout         string  `yaml:"timeout"`                      // Go duration format
-	OutputFormat    string  `yaml:"output_format"`                // json, stream-json, text
+	OutputFormat    string  `yaml:"output_format"`                // json, stream-json, text (stream-json recommended)
 	SkipPermissions bool    `yaml:"dangerous_skip_permissions"`
 	AllowedTools    []string `yaml:"allowed_tools,omitempty"`
+
+	// Session Management - Based on docs/BEST_PRACTICE_CLI_AGENT.md section 7.2
+	SessionDir      string `yaml:"session_dir,omitempty"`         // Directory for session data
+	SessionTTL      string `yaml:"session_ttl,omitempty"`         // Session time-to-live (default: 24h)
+	MaxRetries      int     `yaml:"max_retries,omitempty"`        // Max retry attempts (default: 3)
+	UseExplicitID   bool    `yaml:"use_explicit_id,omitempty"`    // Use explicit session ID strategy (recommended)
 }
 
 // CrushConfig contains Crush-specific settings
@@ -127,6 +134,27 @@ type ReflectiveConfig struct {
 // GetTimeout returns the timeout as a time.Duration
 func (c *ClaudeConfig) GetTimeout() (time.Duration, error) {
 	return time.ParseDuration(c.Timeout)
+}
+
+// GetSessionTTL returns the session TTL as a time.Duration
+// Default: 24 hours
+func (c *ClaudeConfig) GetSessionTTL() time.Duration {
+	if c.SessionTTL == "" {
+		return 24 * time.Hour
+	}
+	if ttl, err := time.ParseDuration(c.SessionTTL); err == nil {
+		return ttl
+	}
+	return 24 * time.Hour
+}
+
+// GetMaxRetries returns the maximum retry attempts
+// Default: 3
+func (c *ClaudeConfig) GetMaxRetries() int {
+	if c.MaxRetries > 0 {
+		return c.MaxRetries
+	}
+	return 3
 }
 
 // GetTimeout returns the timeout as a time.Duration for Crush
