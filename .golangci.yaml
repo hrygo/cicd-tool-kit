@@ -1,0 +1,139 @@
+# CICD Runner golangci-lint Configuration
+# https://golangci-lint.run/usage/configuration/
+version: "2"
+
+# ===========================================================================
+# Run Configuration
+# ===========================================================================
+run:
+  go: "1.23"
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+  concurrency: 4
+
+# ===========================================================================
+# Linters Configuration
+# ===========================================================================
+linters:
+  default: none
+  enable:
+    # Static analysis (core)
+    - govet
+    - staticcheck
+    - unused
+    - errcheck
+    - ineffassign
+
+    # Additional linters
+    - errorlint
+    - prealloc
+    - bodyclose
+    - gocritic
+    - misspell
+    - nilerr
+    - gosec
+
+  # Linter-specific settings
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - shadow
+        - fieldalignment
+
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    gosec:
+      excludes:
+        - G104
+        - G307
+        - G301
+        - G204
+        - G107
+        - G304
+        - G306
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
+      disabled-checks:
+        - hugeParam
+        - rangeValCopy
+        - unnamedResult
+        - ifElseChain
+        - commentedOutCode
+        - unnecessaryDefer
+        - appendCombine
+        - paramTypeCombine
+        - importShadow
+
+    prealloc:
+      simple: true
+      range-loops: true
+      for-loops: false
+
+    misspell:
+      locale: US
+
+  # Exclusion rules
+  exclusions:
+    # Exclude generated files
+    generated: lax
+
+    # Exclude paths
+    paths:
+      - build
+      - dist
+      - vendor
+      - testdata
+      - examples
+      - ".*\\.gen\\.go$"
+      - ".*\\.mock\\.go$"
+      - ".*_string\\.go$"
+
+    # Test files: relax error checking
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+        - bodyclose
+        - nilerr
+        - prealloc
+        - unconvert
+        - unused
+
+    # MCP generated code
+    - path: pkg/mcp/
+      linters:
+        - errcheck
+        - gosec
+        - gocritic
+
+# ===========================================================================
+# Formatters Configuration
+# ===========================================================================
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    paths:
+      - build
+      - dist
+      - vendor
+
+# ===========================================================================
+# Output Configuration
+# ===========================================================================
+output:
+  formats:
+    text:
+      path: stdout
+      colors: true
+  sort-order:
+    - linter
+    - file

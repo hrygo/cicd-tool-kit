@@ -1,0 +1,75 @@
+name: Feature Request / 功能建议
+description: Suggest an idea for this project / 为项目提出新的建议或创意
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢您提出建议！请填写以下表单描述您的想法。
+        Thank you for suggesting a new feature! Please complete the form below.
+
+  - type: checkboxes
+    id: pre-check
+    attributes:
+      label: 提交前检查 / Pre-submission Checklist
+      description: 请确认您已完成以下步骤 / Please confirm you have completed the following steps
+      options:
+        - label: 我已搜索现有的 Issue，确认该功能未被请求过 / I have searched existing issues
+          required: true
+
+  - type: dropdown
+    id: feature-type
+    attributes:
+      label: 功能类型 / Type of Feature
+      description: 这是哪方面的功能建议？ / What type of feature is this?
+      options:
+        - 核心功能 / Core functionality
+        - 平台集成 / Platform integration
+        - 文档 (Documentation)
+        - AI 能力 (AI capabilities)
+        - 性能 (Performance)
+        - 开发者体验 (Developer experience)
+        - 其他 (Other)
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: 问题或场景 / Problem or Use Case
+      description: 这个功能解决了什么问题？ / What problem does this feature solve?
+      placeholder: |
+        我经常需要... 但是目前很难...
+        这可以帮助用户...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: 建议方案 / Proposed Solution
+      description: 清晰简洁地描述您期望的解决方案 / A clear and concise description of what you want
+      placeholder: |
+        如果应用能...就好了
+        例如，增加一个...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案 / Alternatives Considered
+      description: 您是否考虑过其他方案？ / Have you considered any alternative solutions?
+      placeholder: |
+        我尝试过... 但是因为...不好用
+        另一种方法是...
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 补充信息 / Additional Context
+      description: 添加任何其他的上下文、架构图或示例 / Add any other context, architecture diagrams, or examples
+      placeholder: |
+        - 类似功能的工具: ...
+        - 参考文档: ...

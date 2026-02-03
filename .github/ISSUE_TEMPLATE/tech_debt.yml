@@ -1,0 +1,81 @@
+name: Tech Debt / 技术债
+description: Track code quality improvements or refactoring needs / 追踪代码质量改进或重构需求
+labels: [tech-debt]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        使用此模板来记录技术债项，确保代码质量和可维护性。
+        Use this template to track technical debt items for code quality and maintainability.
+
+  - type: dropdown
+    id: debt-type
+    attributes:
+      label: 类型 / Type
+      description: 这是什么类型的技术债？ / What type of technical debt is this?
+      options:
+        - 代码重构 (Code refactoring)
+        - 测试覆盖 (Test coverage)
+        - 性能优化 (Performance optimization)
+        - 安全问题 (Security issue)
+        - 依赖升级 (Dependency upgrade)
+        - 文档缺失 (Missing documentation)
+        - 技术栈更新 (Stack update)
+        - 其他 (Other)
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 优先级 / Priority
+      description: 这个技术债的优先级如何？ / What is the priority level?
+      options:
+        - P0 - Critical (blocks release)
+        - P1 - High (should fix soon)
+        - P2 - Medium (nice to have)
+        - P3 - Low (backlog)
+      default: 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 描述 / Description
+      description: 清晰描述技术债的内容 / Clear description of the technical debt
+      placeholder: |
+        文件 xxx.go 中的函数过长，需要重构...
+        模块 xxx 缺少单元测试...
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影响 / Impact
+      description: 如果不解决会产生什么影响？ / What is the impact if not resolved?
+      placeholder: |
+        - 影响代码可维护性
+        - 可能导致性能问题
+        - 增加新功能开发难度
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 建议解决方案 / Proposed Solution
+      description: 如何解决这个技术债？ / How to resolve this technical debt?
+      placeholder: |
+        1. 提取函数...
+        2. 添加单元测试...
+        3. 升级依赖版本...
+
+  - type: textarea
+    id: files
+    attributes:
+      label: 涉及文件 / Affected Files
+      description: 列出相关的文件路径 / List relevant file paths
+      placeholder: |
+        - pkg/ai/brain.go
+        - pkg/runner/impl.go

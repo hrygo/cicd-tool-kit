@@ -1,0 +1,89 @@
+name: pr-checks
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  statuses: write
+
+jobs:
+  gate:
+    name: Pull Request Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Branch Naming
+        id: branch
+        shell: bash
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          # 规范: <type>/[<issue-id>-]<description>
+          # 允许类型: feat, fix, refactor, docs, chore, test, perf, style, hotfix
+          REGEX="^(feat|fix|refactor|docs|chore|test|perf|style|hotfix)/([0-9]+-)?.*$"
+
+          if [[ "$BRANCH" =~ $REGEX ]]; then
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo "msg=Branch name follows the convention." >> $GITHUB_OUTPUT
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "msg=Format: <type>/<id>-<desc> (e.g. feat/123-async-mode)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check Issue Reference
+        id: issue
+        shell: bash
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # 使用环境变量安全地处理 PR 内容
+          cat << 'EOF' > pr_body.txt
+          $PR_BODY
+          EOF
+
+          # 检查是否包含 Resolves #123, Refs #123, Fixes #123 等关键字
+          if grep -Eiq "(resolves|fixes|closes|refs|fix)\s+#([0-9]+)" pr_body.txt; then
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo "msg=Issue reference found in PR description." >> $GITHUB_OUTPUT
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "msg=Missing issue link (e.g. Resolves #123 or Refs #123)." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Report Status to GitHub API
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = context.payload.pull_request.head.sha;
+            const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            const checks = [
+              {
+                context: 'pr-checks/branch-naming',
+                state: '${{ steps.branch.outputs.result }}',
+                desc: '${{ steps.branch.outputs.msg }}'.replace(/!/g, '.') // Avoid potential issues
+              },
+              {
+                context: 'pr-checks/issue-link',
+                state: '${{ steps.issue.outputs.result }}',
+                desc: '${{ steps.issue.outputs.msg }}'.replace(/!/g, '.')
+              }
+            ];
+
+            for (const check of checks) {
+              await github.rest.repos.createCommitStatus({
+                owner,
+                repo,
+                sha,
+                state: check.state,
+                context: check.context,
+                description: check.desc,
+                target_url: runUrl
+              });
+            }
+
+      - name: Enforce Results
+        if: steps.branch.outputs.result == 'failure' || steps.issue.outputs.result == 'failure'
+        run: |
+          echo "❌ Pull Request quality checks failed."
+          exit 1
