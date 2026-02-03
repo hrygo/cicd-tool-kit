@@ -14,7 +14,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -380,45 +379,6 @@ func (s *Sandbox) applyDarwinRestrictions(ctx context.Context, cmd *exec.Cmd) *e
 	}
 
 	return cmd
-}
-
-// setResourceLimits sets resource limits for the process.
-func (s *Sandbox) setResourceLimits() {
-	rl := s.resourceLimits
-
-	// Memory limit (Linux only, via setrlimit RLIMIT_AS)
-	if rl.MaxMemory > 0 && runtime.GOOS == "linux" {
-		_ = syscall.Setrlimit(syscall.RLIMIT_AS, &syscall.Rlimit{
-			Cur: uint64(rl.MaxMemory),
-			Max: uint64(rl.MaxMemory),
-		})
-	}
-
-	// CPU time limit
-	if rl.MaxWallTime > 0 {
-		_ = syscall.Setrlimit(syscall.RLIMIT_CPU, &syscall.Rlimit{
-			Cur: uint64(rl.MaxWallTime.Seconds()),
-			Max: uint64(rl.MaxWallTime.Seconds()),
-		})
-	}
-
-	// Max processes (Linux only)
-	if rl.MaxProcesses > 0 && runtime.GOOS == "linux" {
-		// RLIMIT_NPROC is Linux-specific
-		const RLIMIT_NPROC = 6
-		_ = syscall.Setrlimit(RLIMIT_NPROC, &syscall.Rlimit{
-			Cur: uint64(rl.MaxProcesses),
-			Max: uint64(rl.MaxProcesses),
-		})
-	}
-
-	// Max open files
-	if rl.MaxFiles > 0 {
-		_ = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &syscall.Rlimit{
-			Cur: uint64(rl.MaxFiles),
-			Max: uint64(rl.MaxFiles),
-		})
-	}
 }
 
 // ValidatePath checks if a path is allowed for access.
