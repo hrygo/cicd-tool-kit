@@ -35,13 +35,9 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          # 使用环境变量安全地处理 PR 内容
-          cat << 'EOF' > pr_body.txt
-          $PR_BODY
-          EOF
-
+          # 直接检查 PR_BODY 环境变量（heredoc 不需要变量扩展）
           # 检查是否包含 Resolves #123, Refs #123, Fixes #123 等关键字
-          if grep -Eiq "(resolves|fixes|closes|refs|fix)\s+#([0-9]+)" pr_body.txt; then
+          if echo "$PR_BODY" | grep -Eiq "(resolves|fixes|closes|refs)\s+#([0-9]+)"; then
             echo "result=success" >> $GITHUB_OUTPUT
             echo "msg=Issue reference found in PR description." >> $GITHUB_OUTPUT
           else
