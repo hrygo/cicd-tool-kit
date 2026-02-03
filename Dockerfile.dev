@@ -1,0 +1,63 @@
+# Development Dockerfile for cicd-ai-toolkit
+# Uses Warp dev container with Go 1.23, Node.js, Python, and common dev tools
+FROM warpdotdev/dev-go:1.23
+
+# Metadata
+LABEL org.opencontainers.image.title="cicd-ai-toolkit-dev" \
+      org.opencontainers.image.description="Development environment for CICD AI Toolkit" \
+      org.opencontainers.image.source="https://github.com/cicd-ai-toolkit/cicd-runner"
+
+# Set working directory
+WORKDIR /workspace
+
+# Environment
+ENV GO_VERSION=1.23 \
+    GO111MODULE=on \
+    CGO_ENABLED=0 \
+    # Path for Go binaries
+    PATH="/workspace/bin:${PATH}" \
+    # Go cache directories for better layer caching
+    GOCACHE=/go-cache \
+    GOMODCACHE=/go-mod-cache
+
+# Install Go development tools
+RUN go install golang.org/x/lint/golint@latest && \
+    go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \
+    go install github.com/air-verse/air@latest && \
+    go install github.com/go-delve/delve/cmd/dlv@latest && \
+    go install mvdan.cc/gofumpt@latest && \
+    go clean -cache -modcache -testcache
+
+# Create cache directories
+RUN mkdir -p /go-cache /go-mod-cache
+
+# Copy go mod files for dependency caching
+COPY go.mod go.sum* ./
+
+# Download dependencies (cached layer unless go.mod/go.sum change)
+RUN go mod download && \
+    go mod verify
+
+# Copy source code
+# In development, this is typically overridden with a volume mount
+COPY . .
+
+# Build the CLI for development
+RUN go build -o /workspace/bin/cicd-runner ./cmd/cicd-runner
+
+# Create directories for skills and cache
+RUN mkdir -p /workspace/.cicd-ai-cache && \
+    mkdir -p /workspace/skills
+
+# Git configuration for container
+RUN git config --global core.autocrlf input && \
+    git config --global core.eol lf
+
+# Expose common ports (if any services run)
+# EXPOSE 8080
+
+# Default shell
+SHELL ["/bin/bash", "-c"]
+
+# Default command: start a development shell
+CMD ["/bin/bash"]

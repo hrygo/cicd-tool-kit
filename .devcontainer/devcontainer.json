@@ -1,0 +1,53 @@
+// VS Code Dev Container configuration for cicd-ai-toolkit
+{
+  "name": "CICD Toolkit Dev",
+  "image": "warpdotdev/dev-go:1.23",
+
+  "features": {
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.23"
+    },
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "installOhMyZsh": true,
+      "upgradePackages": true
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "ms-vscode.makefile-tools",
+        "redhat.vscode-yaml",
+        "eamodio.gitlens",
+        "github.copilot"
+      ],
+      "settings": {
+        "go.toolsManagement.autoUpdate": true,
+        "go.lintTool": "golangci-lint",
+        "go.lintOnSave": "workspace",
+        "go.formatTool": "gofumpt",
+        "go.useLanguageServer": true,
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "golang.go"
+      }
+    }
+  },
+
+  "postCreateCommand": "bash -c 'go install golang.org/x/lint/golint@latest && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && go install github.com/air-verse/air@latest && go install github.com/go-delve/delve/cmd/dlv@latest && go install mvdan.cc/gofumpt@latest && go build -o /workspace/bin/cicd-runner ./cmd/cicd-runner'",
+
+  "remoteUser": "vscode",
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+
+  "mounts": [
+    "source=${localWorkspaceFolder}/.git,target=/workspace/.git,type=bind,consistency=cached,readonly",
+    "source=go-mod-cache,target=/go/pkg/mod,type=volume"
+  ],
+
+  "runArgs": [
+    "--cap-add=SYS_PTRACE",
+    "--security-opt", "seccomp=unconfined"
+  ]
+}

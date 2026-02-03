@@ -1,0 +1,48 @@
+# Development Docker Compose for cicd-ai-toolkit
+# Usage: docker compose -f docker-compose.dev.yml up -d
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: cicd-toolkit-dev:latest
+    container_name: cicd-dev
+    hostname: cicd-dev
+
+    # Volume mounts for live development
+    volumes:
+      # Mount source code (read-write for live editing)
+      - .:/workspace:cached
+      # Override Go cache for persistence
+      - go-cache:/go-cache
+      - go-mod-cache:/go-mod-cache
+      # Git credentials (optional, for private repos)
+      - ${HOME:-.}/.gitconfig:/etc/gitconfig:ro
+      - ${SSH_AUTH_SOCK:-/tmp/ssh-auth-sock}:/tmp/ssh-auth-sock:ro
+
+    # Environment variables
+    environment:
+      - GO111MODULE=on
+      - CGO_ENABLED=0
+      - TERM=xterm-256color
+
+    # Keep container running for interactive use
+    stdin_open: true
+    tty: true
+
+    # Resource limits (adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+    # Network mode (bridge or host for localhost access)
+    network_mode: bridge
+
+volumes:
+  go-cache:
+  go-mod-cache:

@@ -4,15 +4,15 @@ description: Generates test cases based on code changes.
 options:
   thinking:
     budget_tokens: 4096
-  tools:
-    - grep
-    - ls
-    - read
-    - write
-    # MCP tools for platform integration
-    - mcp:cicd-toolkit#get_pr_diff
-    - mcp:cicd-toolkit#get_file_content
-    - mcp:cicd-toolkit#post_review_comment
+allowed-tools:
+  - Grep
+  - Glob
+  - Read
+  - Write
+  # MCP tools for platform integration
+  - mcp:cicd-toolkit#get_pr_diff
+  - mcp:cicd-toolkit#get_file_content
+  - mcp:cicd-toolkit#post_review_comment
 ---
 
 # Test Generator Skill

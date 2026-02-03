@@ -4,9 +4,10 @@ description: Analyzes code changes for performance regressions, anti-patterns, a
 options:
   thinking:
     budget_tokens: 3072
-  tools:
-    - grep
-    - read
+allowed-tools:
+  - Grep
+  - Read
+  - Glob
 ---
 
 # Performance Auditor Skill
@@ -133,3 +134,29 @@ You are a performance optimization specialist that identifies performance issues
 | **high** | 100ms-1s added latency | Missing cache on expensive operation |
 | **medium** | 10-100ms added latency | Unnecessary allocation in loop |
 | **low** | <10ms impact | Minor optimization opportunity |
+
+## MCP Workflow
+
+When auditing code for performance:
+
+1. Use `Grep` to search for anti-patterns:
+   - Nested loops with same iterator variables
+   - Database queries inside loops
+   - Missing context in HTTP calls
+2. Use `Read` to examine full function implementations
+3. Use `Glob` to find all files in a package for complete analysis
+
+## Common Patterns to Grep
+
+```bash
+# Find N+1 queries (db calls inside loops)
+grep -n "for.*{" file.go | while read line; do
+  # Check if DB call exists in next 10 lines
+done
+
+# Find missing context
+grep -rn "http\.\(Get\|Post\)" .
+
+# Find SELECT *
+grep -rn "SELECT \*" .
+```
