@@ -258,7 +258,7 @@ func Map[T, R any](ctx context.Context, items []T, fn func(T) (R, error), concur
 			case sem <- struct{}{}: // Acquire
 				defer func() { <-sem }() // Release
 			case <-ctx.Done():
-				return // Context cancelled, exit early
+				return // Context canceled, exit early
 			}
 
 			result, err := fn(it)
@@ -272,7 +272,7 @@ func Map[T, R any](ctx context.Context, items []T, fn func(T) (R, error), concur
 			}
 
 			// Check context again before writing results to prevent race
-			// when context was cancelled during fn execution
+			// when context was canceled during fn execution
 			select {
 			case <-ctx.Done():
 				return
@@ -333,7 +333,7 @@ func Filter[T any](ctx context.Context, items []T, predicate func(T) (bool, erro
 			case sem <- struct{}{}:
 				defer func() { <-sem }()
 			case <-ctx.Done():
-				return // Context cancelled, exit early
+				return // Context canceled, exit early
 			}
 
 			keep, err := predicate(it)
@@ -392,7 +392,7 @@ func Each[T any](ctx context.Context, items []T, fn func(T) error, concurrency i
 			case sem <- struct{}{}:
 				defer func() { <-sem }()
 			case <-ctx.Done():
-				return // Context cancelled, exit early
+				return // Context canceled, exit early
 			}
 
 			if err := fn(it); err != nil {
