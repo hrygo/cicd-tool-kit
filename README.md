@@ -212,7 +212,7 @@ go build -o bin/cicd-runner ./cmd/cicd-runner
 
 ## 贡献
 
-欢迎贡献！请查看 [CONTRTRIBUTING.md](CONTRIBUTING.md)
+欢迎贡献！请查看 [贡献指南](CONTRIBUTING.md) 了解如何参与开发。
 
 ## 许可证
 
