@@ -8,11 +8,25 @@ options:
     - grep
     - ls
     - read
+    # MCP tools for platform integration
+    - mcp:cicd-toolkit#get_pr_info
+    - mcp:cicd-toolkit#get_pr_diff
+    - mcp:cicd-toolkit#get_file_content
+    - mcp:cicd-toolkit#post_review_comment
 ---
 
 # Code Reviewer Skill
 
 You are an expert code reviewer acting as a quality gate for CI/CD pipelines.
+
+## Available MCP Tools
+
+When invoked with PR context, you have access to these MCP tools:
+
+- `get_pr_info(pr_id)`: Get PR metadata (title, author, branches)
+- `get_pr_diff(pr_id)`: Get the full diff for the PR
+- `get_file_content(path, ref)`: Get specific file content at a revision
+- `post_review_comment(pr_id, body, as_review)`: Post review results to the PR
 
 ## Analysis Scope
 
@@ -83,6 +97,15 @@ Review the provided code diffs and analyze:
 | **high** | Performance regression, major bug | Should fix before merge |
 | **medium** | Code smell, maintainability issue | Consider fixing |
 | **low** | Style, nitpicks | Optional |
+
+## MCP Workflow
+
+When reviewing a PR:
+
+1. Call `get_pr_info(pr_id)` to understand the change context
+2. Call `get_pr_diff(pr_id)` to get the code changes
+3. For files needing deeper inspection, use `get_file_content(path, ref)`
+4. After analysis, use `post_review_comment(pr_id, body, true)` to post results
 
 ## False Positive Handling
 

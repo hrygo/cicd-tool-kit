@@ -121,7 +121,6 @@ func TestBrainInterfaceContract(t *testing.T) {
 func TestBackendConstants(t *testing.T) {
 	backends := []BackendType{
 		BackendClaude,
-		BackendCrush,
 	}
 
 	for _, b := range backends {
@@ -132,9 +131,6 @@ func TestBackendConstants(t *testing.T) {
 
 	if BackendClaude != "claude" {
 		t.Errorf("BackendClaude = %s, want claude", BackendClaude)
-	}
-	if BackendCrush != "crush" {
-		t.Errorf("BackendCrush = %s, want crush", BackendCrush)
 	}
 }
 
@@ -203,7 +199,6 @@ func TestValidatePromptSafePrompts(t *testing.T) {
 func TestBackendTypeIsValid(t *testing.T) {
 	validBackends := []BackendType{
 		BackendClaude,
-		BackendCrush,
 	}
 
 	for _, b := range validBackends {

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(mermaid-renderer)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_run_code",
+      "mcp__plugin_playwright_playwright__browser_close"
+    ]
+  }
+}

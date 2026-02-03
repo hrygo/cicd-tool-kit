@@ -88,12 +88,6 @@ func MergeExecuteOptions(opts ...ExecuteOptions) ExecuteOptions {
 		if opt.OutputFormat != "" {
 			merged.OutputFormat = opt.OutputFormat
 		}
-		if opt.Provider != "" {
-			merged.Provider = opt.Provider
-		}
-		if opt.BaseURL != "" {
-			merged.BaseURL = opt.BaseURL
-		}
 		if len(opt.Env) > 0 {
 			merged.Env = append(merged.Env, opt.Env...)
 		}

@@ -1,5 +1,5 @@
 // Package ai provides a pluggable abstraction layer for AI CLI backends
-// Supported backends: Claude Code CLI, Crush CLI
+// Supported backend: Claude Code CLI
 package ai
 
 import (
@@ -15,8 +15,6 @@ type BackendType string
 const (
 	// BackendClaude uses Claude Code CLI
 	BackendClaude BackendType = "claude"
-	// BackendCrush uses Crush CLI by Charmbracelet
-	BackendCrush BackendType = "crush"
 )
 
 // Brain is the abstraction interface for AI CLI backends
@@ -45,7 +43,6 @@ type Brain interface {
 type ExecuteOptions struct {
 	// Model specifies which model to use
 	// For Claude: sonnet, opus, haiku
-	// For Crush: claude-sonnet-4-20250514, gpt-4, llama3:70b, etc.
 	Model string
 
 	// MaxTurns limits the number of reasoning iterations (Claude-specific)
@@ -60,13 +57,6 @@ type ExecuteOptions struct {
 	// OutputFormat specifies desired output format (json, text, stream-json)
 	OutputFormat string
 
-	// Provider is for Crush backend to select the AI provider
-	// e.g., anthropic, openai, gemini, ollama
-	Provider string
-
-	// BaseURL is for custom endpoints (e.g., Ollama local)
-	BaseURL string
-
 	// Env contains additional environment variables to pass to the CLI
 	Env []string
 
@@ -74,7 +64,6 @@ type ExecuteOptions struct {
 	StdinContent string
 
 	// Skills is a list of skill paths to load
-	// Both Claude and Crush support the --skill flag
 	Skills []string
 
 	// EnablePromptInjectionValidation enables prompt injection detection
@@ -163,9 +152,5 @@ func (b BackendType) String() string {
 
 // IsValid checks if the backend type is valid
 func (b BackendType) IsValid() bool {
-	switch b {
-	case BackendClaude, BackendCrush:
-		return true
-	}
-	return false
+	return b == BackendClaude
 }
