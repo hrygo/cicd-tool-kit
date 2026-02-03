@@ -1,4 +1,5 @@
-# Binaries
+# --- Go Standard ---
+# Binaries & Build Output
 bin/
 dist/
 *.exe
@@ -6,59 +7,82 @@ dist/
 *.dll
 *.so
 *.dylib
-cicd-runner
-
-# Test files
 *.test
 *.out
+
+# Coverage
 coverage.txt
 coverage.html
 coverage.xml
 
-# Go workspace
+# Workspace (Go 1.18+)
 go.work
 go.work.sum
 
 # Dependencies
 vendor/
 
-# IDE
+# --- Build Artifacts & Generated Files ---
+build/
+*.pb.go
+*.generated.*
+
+# --- Local Binaries & Debug ---
+cicd-runner
+mcp-server
+debug
+__debug_bin
+
+# --- Environment & Secrets ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# --- IDEs & Editors ---
+# VS Code
 .vscode/
+*.code-workspace
+
+# JetBrains
 .idea/
-*.swp
-*.swo
-*~
+*.iml
+
+# Eclipse
 .project
 .classpath
 .settings/
 
-# OS
+# Vim/Emacs/General
+*.swp
+*.swo
+*~
+#*#
+
+# --- OS Specific ---
+# macOS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
 Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# --- Logs & Temporary Files ---
 *.log
-
-# Loki runtime
-.loki/
-
-# AI cache
-.cicd-ai-cache/
-
-# Temporary files
 tmp/
 temp/
 *.tmp
 *.bak
 
-# Environment
-.env
-.env.local
-.env.*.local
+# --- Project Specific ---
+# Loki runtime
+.loki/
 
-# Build artifacts
-build/
-*.pb.go
-*.generated.*
-
-# Debug
-debug
-__debug_bin
+# AI cache
+.cicd-ai-cache/
