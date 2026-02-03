@@ -38,7 +38,7 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate Crush config if using Crush backend
-	if strings.ToLower(c.AIBackend) == "crush" {
+	if strings.EqualFold(c.AIBackend, "crush") {
 		if err := c.Crush.Validate(); err != nil {
 			return fmt.Errorf("crush config: %w", err)
 		}

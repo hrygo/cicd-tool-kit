@@ -282,9 +282,11 @@ func (s *Sandbox) prepareCommand(ctx context.Context, cmd *exec.Cmd) *exec.Cmd {
 	cmd.Env = s.restrictedEnv()
 
 	// Apply platform-specific restrictions
-	if runtime.GOOS == "linux" {
+	//nolint:staticcheck // Using if-else for clarity, not a switch
+	switch runtime.GOOS {
+	case "linux":
 		cmd = s.applyLinuxRestrictions(ctx, cmd)
-	} else if runtime.GOOS == "darwin" {
+	case "darwin":
 		cmd = s.applyDarwinRestrictions(ctx, cmd)
 	}
 

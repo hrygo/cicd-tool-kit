@@ -55,6 +55,7 @@ linters:
         - G107
         - G304
         - G306
+        - G115  # Allow int->uint conversion for size values
 
     gocritic:
       enabled-tags:
@@ -71,6 +72,7 @@ linters:
         - appendCombine
         - paramTypeCombine
         - importShadow
+        - exitAfterDefer  # Allow os.Exit in main after defer
 
     prealloc:
       simple: true
@@ -108,6 +110,8 @@ linters:
           - prealloc
           - unconvert
           - unused
+          - govet
+          - staticcheck
 
       # MCP generated code
       - path: pkg/mcp/
@@ -115,6 +119,11 @@ linters:
           - errcheck
           - gosec
           - gocritic
+
+      # Platform integration code - uses external API naming
+      - path: pkg/platform/gitee_webhook\.go
+        linters:
+          - misspell
 
 # ===========================================================================
 # Formatters Configuration

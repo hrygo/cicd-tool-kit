@@ -74,8 +74,8 @@ type GiteeIssue struct {
 type GiteeNote struct {
 	ID           int       `json:"id"`
 	Body         string    `json:"body"`
-	NoteableType string    `json:"noteable_type"` // Issue, PullRequest
-	NoteableID   int       `json:"noteable_id"`
+	NoteableType string    `json:"noteable_type"` //nolint:misspell // Gitee API uses "noteable"
+	NoteableID   int       `json:"noteable_id"`   //nolint:misspell // Gitee API uses "noteable"
 	User         GiteeUser `json:"user"`
 	CreatedAt    string    `json:"created_at"`
 }

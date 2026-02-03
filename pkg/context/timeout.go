@@ -19,7 +19,7 @@ type signalContext struct {
 	stopCh   chan struct{}
 }
 
-// Done returns the channel that closes when the context is cancelled
+// Done returns the channel that closes when the context is canceled
 // or when a signal is received.
 func (sc *signalContext) Done() <-chan struct{} {
 	return sc.Context.Done()
@@ -72,7 +72,7 @@ func WithSignal(parent context.Context, sigs ...os.Signal) (context.Context, con
 			// Context stopped - exit goroutine
 			return
 		case <-ctx.Done():
-			// Parent context cancelled - exit goroutine
+			// Parent context canceled - exit goroutine
 			return
 		}
 	}()
@@ -114,7 +114,7 @@ func WithSignalTimeout(parent context.Context, timeout time.Duration, sigs ...os
 			// Context stopped - exit goroutine
 			return
 		case <-ctx.Done():
-			// Context cancelled or timed out - exit goroutine
+			// Context canceled or timed out - exit goroutine
 			return
 		}
 	}()

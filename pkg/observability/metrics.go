@@ -412,7 +412,7 @@ func NewAuditLogger(logFile string) (*AuditLogger, error) {
 	var logger *log.Logger
 	var file *os.File
 	if logFile != "" {
-		f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+		f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open audit log file: %w", err)
 		}

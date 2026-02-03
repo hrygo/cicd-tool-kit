@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime/debug"
 	"sync"
+	"time"
 
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/config"
 	"github.com/cicd-ai-toolkit/cicd-runner/pkg/mcp"
@@ -76,8 +77,9 @@ func runHTTPServer(ctx context.Context, server *mcp.Server) error {
 	}
 
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second, // Prevent Slowloris attacks
 	}
 
 	var wg sync.WaitGroup
@@ -86,6 +88,7 @@ func runHTTPServer(ctx context.Context, server *mcp.Server) error {
 	go func() {
 		defer wg.Done()
 		<-ctx.Done()
+		//nolint:errcheck // Best-effort shutdown during context cancellation
 		srv.Shutdown(context.Background())
 	}()
 
