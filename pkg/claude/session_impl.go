@@ -109,6 +109,7 @@ func (s *processSession) ExecuteWithStreams(ctx context.Context, opts ExecuteOpt
 	defer func() {
 		// Close stdin if Start fails (will be no-op if successfully started and copied)
 		if cmdStdin != nil {
+			//nolint:errcheck // Best-effort cleanup during error path
 			_ = cmdStdin.Close()
 		}
 	}()
@@ -116,13 +117,16 @@ func (s *processSession) ExecuteWithStreams(ctx context.Context, opts ExecuteOpt
 	cmdStdout, err := s.cmd.StdoutPipe()
 	if err != nil {
 		// Clean up stdin pipe before returning
+		//nolint:errcheck // Best-effort cleanup during error path
 		_ = cmdStdin.Close()
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 	defer func() {
 		// Close stdout if Start fails
 		if cmdStdout != nil {
+			//nolint:errcheck // Best-effort drain and cleanup during error path
 			_, _ = io.Copy(io.Discard, cmdStdout) // Drain any pending data
+			//nolint:errcheck // Best-effort cleanup during error path
 			_ = cmdStdout.Close()
 		}
 	}()
@@ -130,15 +134,20 @@ func (s *processSession) ExecuteWithStreams(ctx context.Context, opts ExecuteOpt
 	cmdStderr, err := s.cmd.StderrPipe()
 	if err != nil {
 		// Clean up previously created pipes before returning
+		//nolint:errcheck // Best-effort cleanup during error path
 		_ = cmdStdin.Close()
+		//nolint:errcheck // Best-effort cleanup during error path
 		_, _ = io.Copy(io.Discard, cmdStdout)
+		//nolint:errcheck // Best-effort cleanup during error path
 		_ = cmdStdout.Close()
 		return fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
 	defer func() {
 		// Close stderr if Start fails
 		if cmdStderr != nil {
+			//nolint:errcheck // Best-effort drain and cleanup during error path
 			_, _ = io.Copy(io.Discard, cmdStderr) // Drain any pending data
+			//nolint:errcheck // Best-effort cleanup during error path
 			_ = cmdStderr.Close()
 		}
 	}()
@@ -199,7 +208,9 @@ func (s *processSession) ExecuteWithStreams(ctx context.Context, opts ExecuteOpt
 	wg.Wait()
 
 	// Close pipes after goroutines complete to prevent resource leaks
+	//nolint:errcheck // Pipes should be closed by now, ignore errors
 	_ = cmdStdout.Close()
+	//nolint:errcheck // Pipes should be closed by now, ignore errors
 	_ = cmdStderr.Close()
 
 	// Wait for command to finish
@@ -414,7 +425,7 @@ func ExecuteSimple(ctx context.Context, prompt string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = session.Close() }()
+	defer func() { /*nolint:errcheck */ session.Close() }()
 
 	opts := ExecuteOptions{
 		Prompt:          prompt,
@@ -436,7 +447,7 @@ func ExecuteWithInput(ctx context.Context, prompt string, input string) (string,
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = session.Close() }()
+	defer func() { /*nolint:errcheck */ session.Close() }()
 
 	opts := ExecuteOptions{
 		Prompt:          prompt,

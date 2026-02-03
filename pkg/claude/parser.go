@@ -98,7 +98,7 @@ func (p *parser) parseTextIssues(output string) ([]Issue, error) {
 
 		// Check for severity/category patterns
 		for _, pattern := range patterns {
-			matched, _ := regexp.MatchString(pattern.regex, line)
+			matched, _ /*nolint:errcheck */ := regexp.MatchString(pattern.regex, line)
 			if matched && !strings.HasPrefix(line, "#") {
 				issues = append(issues, Issue{
 					Severity:   pattern.severity,

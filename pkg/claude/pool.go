@@ -66,7 +66,7 @@ func DefaultPoolConfig() PoolConfig {
 	// Use XDG cache directory or fallback to .cache
 	baseDir := os.Getenv("XDG_CACHE_HOME")
 	if baseDir == "" {
-		homeDir, _ := os.UserHomeDir()
+		homeDir, _ /*nolint:errcheck */ := os.UserHomeDir()
 		baseDir = filepath.Join(homeDir, ".cache")
 	}
 	sessionDir := filepath.Join(baseDir, "cicd-toolkit", "sessions")
