@@ -3,9 +3,15 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-HOOKS_SRC_DIR="$PROJECT_ROOT/.githooks"
+# Use git to find the repository root (most reliable)
+GIT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$GIT_ROOT" ]; then
+    echo "  ✗ Not in a git repository"
+    exit 1
+fi
+
+# Paths relative to git root
+HOOKS_SRC_DIR="$GIT_ROOT/.githooks"
 HOOKS_DIR="$(git rev-parse --git-common-dir)/hooks"
 
 echo "📦 Installing git hooks for CICD Runner..."

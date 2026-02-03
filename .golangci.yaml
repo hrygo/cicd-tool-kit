@@ -80,7 +80,7 @@ linters:
     misspell:
       locale: US
 
-  # Exclusion rules
+  # Exclusion rules (v2 format)
   exclusions:
     # Exclude generated files
     generated: lax
@@ -96,23 +96,25 @@ linters:
       - ".*\\.mock\\.go$"
       - ".*_string\\.go$"
 
-    # Test files: relax error checking
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-        - bodyclose
-        - nilerr
-        - prealloc
-        - unconvert
-        - unused
+    # Exclusion rules
+    rules:
+      # Test files: relax error checking
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - bodyclose
+          - nilerr
+          - prealloc
+          - unconvert
+          - unused
 
-    # MCP generated code
-    - path: pkg/mcp/
-      linters:
-        - errcheck
-        - gosec
-        - gocritic
+      # MCP generated code
+      - path: pkg/mcp/
+        linters:
+          - errcheck
+          - gosec
+          - gocritic
 
 # ===========================================================================
 # Formatters Configuration
