@@ -4,9 +4,10 @@ description: Analyzes logs for errors, anomalies, and root cause identification.
 options:
   thinking:
     budget_tokens: 2048
-  tools:
-    - grep
-    - read
+allowed-tools:
+  - Grep
+  - Read
+  - Glob
 ---
 
 # Log Analyzer Skill
@@ -76,3 +77,25 @@ You are a log analysis specialist that identifies issues and patterns in applica
 | Timeout | Medium |
 | High memory/CPU | Medium |
 | Rate limit | Low |
+
+## MCP Workflow
+
+When analyzing logs:
+
+1. Use `Grep` with patterns to find error lines
+2. Use `Read` to load log files for analysis
+3. Use `Glob` to discover log files in directories
+4. Correlate timestamps to identify error chains
+
+## Analysis Patterns
+
+```bash
+# Find errors in last hour
+grep -E "ERROR|FATAL|panic" /var/log/app.log | tail -100
+
+# Find slow requests (>1s)
+grep -E "took.*[1-9][0-9]{3,}ms" /var/log/app.log
+
+# Find database connection issues
+grep -i "connection.*refused\|timeout\|pool.*exhausted" /var/log/app.log
+```

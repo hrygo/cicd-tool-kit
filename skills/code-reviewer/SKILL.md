@@ -4,15 +4,15 @@ description: Analyzes code changes for security, performance, logic, and archite
 options:
   thinking:
     budget_tokens: 4096
-  tools:
-    - grep
-    - ls
-    - read
-    # MCP tools for platform integration
-    - mcp:cicd-toolkit#get_pr_info
-    - mcp:cicd-toolkit#get_pr_diff
-    - mcp:cicd-toolkit#get_file_content
-    - mcp:cicd-toolkit#post_review_comment
+allowed-tools:
+  - Grep
+  - Glob
+  - Read
+  # MCP tools for platform integration
+  - mcp:cicd-toolkit#get_pr_info
+  - mcp:cicd-toolkit#get_pr_diff
+  - mcp:cicd-toolkit#get_file_content
+  - mcp:cicd-toolkit#post_review_comment
 ---
 
 # Code Reviewer Skill

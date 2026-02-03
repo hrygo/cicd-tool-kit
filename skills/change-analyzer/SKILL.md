@@ -4,14 +4,14 @@ description: Analyzes PR changes for impact, risk assessment, and generates summ
 options:
   thinking:
     budget_tokens: 2048
-  tools:
-    - grep
-    - ls
-    - read
-    # MCP tools for platform integration
-    - mcp:cicd-toolkit#get_pr_info
-    - mcp:cicd-toolkit#get_pr_diff
-    - mcp:cicd-toolkit#post_review_comment
+allowed-tools:
+  - Grep
+  - Glob
+  - Read
+  # MCP tools for platform integration
+  - mcp:cicd-toolkit#get_pr_info
+  - mcp:cicd-toolkit#get_pr_diff
+  - mcp:cicd-toolkit#post_review_comment
 ---
 
 # Change Analyzer Skill
