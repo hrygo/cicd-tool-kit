@@ -3,6 +3,7 @@ package runner
 
 import (
 	"context"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -31,6 +32,11 @@ func (m *mockPlatform) GetPRInfo(ctx context.Context, prID int) (*platform.PRInf
 func (m *mockPlatform) Health(ctx context.Context) error { return nil }
 
 func TestNewRunner(t *testing.T) {
+	// Skip if claude command is not available (CI environments)
+	if _, err := exec.LookPath("claude"); err != nil {
+		t.Skip("claude command not found, skipping TestNewRunner")
+	}
+
 	cfg := &config.Config{
 		Global: config.GlobalConfig{
 			CacheDir:    ".cache",
