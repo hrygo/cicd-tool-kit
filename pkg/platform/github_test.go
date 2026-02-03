@@ -5,7 +5,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 )
 
@@ -312,7 +311,9 @@ func TestIsGitHubEnv(t *testing.T) {
 	}
 
 	// Test not in GitHub env
-	osGetenv = os.Getenv
+	osGetenv = func(key string) string {
+		return "" // Always return empty, simulating non-GitHub environment
+	}
 
 	if IsGitHubEnv() {
 		t.Error("IsGitHubEnv() = true, want false (not in GitHub Actions)")
